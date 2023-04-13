@@ -4,6 +4,7 @@ package migrations
 import (
 	"log"
 
+	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/daos"
 	m "github.com/pocketbase/pocketbase/migrations"
@@ -14,82 +15,11 @@ import (
 
 // collections map
 var collections = map[string]schema.Schema{
-	"data": schema.NewSchema(
-		&schema.SchemaField{
-			Name: "host",
-			Type: schema.FieldTypeText,
-		},
-		&schema.SchemaField{
-			Name: "ip",
-			Type: schema.FieldTypeText,
-		},
-		&schema.SchemaField{
-			Name: "port",
-			Type: schema.FieldTypeText,
-		},
-		&schema.SchemaField{
-			Name: "url_data",
-			Type: schema.FieldTypeJson,
-		},
-		&schema.SchemaField{
-			Name: "original_request",
-			Type: schema.FieldTypeJson,
-		},
-		&schema.SchemaField{
-			Name: "original_response",
-			Type: schema.FieldTypeJson,
-		},
-		&schema.SchemaField{
-			Name: "has_response",
-			Type: schema.FieldTypeBool,
-		},
-		&schema.SchemaField{
-			Name: "is_request_edited",
-			Type: schema.FieldTypeBool,
-		},
-		&schema.SchemaField{
-			Name: "is_response_edited",
-			Type: schema.FieldTypeBool,
-		},
-		&schema.SchemaField{
-			Name: "edited_request",
-			Type: schema.FieldTypeJson,
-		},
-		&schema.SchemaField{
-			Name: "edited_response",
-			Type: schema.FieldTypeJson,
-		},
-		&schema.SchemaField{
-			Name: "labels",
-			Type: schema.FieldTypeJson,
-		},
-	),
-	"store": schema.NewSchema(
-		&schema.SchemaField{
-			Name: "request",
-			Type: schema.FieldTypeText,
-		},
-		&schema.SchemaField{
-			Name: "response",
-			Type: schema.FieldTypeText,
-		},
-		&schema.SchemaField{
-			Name: "request_edited",
-			Type: schema.FieldTypeText,
-		},
-		&schema.SchemaField{
-			Name: "response_edited",
-			Type: schema.FieldTypeText,
-		},
-	),
-	"sites": schema.NewSchema(
-		&schema.SchemaField{
-			Name:     "site",
-			Type:     schema.FieldTypeText,
-			Unique:   true,
-			Required: true,
-		},
-	),
+	"data":      rows,
+	"intercept": intercept,
+	"store":     store,
+	"sites":     sites,
+	"settings":  settings,
 }
 
 func init() {
@@ -102,38 +32,9 @@ func init() {
 		if err != nil {
 			log.Println(err)
 		}
+
 		//Delete users
 		if err := dao.DeleteCollection(collection); err != nil {
-			log.Println(err)
-		}
-
-		// Delete row from table data where id is _pb_users_auth_
-		if err := dao.DeleteCollection(&models.Collection{
-			Name: "users",
-			Type: "auth",
-			Schema: schema.NewSchema(
-				&schema.SchemaField{
-					Name:     "username",
-					Type:     schema.FieldTypeText,
-					Required: true,
-				},
-				&schema.SchemaField{
-					Name:     "email",
-					Type:     schema.FieldTypeText,
-					Required: true,
-				},
-				&schema.SchemaField{
-					Name:     "name",
-					Type:     schema.FieldTypeText,
-					Required: true,
-				},
-				&schema.SchemaField{
-					Name:     "avatar",
-					Type:     schema.FieldTypeText,
-					Required: true,
-				},
-			),
-		}); err != nil {
 			log.Println(err)
 		}
 
@@ -161,8 +62,24 @@ func init() {
 			}
 
 			if err := dao.SaveCollection(collection); err != nil {
-				log.Println(err)
+				log.Println("[migration][init] Error: ", err)
 			}
+
+			log.Println("[migration][init] Creating collection: ", name)
+		}
+
+		collection, err = dao.FindCollectionByNameOrId("settings")
+		if err != nil {
+			return err
+		}
+
+		record := models.NewRecord(collection)
+		record.Set("id", types.Settings.Intercept)
+		record.Set("option", "Intercept")
+		record.Set("value", true)
+
+		if err := dao.SaveRecord(record); err != nil {
+			return err
 		}
 
 		return nil

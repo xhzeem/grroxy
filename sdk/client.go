@@ -29,6 +29,8 @@ func NewClient(url string, opts ...ClientOption) *Client {
 		SetRetryWaitTime(3 * time.Second).
 		SetRetryMaxWaitTime(10 * time.Second)
 
+	client.Debug = true
+
 	c := &Client{
 		client:     client,
 		url:        url,
