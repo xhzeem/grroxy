@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"sync"
 
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
@@ -52,11 +53,19 @@ func (p *Proxy) InterceptManager() {
 				log.Fatal(err)
 			}
 
+			var wg sync.WaitGroup
+
+			wg.Add(len(response.Items))
+
 			// update each record action to forward
 			for _, record := range response.Items {
-				record.Action = "forward"
-				p.grroxydb.Update("intercept", record.ID, record)
+				go func() {
+					record.Action = "forward"
+					p.grroxydb.Update("intercept", record.ID, record)
+					wg.Done()
+				}()
 			}
+			wg.Wait()
 		} else {
 			p.options.Intercept = true
 		}
