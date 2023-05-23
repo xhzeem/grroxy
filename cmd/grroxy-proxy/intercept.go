@@ -59,11 +59,11 @@ func (p *Proxy) InterceptManager() {
 
 			// update each record action to forward
 			for _, record := range response.Items {
-				go func() {
-					record.Action = "forward"
-					p.grroxydb.Update("intercept", record.ID, record)
+				go func(r types.RealtimeRecord) {
+					r.Action = "forward"
+					p.grroxydb.Update("intercept", r.ID, r)
 					wg.Done()
-				}()
+				}(record)
 			}
 			wg.Wait()
 		} else {
