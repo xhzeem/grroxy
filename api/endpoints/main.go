@@ -1,6 +1,7 @@
 package endpoints
 
 import (
+	"github.com/glitchedgitz/grroxy-db/config"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/models"
 	"github.com/pocketbase/pocketbase/models/schema"
@@ -8,7 +9,8 @@ import (
 )
 
 type DatabaseAPI struct {
-	App *pocketbase.PocketBase
+	App    *pocketbase.PocketBase
+	Config *config.Config
 	// collections []string
 }
 

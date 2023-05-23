@@ -8,6 +8,7 @@ import (
 type Config struct {
 	ProjectDirectory  string
 	DatabaseDirectory string
+	CacheDirectory    string
 }
 
 func (c *Config) NewProject() {
