@@ -30,6 +30,16 @@ type SitemapRows struct {
 	PerPage int64  `db:"perPage" json:"perPage"`
 }
 
+type GetData struct {
+	Collection string `db:"collection" json:"collection"`
+	Path       string `db:"path" json:"path"`
+	Page       int64  `db:"page" json:"page"`
+	PerPage    int64  `db:"perPage" json:"perPage"`
+	Sort       string `db:"sort" json:"sort"`
+	Search     string `db:"search" json:"search"`
+	ColType    string `db:"col_type" json:"col_type"`
+}
+
 type SitemapRowsResponse struct {
 	TotalItems int `json:"totalItems"`
 	TotalPages int `json:"totalPages"`
