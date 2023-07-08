@@ -7,31 +7,32 @@ import (
 	"net/http"
 	"os/exec"
 	"path"
-	"strings"
 
+	"github.com/glitchedgitz/grroxy-db/base"
 	"github.com/glitchedgitz/grroxy-db/save"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/models/schema"
+	"github.com/pocketbase/pocketbase/models"
 )
 
-// channel to receive commands
-var commandChannel = make(chan string)
+type Cmd struct {
+	command    string
+	collection string
+}
 
 // loop over commandChannel
-func CommandManager() {
-	for {
-		command := <-commandChannel
-		log.Println("Command received: ", command)
-		RunningCommand(command)
+func (pocketbaseDB *DatabaseAPI) CommandManager() {
+	log.Println("[CommandManager Stared]")
+	for c := range pocketbaseDB.CmdChannel {
+		log.Println("Command received: ", c)
+		pocketbaseDB.RunningCommand(c.command, c.collection)
 	}
 }
 
-func RunningCommand(command string) {
+func (pocketbaseDB *DatabaseAPI) RunningCommand(command string, collectionName string) {
 
-	log.Println("Running command: ", command)
-
+	log.Println("RunningCommand: ", command)
 	cmd := exec.Command("cmd", "/C", command)
 
 	// Create a pipe for the output of the command
@@ -51,9 +52,18 @@ func RunningCommand(command string) {
 	// Create a scanner to read the output line by line
 	scanner := bufio.NewScanner(stdout)
 
+	collection, err := pocketbaseDB.App.Dao().FindCollectionByNameOrId(collectionName)
+	base.CheckErr("[RunningCommand][FindCollection]:", err)
+
 	// Read the output in real-time
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		jsonrow := scanner.Text()
+		log.Println("[RunningCommand][Scanner]: ", jsonrow)
+
+		record := models.NewRecord(collection)
+		record.Set("data", jsonrow)
+		err = pocketbaseDB.App.Dao().SaveRecord(record)
+		base.CheckErr("[RunningCommand][SaveRecord]:", err)
 	}
 
 	// Wait for the command to finish
@@ -76,43 +86,48 @@ func (pocketbaseDB *DatabaseAPI) RunCommand(e *core.ServeEvent) error {
 				return err
 			}
 
-			filePath := path.Join(pocketbaseDB.Config.CacheDirectory, "request_id.txt")
-			wordlistPath := `D:\test\test.txt`
-
-			// Save request_id.txt
-			save.WriteFile(filePath, []byte(data["request"].(string)))
-
-			// Create a new database
-			collection := "ffuf_test"
-			err := pocketbaseDB.CreateCollection(collection, schema.NewSchema(
-				&schema.SchemaField{
-					Name:     "path",
-					Type:     schema.FieldTypeText,
-					Required: true,
-				}, &schema.SchemaField{
-					Name:     "type",
-					Type:     schema.FieldTypeText,
-					Required: true,
-				},
-				&schema.SchemaField{
-					Name:     "main_id",
-					Type:     schema.FieldTypeText,
-					Required: true,
-				},
-			))
-
-			if err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				log.Println("collection already exists: ", collection)
-			}
-
-			// ffuf -r request_id.txt -w wordlist.txt
-			command := fmt.Sprintf("ffuf -request %s -w %s -json", filePath, wordlistPath)
-			RunningCommand(command)
+			log.Println("[RunCommand]: ", data)
 
 			// send to channel
-			// commandChannel <- command
+			pocketbaseDB.CmdChannel <- Cmd{
+				command:    data["command"].(string),
+				collection: data["collection"].(string),
+			}
 
 			return c.String(http.StatusOK, "Created")
+		},
+		Middlewares: []echo.MiddlewareFunc{
+			apis.ActivityLogger(pocketbaseDB.App),
+		},
+	})
+	return nil
+}
+
+func (pocketbaseDB *DatabaseAPI) SaveFile(e *core.ServeEvent) error {
+	e.Router.AddRoute(echo.Route{
+		Method: http.MethodPost,
+		Path:   "/api/savefile",
+		Handler: func(c echo.Context) error {
+
+			var data map[string]interface{}
+			if err := c.Bind(&data); err != nil {
+				return err
+			}
+			log.Println("[SaveFile]: ", data)
+
+			fileName := data["fileName"].(string)
+			fileData := data["fileData"].(string)
+
+			filePath := path.Join(pocketbaseDB.Config.CacheDirectory, fileName)
+
+			// Save request_id.txt
+			save.WriteFile(filePath, []byte(fileData))
+
+			jsonData := map[string]interface{}{
+				"filepath": filePath,
+			}
+
+			return c.JSON(http.StatusOK, jsonData)
 		},
 		Middlewares: []echo.MiddlewareFunc{
 			apis.ActivityLogger(pocketbaseDB.App),

@@ -9,9 +9,9 @@ import (
 )
 
 type DatabaseAPI struct {
-	App    *pocketbase.PocketBase
-	Config *config.Config
-	// collections []string
+	App        *pocketbase.PocketBase
+	Config     *config.Config
+	CmdChannel chan Cmd
 }
 
 // Create Collection with schema in params

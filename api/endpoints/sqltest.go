@@ -1,9 +1,13 @@
 package endpoints
 
 import (
+	"database/sql"
+	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -27,22 +31,27 @@ func (pocketbaseDB *DatabaseAPI) TextSQL(e *core.ServeEvent) error {
 				return err
 			}
 
-			var s string
-			// var result CountResult
+			var results sql.Result
 
-			// err := pocketbaseDB.App.Dao().DB().NewQuery(data.SQL).One(&result)
-			// err2 := pocketbaseDB.App.Dao().DB().Select("count(*)").From("sites").Row(&t2)
-			err := pocketbaseDB.App.Dao().DB().NewQuery(data.SQL).Row(&s)
-			// err2 := pocketbaseDB.App.Dao().DB().NewQuery("Select count(*) from data").All(&t2)
+			query := pocketbaseDB.App.Dao().DB().NewQuery(data.SQL)
+			log.Println("[TextSQL] ", results)
 
-			// fmt.Println("t1", t1)
-			// fmt.Println("t2", t2)
+			// if err != nil {
+			// 	apis.NewBadRequestError("Failed to fetch warehouse items", err)
+			// }
 
-			if err != nil {
-				apis.NewBadRequestError("Failed to fetch warehouse items", err)
+			rows, _ := query.Rows()
+			row := dbx.NullStringMap{}
+
+			resultStr := ""
+			for rows.Next() {
+				_ = rows.ScanMap(row)
+				log.Println("Scanned SQL:, ", row)
+				jsonStr, _ := json.Marshal(row)
+				resultStr = resultStr + string(jsonStr) + "\n"
 			}
 
-			return c.JSON(http.StatusOK, s)
+			return c.JSON(http.StatusOK, resultStr)
 		},
 		Middlewares: []echo.MiddlewareFunc{
 			apis.ActivityLogger(pocketbaseDB.App),

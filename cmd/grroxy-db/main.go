@@ -42,18 +42,21 @@ func main() {
 			ProjectDirectory:  "grroxy_test",
 			DatabaseDirectory: "grroxy",
 		},
+
+		CmdChannel: make(chan endpoints.Cmd),
 	}
 
-	go endpoints.CommandManager()
+	// pb.CmdChannel
+	go pb.CommandManager()
 
 	// Adding custom endpoints
-	pb.App.OnBeforeServe().Add(pb.GetData)
 	pb.App.OnBeforeServe().Add(pb.SitemapNew)
 	pb.App.OnBeforeServe().Add(pb.SitemapFetch)
 	pb.App.OnBeforeServe().Add(pb.SitemapRows)
 	pb.App.OnBeforeServe().Add(pb.RunCommand)
 	pb.App.OnBeforeServe().Add(pb.SendRawRequest)
 	pb.App.OnBeforeServe().Add(pb.TextSQL)
+	pb.App.OnBeforeServe().Add(pb.SaveFile)
 	pb.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		collection, err := pb.App.Dao().FindCollectionByNameOrId("intercept")
 		if err != nil {
