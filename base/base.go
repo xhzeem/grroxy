@@ -1,8 +1,13 @@
 package base
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"net/http/httputil"
 	"strings"
 )
 
@@ -61,4 +66,43 @@ func ParseDataFromFrontend[T interface{}](results []interface{}) T {
 	log.Println(parsedData)
 
 	return parsedData
+}
+
+func ResponseToByte(resp *http.Response) ([]byte, error) {
+
+	body, err := ioutil.ReadAll(resp.Body)
+	// resp.Body.Close()
+
+	if err != nil {
+		return []byte(""), fmt.Errorf("failed to read the response body: %w", err)
+	}
+
+	// Create a new response without the chunked encoding information
+	newResp := &http.Response{
+		Status:        resp.Status,
+		StatusCode:    resp.StatusCode,
+		Proto:         resp.Proto,
+		ProtoMajor:    resp.ProtoMajor,
+		ProtoMinor:    resp.ProtoMinor,
+		Header:        resp.Header,
+		ContentLength: int64(len(body)),
+		Body:          ioutil.NopCloser(bytes.NewReader(body)),
+		Request:       resp.Request,
+	}
+
+	respBytes, err := httputil.DumpResponse(newResp, true)
+	if err != nil {
+		return []byte(""), err
+	}
+
+	return respBytes, nil
+}
+
+func ResponseToString(resp *http.Response) (string, error) {
+	// Read the response body
+
+	respBytes, err := ResponseToByte(resp)
+	CheckErr("[ResponseToString]: ", err)
+
+	return string(respBytes), nil
 }

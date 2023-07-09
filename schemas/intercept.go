@@ -48,10 +48,6 @@ var Intercept = schema.NewSchema(
 		Type: schema.FieldTypeJson,
 	},
 	&schema.SchemaField{
-		Name: "labels",
-		Type: schema.FieldTypeJson,
-	},
-	&schema.SchemaField{
 		Name: "action",
 		Type: schema.FieldTypeText,
 	},

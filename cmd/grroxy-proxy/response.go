@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/elazarl/goproxy"
+	"github.com/glitchedgitz/grroxy-db/base"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
@@ -39,42 +39,25 @@ func (p *Proxy) MatchReplaceResponse(resp string) string {
 	}
 }
 
-// if p.options.ResponseDSL != "" && !userdata.Match {
-// 	m, _ := mapsutil.HTTPResponseToMap(resp)
-// 	v, err := dsl.EvalExpr(p.options.ResponseDSL, m)
-// 	if err != nil {
-// 		gologger.Warning().Msgf("Could not evaluate response dsl: %s\n", err)
-// 	}
-// 	userdata.Match = err == nil && v.(bool)
-// }
-
-// perform match and replace
-// if p.options.ResponseMatchReplaceDSL != "" {
-// 	respString = p.MatchReplaceResponse(respString)
-// }
-
 func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 
 	userdata := ctx.UserData.(types.UserData)
+	log.Printf("[Response][Intercept][%s]: ResponseUserdata \n", userdata)
+
+	id := userdata.ID
 	userdata.HasResponse = true
 
 	if resp == nil {
 		return nil
 	}
 
-	respBytes, err := httputil.DumpResponse(resp, true)
-	if err != nil {
-		log.Println("Resp: Dumping Bytes Error", err)
-	}
-	respDataInString := string(respBytes)
-
-	// respID := base.RandomString(15)
-
-	// currentTime := time.Now()
+	responseInBytes, err := base.ResponseToByte(resp)
+	base.CheckErr("[OnResponse]", err)
+	responseInString := string(responseInBytes)
 
 	var title string
-	if respBytes != nil {
-		title, _ = extractTitle(respBytes)
+	if responseInBytes != nil {
+		title, _ = extractTitle(responseInBytes)
 	}
 
 	userdata.OriginalResponse = types.ResponseData{
@@ -82,62 +65,63 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 		Title:         title,
 		Mimetype:      resp.Header.Get("content-type"),
 		StatusCode:    resp.StatusCode,
-		ContentLength: resp.ContentLength,
+		ContentLength: len(responseInString),
 		Date:          resp.Header.Get("Date"),
 		Time:          time.Now().Format(time.RFC3339),
 	}
 
-	// First we need to save the original response
-	// p.save.Save("resp", userdata) //nolint
-	// runtime.LogPrintf(p.options.Ctx, "Intercept is %v", p.options.Intercept)
 	r_data := Store_Resp{
-		Response: respDataInString,
+		Response: responseInString,
 	}
-	p.grroxydb.Update("store", userdata.ID, r_data)
 
+	p.grroxydb.Update("store", id, r_data)
+
+	// Intercept
 	if p.options.Intercept {
 
 		var wg sync.WaitGroup
-		// var updatedResp types.UserData
 
 		wg.Add(1)
 
 		//Add to database
 		p.DBCreate("intercept", userdata)
 
-		stream, err := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "intercept").Subscribe("intercept/" + userdata.ID)
+		// Realtime Subscription
+		stream, err := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "intercept").Subscribe("intercept/" + id)
 
-		log.Print("Subcrbied to the record")
-		if err != nil {
-			log.Fatal(err)
-		}
+		base.CheckErr(fmt.Sprintf("[Response][Intercept][%s] Error while creating stream \n", id), err)
+		log.Printf("[Response][Intercept][%s]: Subcrbied to the record \n", id)
 
 		<-stream.Ready()
-
-		log.Print("Subcrbie is ready")
+		log.Printf("[Response][Intercept][%s]: Subcrbie is ready\n", id)
 
 		updatedRow := types.RealtimeRecord{}
-
+		action := ""
 		for ev := range stream.Events() {
-			log.Print(ev.Action, ev.Record)
+			log.Printf("[Response][Intercept][%s]: %s %v\n", id, ev.Action, ev.Record)
+
 			if ev.Record.Action == "forward" {
-				log.Println("Forwarding response...")
+				log.Printf("[Response][Intercept][%s]: Forwarding Response\n", id)
 				updatedRow = ev.Record
-			} else if ev.Record.Action == "drop" {
-				// GPT4's Idea
-				log.Println("Drop response...")
-				return goproxy.NewResponse(ctx.Req, goproxy.ContentTypeText, 444, "")
-			} else {
-				continue
+				action = "forward"
+				break
 			}
-			break
+			if ev.Record.Action == "drop" { // GPT4's Idea
+				action = "drop"
+				log.Printf("[Response][Intercept][%s]: Drop Response\n", id)
+				break
+			}
 		}
 
 		stream.Unsubscribe()
-		log.Print("Unsubscribed")
+		log.Printf("[Response][Intercept][%s]: About to Unsubscribe Response\n", id)
 
-		p.grroxydb.Delete("intercept", userdata.ID)
+		p.grroxydb.Delete("intercept", id)
 		p.grroxydb.Create("data", userdata)
+
+		if action == "drop" {
+			return goproxy.NewResponse(ctx.Req, goproxy.ContentTypeText, 444, "")
+		}
 
 		collection := sdk.CollectionSet[any](p.grroxydb, "store")
 		updatedData, err := collection.One(updatedRow.ID)
@@ -147,31 +131,43 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 
 		var updatedString string
 
-		log.Println("Edited Request is not empty -----------------------")
+		log.Println("[onResponse] Edited Response is not empty -----------------------")
 		log.Println(updatedData)
 
 		upData := updatedData.(map[string]interface{})
-		log.Println("Updated Data --------------  ", upData)
+		log.Println("[onResponse] Updated Data --------------  ", upData)
 
 		if updatedRow.IsResponseEdited {
 			updatedString = upData["response_edited"].(string)
+			userdata.IsResponseEdited = true
+			// p.DBUpdate("store", userdata.ID, map[string]string{
+			// 	"response_edited": updatedString,
+			// })
 		} else {
 			updatedString = upData["response"].(string)
 		}
 
-		respNew, err := http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(updatedString))), nil)
+		log.Println("[onResponse][ReadResponse]")
+		respNew, err := http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(updatedString))), ctx.Req)
+		// reader := bufio.NewReader(bytes.NewReader([]byte(updatedString)))
+		// respNew, err := http.ReadResponse(reader, nil)
 
 		if err != nil {
 			log.Println("Error in reading response", err)
 		}
 
-		ctx.UserData = userdata
+		if respNew == nil {
+			log.Println("[onResponse] Nil Response", err)
+		}
+
 		defer resp.Body.Close()
+		ctx.UserData = userdata
 		return respNew
 	}
 
 	p._responseAddToDB(userdata)
-
+	resp, err = http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(responseInString))), ctx.Req)
+	base.CheckErr("[onResponse]: ", err)
 	ctx.UserData = userdata
 	return resp
 }
@@ -212,11 +208,3 @@ func extractTitle(respByte []byte) (string, string) {
 	}
 	return title, favicon
 }
-
-// respNew, err := http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(updatedResp.Event.Data))), nil)
-// if err == io.ErrUnexpectedEOF {
-// 	respNew, err = http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(updatedResp.Event.Data+"\n\n"))), nil)
-// 	if err != nil {
-// 		log.Fatalln("Response: ", err)
-// 	}
-// }

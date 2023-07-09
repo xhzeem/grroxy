@@ -28,91 +28,72 @@ func (p *Proxy) MatchReplaceRequest(req string) string {
 	}
 }
 
-// check dsl
-// if p.options.RequestDSL != "" {
-// 	m, _ := mapsutil.HTTPRequesToMap(req)
-// 	v, err := dsl.EvalExpr(p.options.RequestDSL, m)
-// 	if err != nil {
-// 		gologger.Warning().Msgf("Could not evaluate request dsl: %s\n", err)
-// 	}
-// 	userdata.Match = err == nil && v.(bool)
-// }
+// const CONCURRENCY = 20
 
-// Future Idea:
-// (May be required by plugins in future)
-// So before we send the request to user to edit, changes will be applied by plugins
-
-// perform match and replace
-//
-//	if p.options.RequestMatchReplaceDSL != "" {
-//		reqString = p.MatchReplaceRequest(reqString)
-//	}
+// var rateLimit = make(chan string, CONCURRENCY)
 
 func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-
+	// rateLimit <- ""
+	// defer func() { <-rateLimit }()
 	var userdata types.UserData
 
 	if ctx.UserData != nil {
 		userdata = ctx.UserData.(types.UserData)
 	}
 
-	id := base.RandomString(15)
+	// Convert request to string
+	requestInBytes, err := httputil.DumpRequestOut(req, true)
+	base.CheckErr("Req:Dumping Bytes Error", err)
+	requestInString := string(requestInBytes)
 
-	reqBytes, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		log.Println("Req:Dumping Bytes Error", err)
-	}
+	// Initiate variables
+	var (
+		id      = base.RandomString(15)
+		method  = "GET"
+		host    = req.URL.Host
+		port    = ""
+		isHttps = req.TLS != nil
+	)
 
-	reqDataInString := string(reqBytes)
+	// Set method
+	func() {
+		if req.Method != "" {
+			method = req.Method
+		}
+	}()
 
-	Method := "GET"
-	if req.Method != "" {
-		Method = req.Method
-	}
+	// Set host and port
+	func() {
+		if strings.Contains(host, ":") {
+			t := strings.Split(host, ":")
+			host = t[0]
+			port = t[1]
+		}
 
-	var host = req.URL.Host
-	var port = ""
-	params := make(map[string][]string)
-
-	for k, v := range req.URL.Query() {
-		params[k] = v
-	}
-	fmt.Println(params)
-
-	if strings.Contains(host, ":") {
-		t := strings.Split(host, ":")
-		host = t[0]
-		port = t[1]
-	}
-
-	isHttps := req.TLS != nil
-	if isHttps {
-		host = "https://" + host
-	} else {
-		host = "http://" + host
-	}
+		if isHttps {
+			host = "https://" + host
+		} else {
+			host = "http://" + host
+		}
+	}()
 
 	userdata = types.UserData{
-		ID:   id,
-		Host: host,
-		Port: port,
-		IP:   req.RemoteAddr,
-		UrlData: types.UrlData{
-			Scheme: req.URL.Scheme,
-			Params: params,
-			Path:   req.URL.Path,
-		},
+		ID:          id,
+		StoreID:     id,
+		Host:        host,
+		Port:        port,
+		IP:          req.RemoteAddr,
 		HasResponse: false,
 		OriginalRequest: types.RequestData{
-			AllURL:        *req.URL,
-			Url:           req.URL.RequestURI(),
-			Method:        Method,
+			Method:        method,
 			HasCookies:    len(req.Cookies()) > 0,
 			HasParams:     len(req.URL.Query()) > 0,
-			ContentLength: 0,
+			ContentLength: len(requestInString),
 			IsHTTPS:       isHttps,
-			Date:          "",
-			Time:          "",
+			Url:           req.URL.RequestURI(),
+			Path:          req.URL.Path,
+			Query:         req.URL.RawQuery,
+			Fragment:      req.URL.RawFragment,
 		},
 		OriginalResponse: types.ResponseData{
 			Title:         "",
@@ -125,81 +106,84 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 		},
 		IsRequestEdited:  false,
 		IsResponseEdited: false,
-		Labels:           []string{"test"},
+		// Labels:           []string{"test"},
 	}
 
-	// To get favicon of sites
-	//http://www.google.com/s2/favicons?domain=stackoverflow.com
+	// Add to database
+	func() {
+		p.DBCreate("store", map[string]string{
+			"id":      userdata.ID,
+			"request": requestInString,
+		})
+		// p.grroxydb.Create("data", userdata)
+	}()
 
-	// First we need to save the original request
-	// p.save.Save("req", userdata) //nolint
-	// runtime.LogPrintf(p.options.Ctx, "Intercept is %v", p.options.Intercept)
-
-	p.DBCreate("store", map[string]string{
-		"id":      userdata.ID,
-		"request": reqDataInString,
-	})
-
+	// Intercept
 	if p.options.Intercept {
 
 		var wg sync.WaitGroup
-		var updatedReq types.UserData
 
 		wg.Add(1)
 
-		//Add to database
+		// Add to intercept database
 		p.DBCreate("intercept", userdata)
 
+		// Realtime Subscription
 		stream, err := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "intercept").Subscribe("intercept/" + id)
 
-		log.Print("Subcrbied to the record")
-		if err != nil {
-			log.Fatal(err)
-		}
+		base.CheckErr(fmt.Sprintf("[Request][Intercept][%s] Error while creating stream \n", id), err)
+		log.Printf("[Request][Intercept][%s]: Subcrbied to the record \n", id)
 
 		<-stream.Ready()
-
-		log.Print("Subcrbie is ready")
+		log.Printf("[Request][Intercept][%s]: Subcrbie is ready\n", id)
 
 		updatedRow := types.RealtimeRecord{}
+		action := ""
 
+		// Listening to changes
 		for ev := range stream.Events() {
-			log.Print(ev.Action, ev.Record)
+			log.Printf("[Request][Intercept][%s]: %s %v\n", id, ev.Action, ev.Record)
+
 			if ev.Record.Action == "forward" {
-				log.Println("Forwarding Request...")
+				log.Printf("[Request][Intercept][%s]: Forwarding Request\n", id)
 				updatedRow = ev.Record
-			} else if ev.Record.Action == "drop" {
-				// GPT4's Idea
-				log.Println("Drop Request...")
-				return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 444, "")
-			} else {
-				continue
+				action = "forward"
+
+				break
 			}
-			break
+			if ev.Record.Action == "drop" { // GPT4's Idea
+				log.Printf("[Request][Intercept][%s]: Drop Request\n", id)
+				action = "drop"
+				break
+				// return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 444, "")
+			}
 		}
 
+		log.Printf("[Request][Intercept][%s]: About to Unsubscribe Request\n", id)
 		stream.Unsubscribe()
-		log.Print("Unsubscribed")
+		log.Printf("[Request][Intercept][%s]: Unsubscribe Request\n", id)
 
+		// Move row from intercept to data
 		p.grroxydb.Delete("intercept", userdata.ID)
-		p.grroxydb.Create("data", userdata)
-
+		if action == "drop" {
+			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, 444, "")
+		}
 		collection := sdk.CollectionSet[any](p.grroxydb, "store")
 		updatedData, err := collection.One(updatedRow.ID)
-		if err != nil {
-			log.Println(err)
-		}
+
+		base.CheckErr("Error in getting updated data", err)
 
 		var updatedString string
 
-		log.Println("Edited Request is not empty -----------------------")
-		log.Println(updatedData)
+		// log.Println("Edited Request is not empty -----------------------")
+		// log.Println(updatedData)
 
 		upData := updatedData.(map[string]interface{})
 		log.Println("Updated Data --------------  ", upData)
 
 		if updatedRow.IsRequestEdited {
 			updatedString = upData["request_edited"].(string)
+			userdata.IsRequestEdited = true
 			// p.DBUpdate("store", userdata.ID, map[string]string{
 			// 	"request_edited": updatedString,
 			// })
@@ -207,28 +191,16 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 			updatedString = upData["request"].(string)
 		}
 
+		// Convert string to request
 		requestNew, err := http.ReadRequest(bufio.NewReader(strings.NewReader(fmt.Sprint(updatedString))))
+		base.CheckErr("Error in reading updated request", err)
 
-		// Update Host
-		if err != nil {
-			log.Println("[ERR] Request: -----------------------\n", err)
-		}
+		// Todo: Set Host, Port and Scheme
+		// req.URL.Host // this can include the port also
+		// req.URL.Scheme
 
-		// updatedReq = types.UserData{
-		// 	ID:               updatedRow.ID,
-		// 	Host:             updatedRow.Host,
-		// 	Port:             updatedRow.Port,
-		// 	IP:               updatedRow.IP,
-		// 	UrlData:          updatedRow.UrlData,
-		// 	HasResponse:      updatedRow.HasResponse,
-		// 	OriginalRequest:  updatedRow.OriginalRequest.(types.RequestData),
-		// 	OriginalResponse: updatedRow.OriginalResponse(types.ResponseData),
-		// 	IsRequestEdited:  updatedRow.IsRequestEdited,
-		// 	IsResponseEdited: updatedRow.IsResponseEdited,
-		// 	Labels:           updatedRow.Labels,
-		// }
-
-		ctx.UserData = updatedReq
+		p._requestAddToDB(userdata)
+		ctx.UserData = userdata
 
 		req.Body.Close()
 		return requestNew, nil
@@ -242,20 +214,35 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 
 func (p *Proxy) _requestAddToDB(userdata types.UserData) {
 
-	s_data := types.SitemapGet{
-		Host:     userdata.Host,
-		Path:     userdata.OriginalRequest.AllURL.Path,
-		Query:    userdata.OriginalRequest.AllURL.RawQuery,
-		Fragment: userdata.OriginalRequest.AllURL.RawFragment,
-		Type:     "folder",
-		MainID:   userdata.ID,
-	}
-
-	p.grroxydb.Delete("intercept", userdata.ID)
 	p.grroxydb.Create("data", userdata)
 
 	p.DBCreate("sites", map[string]string{
 		"site": userdata.Host,
 	})
+
+	s_data := types.SitemapGet{
+		Host:     userdata.Host,
+		Path:     userdata.OriginalRequest.Path,
+		Query:    userdata.OriginalRequest.Query,
+		Fragment: userdata.OriginalRequest.Fragment,
+		Type:     "folder",
+		MainID:   userdata.ID,
+	}
+
+	// check path and detect file or folder
+	// d := strings.Split(s_data.Path, "/")
+	// folder := d[len(d)-1]
+
+	// // check if this is file
+	// if strings.Contains(folder, ".") {
+	// 	s_data.Type = "file"
+
+	// 	// check extension
+	// 	e := strings.Split(folder, ".")
+	// 	ext := e[len(e)-1]
+	// 	switch ext {
+	// 	case "js":
+	// }
+
 	p.DBNewSitemap(s_data)
 }
