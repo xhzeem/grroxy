@@ -51,6 +51,7 @@ func main() {
 
 	// Adding custom endpoints
 	pb.App.OnBeforeServe().Add(pb.SitemapNew)
+	pb.App.OnBeforeServe().Add(pb.SitemapFetch)
 	pb.App.OnBeforeServe().Add(pb.RunCommand)
 	pb.App.OnBeforeServe().Add(pb.SendRawRequest)
 	pb.App.OnBeforeServe().Add(pb.TextSQL)
