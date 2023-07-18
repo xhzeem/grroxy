@@ -7,12 +7,10 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/elazarl/goproxy"
 	"github.com/glitchedgitz/grroxy-db/base"
-	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
 	"golang.org/x/net/html"
@@ -76,99 +74,28 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 
 	p.grroxydb.Update("store", id, r_data)
 
+	// var updatedString string
+	var edited bool
 	// Intercept
 	if p.options.Intercept {
 
-		var wg sync.WaitGroup
+		responseInString, edited = p.interceptWait(userdata, "response", resp.ContentLength)
 
-		wg.Add(1)
-
-		//Add to database
-		p.DBCreate("intercept", userdata)
-
-		// Realtime Subscription
-		stream, err := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "intercept").Subscribe("intercept/" + id)
-
-		base.CheckErr(fmt.Sprintf("[Response][Intercept][%s] Error while creating stream \n", id), err)
-		log.Printf("[Response][Intercept][%s]: Subcrbied to the record \n", id)
-
-		<-stream.Ready()
-		log.Printf("[Response][Intercept][%s]: Subcrbie is ready\n", id)
-
-		updatedRow := types.RealtimeRecord{}
-		action := ""
-		for ev := range stream.Events() {
-			log.Printf("[Response][Intercept][%s]: %s %v\n", id, ev.Action, ev.Record)
-
-			if ev.Record.Action == "forward" {
-				log.Printf("[Response][Intercept][%s]: Forwarding Response\n", id)
-				updatedRow = ev.Record
-				action = "forward"
-				break
-			}
-			if ev.Record.Action == "drop" { // GPT4's Idea
-				action = "drop"
-				log.Printf("[Response][Intercept][%s]: Drop Response\n", id)
-				break
-			}
-		}
-
-		stream.Unsubscribe()
-		log.Printf("[Response][Intercept][%s]: About to Unsubscribe Response\n", id)
-
-		p.grroxydb.Delete("intercept", id)
-		p.grroxydb.Create("data", userdata)
-
-		if action == "drop" {
-			return goproxy.NewResponse(ctx.Req, goproxy.ContentTypeText, 444, "")
-		}
-
-		collection := sdk.CollectionSet[any](p.grroxydb, "store")
-		updatedData, err := collection.One(updatedRow.ID)
-		if err != nil {
-			log.Println(err)
-		}
-
-		var updatedString string
-
-		log.Println("[onResponse] Edited Response is not empty -----------------------")
-		log.Println(updatedData)
-
-		upData := updatedData.(map[string]interface{})
-		log.Println("[onResponse] Updated Data --------------  ", upData)
-
-		if updatedRow.IsResponseEdited {
-			updatedString = upData["response_edited"].(string)
+		if edited {
 			userdata.IsResponseEdited = true
-			// p.DBUpdate("store", userdata.ID, map[string]string{
-			// 	"response_edited": updatedString,
-			// })
-		} else {
-			updatedString = upData["response"].(string)
 		}
 
-		log.Println("[onResponse][ReadResponse]")
-		respNew, err := http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(updatedString))), ctx.Req)
-		// reader := bufio.NewReader(bytes.NewReader([]byte(updatedString)))
-		// respNew, err := http.ReadResponse(reader, nil)
+		p.grroxydb.Update("data", userdata.ID, userdata)
 
-		if err != nil {
-			log.Println("Error in reading response", err)
-		}
+		base.CheckErr("Error in reading updated request", err)
 
-		if respNew == nil {
-			log.Println("[onResponse] Nil Response", err)
-		}
-
-		defer resp.Body.Close()
-		ctx.UserData = userdata
-		return respNew
 	}
 
 	p._responseAddToDB(userdata)
 	resp, err = http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(responseInString))), ctx.Req)
 	base.CheckErr("[onResponse]: ", err)
 	ctx.UserData = userdata
+	// defer resp.Body.Close()
 	return resp
 }
 
