@@ -17,7 +17,7 @@ require (
 	github.com/labstack/echo/v5 v5.0.0-20220201181537-ed2888cfa198
 	github.com/pkg/errors v0.9.1
 	github.com/pocketbase/dbx v1.10.0
-	github.com/pocketbase/pocketbase v0.16.4
+	github.com/pocketbase/pocketbase v0.16.5
 	github.com/projectdiscovery/dsl v0.0.3
 	github.com/projectdiscovery/fastdialer v0.0.24
 	github.com/projectdiscovery/gologger v1.1.8
@@ -100,6 +100,7 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.3 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/jpillora/go-tld v1.2.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
