@@ -2,17 +2,18 @@ package endpoints
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
-	"net/http/httptrace"
-	"net/http/httputil"
 	"strings"
 	"time"
 
 	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/grrhttp"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -20,13 +21,23 @@ import (
 	"golang.org/x/net/http2"
 )
 
-func sendRawRequest(data rawhttp.RawRequest) (string, error) {
+func SendHTTPRawRequest(data rawhttp.RawRequest) (string, error) {
 	// Connect to the server
 	var host = data.Hostname
 	var port = data.Port
 	var rawRequest = data.Request
-	var addr = host + ":" + port
 
+	log.Println("Port: ", port)
+
+	if port == "" {
+		if data.TLS {
+			port = "443"
+		} else {
+			port = "80"
+		}
+	}
+
+	var addr = host + ":" + port
 	log.Println("Addr: ", addr)
 
 	var conn net.Conn
@@ -58,159 +69,108 @@ func sendRawRequest(data rawhttp.RawRequest) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	respString, err := base.ResponseToString(resp)
-	base.CheckErr("[sendRawRequest] ", err)
-
-	return respString, nil
+	return grrhttp.DumpResponse(resp), nil
 }
 
-// func sendRawRequest(data rawhttp.RawRequest) (string, error) {
-// 	// Connect to the server
-
-// 	var host = data.Hostname
-// 	var port = data.Port
-// 	var rawRequest = data.Request
-
-// 	// remove http:// or https://
-// 	// host = strings.TrimPrefix(host, "http://")
-// 	// host = strings.TrimPrefix(host, "https://")
-
-// 	var addr = host + ":" + port
-// 	// if data.TLS {
-// 	// 	addr = "https://" + addr
-// 	// } else {
-// 	// 	addr = "http://" + addr
-// 	// }
-
-// 	log.Println("Addr: ", addr)
-
-// 	var conn *tls.Conn
-// 	var err error
-// 	if data.TLS {
-// 		conn, err = tls.DialWithDialer(&net.Dialer{
-// 			Timeout: data.Timeout,
-// 		}, "tcp", addr, &tls.Config{
-// 			InsecureSkipVerify: true,
-// 		})
-// 	} else {
-// 		conn, err = tls.DialWithDialer(&net.Dialer{
-// 			Timeout: data.Timeout,
-// 		}, "tcp", addr, &tls.Config{})
-// 	}
-
-// 	// Connect to the server
-// 	// conn, err := tls.DialWithDialer(&net.Dialer{
-// 	// 	Timeout: data.Timeout,
-// 	// }, "tcp", addr, &tls.Config{
-// 	// 	InsecureSkipVerify: true,
-// 	// })
-
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	defer conn.Close()
-
-// 	// Send the raw request
-// 	_, err = conn.Write([]byte(rawRequest + "\r\n\r\n"))
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to write the request: %w", err)
-// 	}
-
-// 	// Read the response
-// 	reader := bufio.NewReader(conn)
-
-// 	resp, err := http.ReadResponse(reader, nil)
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to read the response: %w", err)
-// 	}
-
-// 	respString, err := httputil.DumpResponse(resp, true)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	return string(respString), nil
-// }
-
-// for http2
-func sendRawRequest1(data rawhttp.RawRequest) (string, error) {
+func SendHTTP2RawRequest(data rawhttp.RawRequest) (string, error) {
+	// Connect to the server
 	var host = data.Hostname
 	var port = data.Port
 	var rawRequest = data.Request
 
-	var addr = host + ":" + port
+	r := bufio.NewReader(strings.NewReader(rawRequest))
+	s, err := r.ReadString('\n')
+	if err != nil {
+		fmt.Errorf("could not read request: %s", err)
+	}
+	parts := strings.Split(s, " ")
+	if len(parts) < 3 {
+		fmt.Errorf("malformed request supplied")
+	}
+	// Set the request Method
+	Method := parts[0]
+	Path := parts[1]
+	Headers := make(map[string]string)
 
+	for {
+		line, err := r.ReadString('\n')
+		line = strings.TrimSpace(line)
+
+		if err != nil || line == "" {
+			break
+		}
+
+		p := strings.SplitN(line, ":", 2)
+		if len(p) != 2 {
+			continue
+		}
+
+		if strings.EqualFold(p[0], "content-length") {
+			continue
+		}
+
+		Headers[strings.TrimSpace(p[0])] = strings.TrimSpace(p[1])
+	}
+
+	log.Println("Port: ", port)
+
+	if port == "" {
+		if data.TLS {
+			port = "443"
+		} else {
+			port = "80"
+		}
+	}
+
+	var addr = host + ":" + port
 	log.Println("Addr: ", addr)
 
-	var conn net.Conn
-	var err error
-	if data.TLS {
-		conn, err = tls.Dial("tcp", addr, &tls.Config{
-			InsecureSkipVerify: true,
-		})
-	} else {
-		conn, err = net.Dial("tcp", addr)
-	}
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
+	// Convert the raw HTTP request to a HTTP/2 request
+	var buf bytes.Buffer
+	b, err := io.ReadAll(r)
+	base.CheckErr("", err)
+	buf.WriteString(string(b))
 
-	// Create an HTTP/2 client
-	tlsConn := conn.(*tls.Conn)
-	err = tlsConn.Handshake()
-	if err != nil {
-		return "", fmt.Errorf("TLS handshake failed: %w", err)
-	}
-	transport := &http2.Transport{
+	// Configure the HTTP/2 Transport
+	http2.ConfigureTransports(&http.Transport{
+		ForceAttemptHTTP2: true,
+		// Proxy:               proxyURL,
+		MaxIdleConns:        1000,
+		MaxIdleConnsPerHost: 500,
+		MaxConnsPerHost:     500,
+		DialContext: (&net.Dialer{
+			Timeout: time.Duration(time.Duration(10) * time.Second),
+		}).DialContext,
+		TLSHandshakeTimeout: time.Duration(time.Duration(10) * time.Second),
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
+			MinVersion:         tls.VersionTLS10,
+			Renegotiation:      tls.RenegotiateOnceAsClient,
+			// ServerName:         conf.SNI,
 		},
-	}
-	client := &http.Client{
-		Transport: transport,
-	}
+	})
 
-	// Create an HTTP request with the raw payload
-	req, err := http.NewRequest("GET", "https://"+host+":"+port, strings.NewReader(rawRequest))
+	// Send the raw HTTP/2 request
+	req, err := http.NewRequest(Method, Path, &buf)
+	req.Host = addr
+	req.URL.Host = addr
+	req.URL.Scheme = "https"
+
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
+	// var client *http.Client
+	for header, value := range Headers {
+		req.Header.Set(header, value)
+	}
 
-	// Send the request and trace the events
-	trace := &httptrace.ClientTrace{}
-	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
+		return "", fmt.Errorf("failed to send HTTP/2 request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Read the response
-	respString, err := httputil.DumpResponse(resp, true)
-	if err != nil {
-		return "", fmt.Errorf("failed to read the response: %w", err)
-	}
-
-	return string(respString), nil
-}
-
-func sendRawRequest2(rawRequest rawhttp.RawRequest) (string, error) {
-
-	// // Log rawrequest
-
-	resp, err := rawhttp.Do(rawRequest)
-	if err != nil {
-		return "", fmt.Errorf("an error occurred while making the request: %w", err)
-	}
-
-	respString := resp.StatusLine() + "\n"
-	for _, h := range resp.Headers() {
-		respString += h + "\n"
-	}
-
-	respString += "\n" + string(resp.Body()) + "\n"
-	return respString, nil
+	return grrhttp.DumpResponse(resp), nil
 }
 
 func (pocketbaseDB *DatabaseAPI) SendRawRequest(e *core.ServeEvent) error {
@@ -248,7 +208,16 @@ func (pocketbaseDB *DatabaseAPI) SendRawRequest(e *core.ServeEvent) error {
 			}
 
 			// respString, err := sendRawRequest2(mappedData)
-			respString, err := sendRawRequest(mappedData)
+			var respString = ""
+			var err error
+
+			log.Println("httpversion: ", data["httpversion"])
+
+			if data["httpversion"].(float64) == 1 {
+				respString, err = SendHTTPRawRequest(mappedData)
+			} else {
+				respString, err = SendHTTP2RawRequest(mappedData)
+			}
 
 			if err != nil {
 				return err
