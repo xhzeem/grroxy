@@ -1,13 +1,22 @@
 package types
 
 type SitemapGet struct {
-	Host     string
-	Path     string
-	Query    string
-	Fragment string
-	MainID   string
-	Type     string
+	Host      string `db:"host" json:"host"`
+	Path      string `db:"path" json:"path"`
+	Query     string `db:"query" json:"query"`
+	Fragment  string `db:"fragment" json:"fragment"`
+	MainID    string `db:"main_id" json:"main_id"`
+	Type      string `db:"type" json:"type"`
+	Extension string `db:"extension" json:"extension"`
+	Title     string `db:"title" json:"title"` // The first folder  OR file OR anything after ?/#
 }
+
+// type SitemapFetchResponse struct {
+// 	Path   string `db:"path" json:"path"`
+// 	Type   string `db:"type" json:"type"`
+// 	Title  string `db:"title" json:"title"` // The first folder  OR file OR anything after ?/#
+// 	MainID string `db:"main_id" json:"main_id"`
+// }
 
 type SitemapFetch struct {
 	Host string `db:"host" json:"host"`
@@ -15,12 +24,6 @@ type SitemapFetch struct {
 	// ID     string `db:"id" json:"id"`
 	// Type   string `db:"type" json:"type"`
 	// MainID string `db:"main_id" json:"main_id"`
-}
-type SitemapFetchResponse struct {
-	Path   string `db:"path" json:"path"`
-	Type   string `db:"type" json:"type"`
-	Title  string `db:"title" json:"title"` // The first folder  OR file OR anything after ?/#
-	MainID string `db:"main_id" json:"main_id"`
 }
 
 type SitemapRows struct {

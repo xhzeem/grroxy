@@ -21,13 +21,16 @@ var Sitemap = schema.NewSchema(
 		Name:     "type",
 		Type:     schema.FieldTypeText,
 		Required: true,
-	},
-	&schema.SchemaField{
+	}, &schema.SchemaField{
+		Name:     "extension",
+		Type:     schema.FieldTypeText,
+		Required: true,
+	}, &schema.SchemaField{
 		Name:     "main_id",
 		Type:     schema.FieldTypeRelation,
 		Required: true,
 		Options: &schema.RelationOptions{
-			CollectionId:  "data",
+			CollectionId:  "_data",
 			CascadeDelete: true,
 		},
 	},
