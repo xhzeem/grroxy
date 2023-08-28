@@ -72,7 +72,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 		Response: responseInString,
 	}
 
-	p.grroxydb.Update("store", id, r_data)
+	p.grroxydb.Update("_store", id, r_data)
 
 	// var updatedString string
 	var edited bool
@@ -85,7 +85,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 			userdata.IsResponseEdited = true
 		}
 
-		p.grroxydb.Update("data", userdata.ID, userdata)
+		p.grroxydb.Update("_data", userdata.ID, userdata)
 
 		base.CheckErr("Error in reading updated request", err)
 
@@ -100,7 +100,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 }
 
 func (p *Proxy) _responseAddToDB(userdata types.UserData) {
-	p.DBUpdate("data", userdata.ID, userdata)
+	p.DBUpdate("_data", userdata.ID, userdata)
 }
 
 func extractTitle(respByte []byte) (string, string) {

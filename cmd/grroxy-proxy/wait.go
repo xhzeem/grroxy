@@ -21,10 +21,10 @@ func (p *Proxy) interceptWait(userdata types.UserData, field string, contentLeng
 	wg.Add(1)
 
 	//Add to database
-	p.DBCreate("intercept", userdata)
+	p.DBCreate("_intercept", userdata)
 
 	// Realtime Subscription
-	stream, err := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "intercept").Subscribe("intercept/" + id)
+	stream, err := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "_intercept").Subscribe("_intercept/" + id)
 
 	base.CheckErr(fmt.Sprintf("[WaitData][Intercept][%s] Error while creating stream \n", id), err)
 	log.Printf("[WaitData][Intercept][%s]: Subcrbied to the record \n", id)
@@ -53,13 +53,13 @@ func (p *Proxy) interceptWait(userdata types.UserData, field string, contentLeng
 	stream.Unsubscribe()
 	log.Printf("[WaitData][Intercept][%s]: About to Unsubscribe WaitData\n", id)
 
-	p.grroxydb.Delete("intercept", id)
+	p.grroxydb.Delete("_intercept", id)
 
 	if action == "drop" {
 		// return goproxy.NewWaitData(ctx.Req, goproxy.ContentTypeText, 444, "")
 	}
 
-	collection := sdk.CollectionSet[any](p.grroxydb, "store")
+	collection := sdk.CollectionSet[any](p.grroxydb, "_store")
 	updatedData, err := collection.One(updatedRow.ID)
 	if err != nil {
 		log.Println(err)
@@ -74,14 +74,12 @@ func (p *Proxy) interceptWait(userdata types.UserData, field string, contentLeng
 	log.Println("[onWaitData] Updated Data --------------  ", upData)
 
 	edited := false
-	if field == "request" {
-		if updatedRow.IsRequestEdited {
-			edited = true
-		}
-	} else {
-		if updatedRow.IsResponseEdited {
-			edited = true
-		}
+	if field == "request" && updatedRow.IsRequestEdited {
+		edited = true
+		log.Println("[onWaitData] Request is edited -----------------------")
+	} else if field == "response" && updatedRow.IsResponseEdited {
+		log.Println("[onWaitData] Response is edited -----------------------")
+		edited = true
 	}
 
 	if edited {

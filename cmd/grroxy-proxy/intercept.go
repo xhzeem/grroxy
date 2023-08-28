@@ -23,7 +23,7 @@ func (p *Proxy) InterceptManager() {
 
 	p.options.Intercept = true
 
-	stream, err := sdk.CollectionSet[any](p.grroxydb, "settings").Subscribe("settings/" + base.AddUnderscore("INTERCEPT"))
+	stream, err := sdk.CollectionSet[any](p.grroxydb, "_settings").Subscribe("_settings/" + base.AddUnderscore("INTERCEPT"))
 
 	log.Print("Subscribed to setting")
 	if err != nil {
@@ -45,7 +45,7 @@ func (p *Proxy) InterceptManager() {
 
 		if value == "false" {
 			p.options.Intercept = false
-			collection := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "intercept")
+			collection := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "_intercept")
 			response, err := collection.List(types.ParamsList{
 				Page: 1, Size: 1000, Sort: "created",
 			})
@@ -62,7 +62,7 @@ func (p *Proxy) InterceptManager() {
 			for _, record := range response.Items {
 				go func(r types.RealtimeRecord) {
 					r.Action = "forward"
-					p.grroxydb.Update("intercept", r.ID, r)
+					p.grroxydb.Update("_intercept", r.ID, r)
 					wg.Done()
 				}(record)
 			}
