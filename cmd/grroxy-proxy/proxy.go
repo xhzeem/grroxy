@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -126,7 +127,7 @@ func (p *Proxy) RunProxy() error {
 					StatusCode:       200,
 					Status:           http.StatusText(200),
 					ContentLength:    int64(reader.Len()),
-					Body:             ioutil.NopCloser(reader),
+					Body:             io.NopCloser(reader),
 				}
 				return r, resp
 			},

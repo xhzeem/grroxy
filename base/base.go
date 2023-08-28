@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -86,7 +87,7 @@ func ResponseToByte(resp *http.Response) ([]byte, error) {
 		ProtoMinor:    resp.ProtoMinor,
 		Header:        resp.Header,
 		ContentLength: int64(len(body)),
-		Body:          ioutil.NopCloser(bytes.NewReader(body)),
+		Body:          io.NopCloser(bytes.NewReader(body)),
 		Request:       resp.Request,
 	}
 
