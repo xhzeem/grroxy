@@ -92,9 +92,9 @@ func (p *Proxy) interceptWait(userdata types.UserData, field string, contentLeng
 			diffLength = diffLength * -1
 		}
 
-		fmt.Println("[previousTotalLength] ", previousTotalLength)
-		fmt.Println("[newTotalLength] ", newTotalLength)
-		fmt.Println("[diffLength] ", diffLength)
+		log.Println("[previousTotalLength] ", previousTotalLength)
+		log.Println("[newTotalLength] ", newTotalLength)
+		log.Println("[diffLength] ", diffLength)
 
 		if diffLength != 0 {
 			previousContentHeader := "Content-Length: " + fmt.Sprint(contentLength)

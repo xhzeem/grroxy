@@ -81,11 +81,11 @@ func SendHTTP2RawRequest(data rawhttp.RawRequest) (string, error) {
 	r := bufio.NewReader(strings.NewReader(rawRequest))
 	s, err := r.ReadString('\n')
 	if err != nil {
-		fmt.Errorf("could not read request: %s", err)
+		log.Printf("could not read request: %s", err)
 	}
 	parts := strings.Split(s, " ")
 	if len(parts) < 3 {
-		fmt.Errorf("malformed request supplied")
+		log.Printf("malformed request supplied")
 	}
 	// Set the request Method
 	Method := parts[0]

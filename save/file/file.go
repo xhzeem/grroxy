@@ -1,7 +1,7 @@
 package file
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -48,7 +48,7 @@ func (c *Client) Save(data types.OutputData) error {
 	os.MkdirAll(destFolder, os.ModePerm)
 	destFile := path.Join(destFolder, data.Userdata.ID)
 
-	fmt.Println("saving to disk: ", destFile)
+	log.Println("saving to disk: ", destFile)
 
 	f, err := os.OpenFile(destFile, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

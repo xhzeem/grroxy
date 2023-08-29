@@ -1,7 +1,6 @@
 package save
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"path"
@@ -13,13 +12,13 @@ var ConfigFolder string
 var IngredientsFolder string
 
 func ReadFile(filepath string) []byte {
-	fmt.Println("Opening Filepath: ", filepath)
+	log.Println("Opening Filepath: ", filepath)
 	content, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		log.Println("Err: Reading File ", err)
 		return []byte("File not saved yet")
 	}
-	fmt.Printf("Returned Filepath: %d %s", len(filepath), filepath)
+	log.Printf("Returned Filepath: %d %s", len(filepath), filepath)
 	return content
 }
 

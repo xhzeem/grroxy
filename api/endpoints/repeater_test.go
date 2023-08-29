@@ -3,7 +3,7 @@
 package endpoints
 
 import (
-	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -40,8 +40,8 @@ Upgrade-Insecure-Requests: 1
 	for _, tc := range testCases {
 		respString, err := SendHTTP2RawRequest(tc)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
-		fmt.Println(respString)
+		log.Println(respString)
 	}
 }

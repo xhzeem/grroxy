@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path"
@@ -59,7 +59,7 @@ func main() {
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		go func() {
 			<-c
-			fmt.Println("\r- Ctrl+C pressed in Terminal")
+			log.Println("\r- Ctrl+C pressed in Terminal")
 			proxy.Stop()
 			os.Exit(0)
 		}()

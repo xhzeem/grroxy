@@ -2,7 +2,6 @@ package endpoints
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
@@ -38,14 +37,14 @@ func (pocketbaseDB *DatabaseAPI) RunningCommand(command string, collectionName s
 	// Create a pipe for the output of the command
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Println("Error creating stdout pipe:", err)
+		log.Println("Error creating stdout pipe:", err)
 		return
 	}
 
 	// Start the command
 	err = cmd.Start()
 	if err != nil {
-		fmt.Println("Error starting command:", err)
+		log.Println("Error starting command:", err)
 		return
 	}
 
@@ -70,7 +69,7 @@ func (pocketbaseDB *DatabaseAPI) RunningCommand(command string, collectionName s
 	err = cmd.Wait()
 
 	if err != nil {
-		fmt.Println("Error waiting for command:", err)
+		log.Println("Error waiting for command:", err)
 		return
 	}
 }

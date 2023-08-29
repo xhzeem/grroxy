@@ -83,7 +83,7 @@ func NewLogger(options *OptionsLogger) *Logger {
 // AsyncWrite data
 func (l *Logger) AsyncWrite() {
 	for outputdata := range l.asyncqueue {
-		// fmt.Println("Aysnc Write:")
+		// log.Println("Aysnc Write:")
 		// if !outputdata.Userdata.OriginalRequest.HasResponse {
 		// 	outputdata.PartSuffix = ".request"
 		// } else if outputdata.Userdata.OriginalRequest.HasResponse {
@@ -112,7 +112,7 @@ func (l *Logger) AsyncWrite() {
 
 // LogRequest and user data
 func (l *Logger) Save(folder string, userdata types.UserData) error {
-	// fmt.Println("Save from printF")
+	// log.Println("Save from printF")
 	l.asyncqueue <- types.OutputData{Folder: folder, Userdata: userdata}
 	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -147,7 +148,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 		newURL.Scheme = req.URL.Scheme
 		req.URL = newURL
 
-		// fmt.Println(http.DumpRequestOut())
+		// log.Println(http.DumpRequestOut())
 
 		// Todo: Set Host, Port and Scheme
 		// req.URL.Host // this can include the port also
@@ -181,7 +182,7 @@ func (p *Proxy) _requestAddToDB(userdata types.UserData) {
 	typ := "folder"
 	extension := ""
 
-	fmt.Println("[_requestAddToDB]userdata: ", userdata)
+	log.Println("[_requestAddToDB]userdata: ", userdata)
 	p.grroxydb.Create("_data", userdata)
 
 	u, _ := tld.Parse(userdata.Host)

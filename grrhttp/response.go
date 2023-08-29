@@ -84,7 +84,7 @@ func DumpResponse(resp *http.Response) string {
 // 		base.CheckErr("[DumpResponse]", err)
 // 		return string(finalResp)
 // 	} else {
-// 		fmt.Println("Error reading response body:", err)
+// 		log.Println("Error reading response body:", err)
 // 		return ""
 // 	}
 // }

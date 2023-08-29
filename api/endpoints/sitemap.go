@@ -1,7 +1,6 @@
 package endpoints
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -27,7 +26,7 @@ func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
 				return err
 			}
 
-			fmt.Print("SitemapNew: ", data)
+			log.Print("SitemapNew: ", data)
 			collection := base.ParseDatabaseName(data.Host)
 
 			err := pocketbaseDB.CreateCollection(collection, schemas.Sitemap)
@@ -54,7 +53,7 @@ func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
 
 			if err != nil {
 				// return nil
-				fmt.Println("Error: ", err)
+				log.Println("Error: ", err)
 				// apis.NewBadRequestError("Failed to create collection", err)
 			}
 
