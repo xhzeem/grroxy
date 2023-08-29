@@ -1,6 +1,9 @@
 package schemas
 
-import "github.com/pocketbase/pocketbase/models/schema"
+import (
+	"github.com/pocketbase/pocketbase/models/schema"
+	"github.com/pocketbase/pocketbase/tools/types"
+)
 
 var Rows = schema.NewSchema(
 	&schema.SchemaField{
@@ -10,6 +13,10 @@ var Rows = schema.NewSchema(
 	&schema.SchemaField{
 		Name: "ip",
 		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name: "index",
+		Type: schema.FieldTypeNumber,
 	},
 	&schema.SchemaField{
 		Name: "port",
@@ -48,20 +55,20 @@ var Rows = schema.NewSchema(
 		Type: schema.FieldTypeJson,
 	},
 	&schema.SchemaField{
-		Name: "note",
-		Type: schema.FieldTypeText,
-	},
-	&schema.SchemaField{
-		Name: "labels",
-		Type: schema.FieldTypeJson,
-	},
-	&schema.SchemaField{
 		Name:     "store_id",
 		Type:     schema.FieldTypeRelation,
 		Required: true,
 		Options: &schema.RelationOptions{
-			CollectionId:  "store",
+			CollectionId:  "_store",
 			CascadeDelete: true,
+		},
+	},
+	&schema.SchemaField{
+		Name: "extra_id",
+		Type: schema.FieldTypeRelation,
+		Options: &schema.RelationOptions{
+			CollectionId: "_extra",
+			MaxSelect:    types.Pointer(1),
 		},
 	},
 )

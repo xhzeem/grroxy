@@ -1,6 +1,9 @@
 package schemas
 
-import "github.com/pocketbase/pocketbase/models/schema"
+import (
+	"github.com/pocketbase/pocketbase/models/schema"
+	"github.com/pocketbase/pocketbase/tools/types"
+)
 
 var Store = schema.NewSchema(
 	&schema.SchemaField{
@@ -18,5 +21,13 @@ var Store = schema.NewSchema(
 	&schema.SchemaField{
 		Name: "response_edited",
 		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name: "extra_id",
+		Type: schema.FieldTypeRelation,
+		Options: &schema.RelationOptions{
+			CollectionId: "_extra",
+			MaxSelect:    types.Pointer(1),
+		},
 	},
 )

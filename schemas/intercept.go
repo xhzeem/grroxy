@@ -1,6 +1,9 @@
 package schemas
 
-import "github.com/pocketbase/pocketbase/models/schema"
+import (
+	"github.com/pocketbase/pocketbase/models/schema"
+	"github.com/pocketbase/pocketbase/tools/types"
+)
 
 var Intercept = schema.NewSchema(
 	&schema.SchemaField{
@@ -14,6 +17,10 @@ var Intercept = schema.NewSchema(
 	&schema.SchemaField{
 		Name: "port",
 		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name: "index",
+		Type: schema.FieldTypeNumber,
 	},
 	&schema.SchemaField{
 		Name: "url_data",
@@ -50,5 +57,22 @@ var Intercept = schema.NewSchema(
 	&schema.SchemaField{
 		Name: "action",
 		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name:     "store_id",
+		Type:     schema.FieldTypeRelation,
+		Required: true,
+		Options: &schema.RelationOptions{
+			CollectionId:  "_store",
+			CascadeDelete: true,
+		},
+	},
+	&schema.SchemaField{
+		Name: "extra_id",
+		Type: schema.FieldTypeRelation,
+		Options: &schema.RelationOptions{
+			CollectionId: "_extra",
+			MaxSelect:    types.Pointer(1),
+		},
 	},
 )

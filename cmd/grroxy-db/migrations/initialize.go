@@ -21,11 +21,11 @@ type db struct {
 
 // collections map
 var collections = []db{
-	{"store", schemas.Store},
-	{"data", schemas.Rows},
-	{"intercept", schemas.Intercept},
-	{"sites", schemas.Sites},
-	{"settings", schemas.Settings},
+	{"_store", schemas.Store},
+	{"_data", schemas.Rows},
+	{"_intercept", schemas.Intercept},
+	{"_sites", schemas.Sites},
+	{"_settings", schemas.Settings},
 }
 
 type setting struct {
@@ -84,10 +84,10 @@ func init() {
 
 		// sites
 		dao.DB().NewQuery(`
-			CREATE UNIQUE INDEX idx_sites_site ON sites (site);
+			CREATE UNIQUE INDEX idx_sites_site ON _sites (site);
 		`).Execute()
 
-		settingsCollection, err := dao.FindCollectionByNameOrId("settings")
+		settingsCollection, err := dao.FindCollectionByNameOrId("_settings")
 		if err != nil {
 			return err
 		}

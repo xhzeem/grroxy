@@ -31,6 +31,7 @@ type UserData struct {
 	ID               string       `db:"id,omitempty" json:"id,omitempty"`
 	Host             string       `db:"host,omitempty" json:"host,omitempty"`
 	IP               string       `db:"ip,omitempty" json:"ip,omitempty"`
+	Index            int          `db:"index,omitempty" json:"index,omitempty"`
 	Port             string       `db:"port,omitempty" json:"port,omitempty"`
 	HasResponse      bool         `db:"has_response,omitempty" json:"has_response,omitempty"`
 	IsRequestEdited  bool         `db:"is_request_edited,omitempty" json:"is_request_edited,omitempty"`
@@ -40,6 +41,7 @@ type UserData struct {
 	EditedRequest    RequestData  `db:"edited_request,omitempty" json:"edited_request,omitempty"`
 	EditedResponse   ResponseData `db:"edited_response,omitempty" json:"edited_response,omitempty"`
 	StoreID          string       `db:"store_id,omitempty" json:"store_id,omitempty"`
+	ExtraID          string       `db:"extra_id,omitempty" json:"extra_id,omitempty"`
 	// Labels           []string     `db:"labels,omitempty" json:"labels,omitempty"`
 }
 
@@ -47,6 +49,7 @@ type RealtimeRecord struct {
 	CollectionId     string      `db:"collectionId" json:"collectionId"`
 	CollectionName   string      `db:"collectionName" json:"collectionName"`
 	Created          string      `db:"created" json:"created"`
+	Index            int         `db:"index" json:"index"`
 	Updated          string      `db:"updated" json:"updated"`
 	ID               string      `db:"id" json:"id"`
 	Host             string      `db:"host" json:"host"`
@@ -59,7 +62,8 @@ type RealtimeRecord struct {
 	IsRequestEdited  bool        `db:"is_request_edited" json:"is_request_edited"`
 	IsResponseEdited bool        `db:"is_response_edited" json:"is_response_edited"`
 	EditedRequest    interface{} `db:"edited_request" json:"edited_request"`
-	StoreID          string      `db:"store_id,omitempty" json:"store_id,omitempty"`
+	ExtraID          interface{} `db:"extra_id,omitempty" json:"extra_id,omitempty"`
+	StoreID          interface{} `db:"store_id,omitempty" json:"store_id,omitempty"`
 	EditedResponse   interface{} `db:"edited_response" json:"edited_response"`
 	// Labels           interface{} `db:"labels,omitempty" json:"labels,omitempty"`
 	Action string `db:"action,omitempty" json:"action,omitempty"`
