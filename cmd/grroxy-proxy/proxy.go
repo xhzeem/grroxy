@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -271,7 +270,7 @@ func NewProxy(options *Options) (*Proxy, error) {
 			Dial: proxy.httpTunnelDialer,
 		}
 		if options.Silent {
-			socks5Config.Logger = log.New(ioutil.Discard, "", log.Ltime|log.Lshortfile)
+			socks5Config.Logger = log.New(io.Discard, "", log.Ltime|log.Lshortfile)
 		}
 		socks5proxy, err = socks5.New(socks5Config)
 		if err != nil {

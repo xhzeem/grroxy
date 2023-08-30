@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -71,7 +70,7 @@ func ParseDataFromFrontend[T interface{}](results []interface{}) T {
 
 func ResponseToByte(resp *http.Response) ([]byte, error) {
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	// resp.Body.Close()
 
 	if err != nil {

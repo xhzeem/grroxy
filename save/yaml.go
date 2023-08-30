@@ -1,8 +1,8 @@
 package save
 
 import (
-	"io/ioutil"
 	"log"
+	"os"
 	"path"
 
 	"gopkg.in/yaml.v2"
@@ -13,7 +13,7 @@ var IngredientsFolder string
 
 func ReadFile(filepath string) []byte {
 	log.Println("Opening Filepath: ", filepath)
-	content, err := ioutil.ReadFile(filepath)
+	content, err := os.ReadFile(filepath)
 	if err != nil {
 		log.Println("Err: Reading File ", err)
 		return []byte("File not saved yet")
@@ -23,7 +23,7 @@ func ReadFile(filepath string) []byte {
 }
 
 func WriteFile(filepath string, data []byte) {
-	err := ioutil.WriteFile(filepath, data, 0644)
+	err := os.WriteFile(filepath, data, 0644)
 	if err != nil {
 		log.Fatalln("Err: Writing File ", filepath, err)
 	}
