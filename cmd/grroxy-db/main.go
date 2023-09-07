@@ -41,7 +41,7 @@ func main() {
 			DatabaseDirectory: "grroxy",
 		},
 
-		CmdChannel: make(chan endpoints.Cmd),
+		CmdChannel: make(chan endpoints.RunCommandData),
 	}
 
 	// pb.CmdChannel

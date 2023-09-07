@@ -11,7 +11,7 @@ import (
 type DatabaseAPI struct {
 	App        *pocketbase.PocketBase
 	Config     *config.Config
-	CmdChannel chan Cmd
+	CmdChannel chan RunCommandData
 }
 
 // Create Collection with schema in params
