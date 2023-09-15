@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os/exec"
 
 	// "github.com/pocketbase/dbx"
 
@@ -19,6 +20,13 @@ import (
 var conf config.Config
 var pb endpoints.DatabaseAPI
 
+func serveAndOpen() {
+	C := exec.Command("grroxy")
+	go pb.Serve()
+	C.Start()
+	C.Wait()
+}
+
 func main() {
 
 	conf.Initiate()
@@ -27,7 +35,7 @@ func main() {
 	pb = endpoints.DatabaseAPI{
 		App: pocketbase.NewWithConfig(
 			&pocketbase.Config{
-				DefaultDataDir:       "grroxy",
+				DefaultDataDir: "grroxy",
 				// HideStartBanner:      true,
 				// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
 			},
@@ -63,7 +71,7 @@ func main() {
 		Use: "list",
 		Run: func(cmd *cobra.Command, args []string) {
 			conf.ListProjects()
-			pb.Serve()
+			serveAndOpen()
 		},
 	})
 
@@ -71,7 +79,7 @@ func main() {
 		Use: ".",
 		Run: func(cmd *cobra.Command, args []string) {
 			conf.OpenCWD()
-			pb.Serve()
+			serveAndOpen()
 		},
 	})
 
@@ -86,7 +94,7 @@ func main() {
 		Use: "create",
 		Run: func(cmd *cobra.Command, args []string) {
 			conf.NewProject()
-			pb.Serve()
+			serveAndOpen()
 		},
 	})
 
