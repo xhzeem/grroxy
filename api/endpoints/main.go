@@ -1,6 +1,8 @@
 package endpoints
 
 import (
+	"os"
+
 	"github.com/glitchedgitz/grroxy-db/config"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/cmd"
@@ -18,8 +20,12 @@ type DatabaseAPI struct {
 func (pocketbaseDB *DatabaseAPI) Serve() {
 	pocketbaseDB.App.Bootstrap()
 
+	os.Args = []string{"grroxy-db", "serve"}
+
 	serveCmd := cmd.NewServeCommand(pocketbaseDB.App, true)
 	serveCmd.Execute()
+	// cmd, _, _ := pocketbaseDB.App.RootCmd.Find([]string{"serve"})
+	// cmd.Execute()
 }
 
 // Create Collection with schema in params

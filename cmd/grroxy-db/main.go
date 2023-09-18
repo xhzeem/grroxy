@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os/exec"
 
@@ -19,12 +20,17 @@ import (
 
 var conf config.Config
 var pb endpoints.DatabaseAPI
+var noUI bool
 
 func serveAndOpen() {
-	C := exec.Command("grroxy")
-	go pb.Serve()
-	C.Start()
-	C.Wait()
+	if noUI {
+		pb.Serve()
+	} else {
+		C := exec.Command("grroxy")
+		go pb.Serve()
+		C.Start()
+		C.Wait()
+	}
 }
 
 func main() {
@@ -67,11 +73,14 @@ func main() {
 		return nil
 	})
 
+	pb.App.RootCmd.PersistentFlags().BoolVar(&noUI, "no-ui", false, "A global flag for the application")
+
 	pb.App.RootCmd.AddCommand(&cobra.Command{
 		Use: "list",
 		Run: func(cmd *cobra.Command, args []string) {
 			conf.ListProjects()
 			serveAndOpen()
+			fmt.Println(noUI)
 		},
 	})
 
@@ -88,6 +97,14 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			conf.ShowConfig()
 		},
+	})
+
+	pb.App.RootCmd.AddCommand(&cobra.Command{
+		Use: "serve",
+		Run: func(cmd *cobra.Command, args []string) {
+			conf.ShowConfig()
+		},
+		// ... rest of the command details
 	})
 
 	pb.App.RootCmd.AddCommand(&cobra.Command{
