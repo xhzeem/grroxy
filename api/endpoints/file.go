@@ -1,7 +1,6 @@
 package endpoints
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -43,12 +42,6 @@ func (pocketbaseDB *DatabaseAPI) ReadFile(e *core.ServeEvent) error {
 				filePath = path.Join(strings.Trim(cwd, " "), fileName)
 			}
 
-			fmt.Println("Filepath: ", filePath)
-			content1 := save.ReadFile(path.Join(strings.Trim(cwd, " "), "api.motos.net.urls"))
-			fmt.Println(string(content1))
-			fmt.Println(os.Getwd())
-			fmt.Println(pocketbaseDB.Config.CWDirectory)
-
 			content := save.ReadFile(filePath)
 
 			return c.JSON(http.StatusOK, map[string]interface{}{
@@ -72,8 +65,6 @@ func (pocketbaseDB *DatabaseAPI) SaveFile(e *core.ServeEvent) error {
 			if err := c.Bind(&data); err != nil {
 				return err
 			}
-			log.Println("[SaveFile]: ", data)
-
 			fileName := data["fileName"].(string)
 			fileData := data["fileData"].(string)
 
