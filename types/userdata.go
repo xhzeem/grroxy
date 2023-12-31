@@ -18,13 +18,13 @@ type RequestData struct {
 }
 
 type ResponseData struct {
-	Title         string `db:"title,omitempty" json:"title,omitempty"`
-	Mimetype      string `db:"mimetype,omitempty" json:"mimetype,omitempty"`
-	StatusCode    int    `db:"status_code,omitempty" json:"status_code,omitempty"`
-	ContentLength int    `db:"content_length,omitempty" json:"content_length,omitempty"`
-	HasCookies    bool   `db:"has_cookies,omitempty" json:"has_cookies,omitempty"`
-	Date          string `db:"date,omitempty" json:"date,omitempty"`
-	Time          string `db:"time,omitempty" json:"time,omitempty"`
+	Title         string `db:"title" json:"title"`
+	Mimetype      string `db:"mimetype" json:"mimetype"`
+	StatusCode    int    `db:"status_code" json:"status_code"`
+	ContentLength int    `db:"content_length" json:"content_length"`
+	HasCookies    bool   `db:"has_cookies" json:"has_cookies"`
+	Date          string `db:"date" json:"date"`
+	Time          string `db:"time" json:"time"`
 }
 
 type UserData struct {
@@ -37,7 +37,7 @@ type UserData struct {
 	IsRequestEdited  bool         `db:"is_request_edited,omitempty" json:"is_request_edited,omitempty"`
 	IsResponseEdited bool         `db:"is_response_edited,omitempty" json:"is_response_edited,omitempty"`
 	OriginalRequest  RequestData  `db:"original_request,omitempty" json:"original_request,omitempty"`
-	OriginalResponse ResponseData `db:"original_response,omitempty" json:"original_response,omitempty"`
+	OriginalResponse ResponseData `db:"original_response" json:"original_response"`
 	EditedRequest    RequestData  `db:"edited_request,omitempty" json:"edited_request,omitempty"`
 	EditedResponse   ResponseData `db:"edited_response,omitempty" json:"edited_response,omitempty"`
 	StoreID          string       `db:"store_id,omitempty" json:"store_id,omitempty"`
