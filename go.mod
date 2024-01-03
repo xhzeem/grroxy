@@ -23,7 +23,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/pocketbase/dbx v1.10.1
-	github.com/pocketbase/pocketbase v0.20.2
+	github.com/pocketbase/pocketbase v0.20.4
 	github.com/projectdiscovery/dsl v0.0.3
 	github.com/projectdiscovery/fastdialer v0.0.24
 	github.com/projectdiscovery/gologger v1.1.8

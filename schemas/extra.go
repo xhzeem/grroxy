@@ -6,6 +6,9 @@ var Attached = schema.NewSchema(
 	&schema.SchemaField{
 		Name: "label",
 		Type: schema.FieldTypeJson,
+		Options: &schema.JsonOptions{
+			MaxSize: 2048,
+		},
 	},
 	&schema.SchemaField{
 		Name: "note",
@@ -14,5 +17,8 @@ var Attached = schema.NewSchema(
 	&schema.SchemaField{
 		Name: "extra",
 		Type: schema.FieldTypeJson,
+		Options: &schema.JsonOptions{
+			MaxSize: 2048,
+		},
 	},
 )
