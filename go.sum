@@ -465,8 +465,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pocketbase/dbx v1.10.1 h1:cw+vsyfCJD8YObOVeqb93YErnlxwYMkNZ4rwN0G0AaA=
 github.com/pocketbase/dbx v1.10.1/go.mod h1:xXRCIAKTHMgUCyCKZm55pUOdvFziJjQfXaWKhu2vhMs=
-github.com/pocketbase/pocketbase v0.20.2 h1:N9RdzJYGcExkGgoOgaFr/SNZMbTQbtrz13HtvYmmbH0=
-github.com/pocketbase/pocketbase v0.20.2/go.mod h1:uy7WOxXoICrwe8HlyR78vTvK0RdG5REkhDx4SvYi4FY=
+github.com/pocketbase/pocketbase v0.20.4 h1:E30lexJ1fHmm6dr4rWWnqm6DJi/3R3/ocYgAyIvnTqs=
+github.com/pocketbase/pocketbase v0.20.4/go.mod h1:uy7WOxXoICrwe8HlyR78vTvK0RdG5REkhDx4SvYi4FY=
 github.com/projectdiscovery/dsl v0.0.3 h1:oWlZZaSADqoyfJdUHWqAzpB65NpvLukZQGFv1uTtU3g=
 github.com/projectdiscovery/dsl v0.0.3/go.mod h1:ST66slxtp7fsFqTOq3k6+1TDV7RH1Moz3sPBqUGn4Fg=
 github.com/projectdiscovery/fastdialer v0.0.24 h1:yEyYALCmDQpPYWttZ4uo9AJseqt4mYWcyx3s9WYzqW8=

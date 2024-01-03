@@ -6,6 +6,9 @@ var PROCESSES = schema.NewSchema(
 	&schema.SchemaField{
 		Name: "data",
 		Type: schema.FieldTypeJson,
+		Options: &schema.JsonOptions{
+			MaxSize: 2048,
+		},
 	},
 	// running, queue, error, killed, completed
 	&schema.SchemaField{
