@@ -43,12 +43,13 @@ func (p *Proxy) FiltersManager() {
 }
 
 func (p *Proxy) checkFilters(userdata types.UserData) bool {
-	r, err := p.grroxydb.Create("tmp_intercept", userdata)
-	base.CheckErr("[tmp_intercept] Create", err)
-
 	if p.options.Filters == "" {
 		return true
 	}
+
+	r, err := p.grroxydb.Create("tmp_intercept", userdata)
+	base.CheckErr("[checkFilters][tmp_intercept] Create", err)
+	defer p.grroxydb.Delete("tmp_intercept", r.ID)
 
 	filters := fmt.Sprintf("id ~ '%s' && ( %s )", r.ID, p.options.Filters)
 
@@ -61,7 +62,6 @@ func (p *Proxy) checkFilters(userdata types.UserData) bool {
 
 	log.Println("======================== Response ===========================", response)
 	base.CheckErr("[tmp_intercept] Getting Response", err)
-	defer p.grroxydb.Delete("tmp_intercept", r.ID)
 
 	return len(response.Items) > 0
 }

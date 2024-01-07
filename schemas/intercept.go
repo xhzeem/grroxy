@@ -7,16 +7,16 @@ import (
 
 var Intercept = schema.NewSchema(
 	&schema.SchemaField{
+		Name: "index",
+		Type: schema.FieldTypeNumber,
+	},
+	&schema.SchemaField{
 		Name: "host",
 		Type: schema.FieldTypeText,
 	},
 	&schema.SchemaField{
 		Name: "port",
 		Type: schema.FieldTypeText,
-	},
-	&schema.SchemaField{
-		Name: "index",
-		Type: schema.FieldTypeNumber,
 	},
 	&schema.SchemaField{
 		Name: "req",

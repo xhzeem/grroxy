@@ -50,11 +50,11 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 
 	// Initiate variables
 	var (
-		id      = base.RandomString(15)
+		index   = <-generateIndex
+		id      = base.FormatNumericID(index, 15)
 		method  = http.MethodGet
 		host    = req.URL.Host
 		port    = ""
-		index   = <-generateIndex
 		isHttps = req.URL.Scheme == "https"
 	)
 
