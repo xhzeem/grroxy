@@ -25,7 +25,7 @@ var noUI bool
 var noProxy bool
 
 func serveAndOpen() {
-	C2 := exec.Command("gx-proxy")
+	C2 := exec.Command("grroxy-proxy")
 	if !noProxy {
 		C2.Start()
 	}
@@ -33,7 +33,7 @@ func serveAndOpen() {
 		pb.Serve()
 	} else {
 		// Opening the app
-		C1 := exec.Command("grroxy-app")
+		C1 := exec.Command("grroxy-desktop")
 		go pb.Serve()
 		C1.Start()
 		C1.Wait()
