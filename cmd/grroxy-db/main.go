@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	// "github.com/pocketbase/pocketbase/tools/list"
-	_ "github.com/glitchedgitz/grroxy-db/cmd/grroxy/migrations"
+	_ "github.com/glitchedgitz/grroxy-db/cmd/grroxy-db/migrations"
 )
 
 var conf config.Config
