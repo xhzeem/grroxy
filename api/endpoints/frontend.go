@@ -3,7 +3,7 @@ package endpoints
 import (
 	"net/http"
 
-	"github.com/glitchedgitz/grroxy-db/api/frontend"
+	"github.com/glitchedgitz/grroxy-db/frontend"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
