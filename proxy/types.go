@@ -6,6 +6,7 @@ import (
 	"github.com/armon/go-socks5"
 	"github.com/elazarl/goproxy"
 	"github.com/glitchedgitz/grroxy-db/certs"
+	"github.com/glitchedgitz/grroxy-db/detections"
 	"github.com/glitchedgitz/grroxy-db/save"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/haxii/fastproxy/bufiopool"
@@ -62,4 +63,5 @@ type Proxy struct {
 	rbhttp       *rbtransport.RoundTransport
 	rbsocks5     *rbtransport.RoundTransport
 	grroxydb     *sdk.Client
+	detector     *detections.Definitions
 }

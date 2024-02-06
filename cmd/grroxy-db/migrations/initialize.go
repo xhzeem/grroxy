@@ -6,6 +6,7 @@ import (
 
 	"github.com/glitchedgitz/grroxy-db/base"
 	"github.com/glitchedgitz/grroxy-db/schemas"
+	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/daos"
 	m "github.com/pocketbase/pocketbase/migrations"
@@ -70,19 +71,18 @@ func init() {
 
 			// sites
 
-			log.Println("[migration][init] Creating collection: ", db.Name)
+			log.Println("[migration][init] Creating collectionasdf: ", db.Name)
 		}
 
 		var ind = ""
 		for _, db := range schemas.Collections {
 			ind += db.Index
+			dao.DB().NewQuery(db.Index).Execute()
 		}
-		dao.DB().NewQuery(ind).Execute()
-		// sites
-		// dao.DB().NewQuery(`
-		// 	CREATE UNIQUE INDEX idx_hosts_host ON _hosts (host);
-		// `).Execute()
 
+		log.Println("[migration][init] Creating Indexes: ", ind)
+
+		// Setting Up Default Settings
 		settingsCollection, err := dao.FindCollectionByNameOrId("_settings")
 		if err != nil {
 			return err
@@ -111,17 +111,63 @@ func init() {
 			},
 		}
 
-		for _, val := range settings {
-			record := models.NewRecord(settingsCollection)
-
-			record.Set("id", val.ID)
-			record.Set("option", val.Name)
-			record.Set("value", val.Value)
-
-			if err := dao.SaveRecord(record); err != nil {
+		dao.RunInTransaction(func(txDao *daos.Dao) error {
+			if err != nil {
 				return err
 			}
+
+			for _, val := range settings {
+				record := models.NewRecord(settingsCollection)
+
+				record.Set("id", val.ID)
+				record.Set("option", val.Name)
+				record.Set("value", val.Value)
+
+				if err := dao.SaveRecord(record); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		// =================================
+
+		// Setting Up Default Labels
+		labelsCollection, err := dao.FindCollectionByNameOrId("_labels")
+		if err != nil {
+			return err
 		}
+
+		defaultLabels := []types.Label{
+			{Name: "!high", Color: "red", Type: "mark"},
+			{Name: "!medium", Color: "orange", Type: "mark"},
+			{Name: "!low", Color: "yellow", Type: "mark"},
+			{Name: "!info", Color: "ignore", Type: "mark"},
+			{Name: "!leak", Color: "violet", Type: "mark"},
+			{Name: "interesting", Color: "yellow", Type: "custom"},
+			{Name: "weird", Color: "purple", Type: "custom"},
+			{Name: "^dummy/folder", Color: "blue", Type: "folder"},
+			{Name: "^target/reset", Color: "blue", Type: "folder"},
+		}
+
+		dao.RunInTransaction(func(txDao *daos.Dao) error {
+			if err != nil {
+				return err
+			}
+
+			for _, val := range defaultLabels {
+				record := models.NewRecord(labelsCollection)
+
+				record.Set("id", val.ID)
+				record.Set("name", val.Name)
+				record.Set("color", val.Color)
+				record.Set("type", val.Type)
+
+				if err := dao.SaveRecord(record); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
 
 		return nil
 	}, func(db dbx.Builder) error {

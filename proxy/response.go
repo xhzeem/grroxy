@@ -107,6 +107,22 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 
 func (p *Proxy) _responseAddToDB(userdata types.UserData) {
 	p.DBUpdate("_data", userdata.ID, userdata)
+	mime := strings.ToLower(userdata.Resp.Mime)
+	mime = strings.ReplaceAll(mime, "\"", "")
+	mime = strings.ReplaceAll(mime, "'", "")
+	mime = strings.ReplaceAll(mime, " ", "")
+	if userdata.Resp.Mime != "" {
+		if matched, definition := p.detector.GetMimeDefinition(mime); matched != "" {
+			// Add path labels
+			l_data := types.Label{
+				Name:  matched,
+				Color: definition.Color,
+				Type:  "mime",
+				ID:    userdata.ID,
+			}
+			p.DBAttachLabel(l_data)
+		}
+	}
 }
 
 func extractTitle(respByte []byte) (string, string) {

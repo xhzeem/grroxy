@@ -59,6 +59,9 @@ func main() {
 	})
 
 	// Adding custom endpoints
+	pb.App.OnBeforeServe().Add(pb.LabelAttach)
+	pb.App.OnBeforeServe().Add(pb.LabelDelete)
+	pb.App.OnBeforeServe().Add(pb.LabelNew)
 	pb.App.OnBeforeServe().Add(pb.BindFrontend)
 	pb.App.OnBeforeServe().Add(pb.SitemapNew)
 	pb.App.OnBeforeServe().Add(pb.SitemapFetch)

@@ -27,6 +27,12 @@ func (p *Proxy) MatchReplaceRequest(req string) string {
 	}
 }
 
+type attach = struct {
+	Id     string   `db:"id" json:"id"`
+	Labels []string `db:"labels" json:"labels"`
+	Note   string   `db:"note" json:"note"`
+}
+
 func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
 	// rateLimit <- ""
 	// defer func() { <-rateLimit }()
@@ -86,6 +92,10 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 			l := strings.Split(lastfile, ".")
 			extension = l[len(l)-1]
 		}
+
+		if len(extension) > 10 {
+			extension = ""
+		}
 	}
 
 	userdata = types.UserData{
@@ -124,10 +134,15 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	// Add to database
 	func() {
 		p.DBCreate("_attached", map[string]any{
-			"id":    userdata.ID,
-			"label": map[string]string{},
-			"note":  "",
+			"id":     userdata.ID,
+			"labels": []string{},
+			"note":   "",
 		})
+		// p.DBCreate("_attached", attach{
+		// 	Id:     userdata.ID,
+		// 	Labels: []string{},
+		// 	Note:   "",
+		// })
 		p.DBCreate("_raw", map[string]string{
 			"id":       userdata.ID,
 			"req":      requestInString,
@@ -219,6 +234,33 @@ func (p *Proxy) _requestAddToDB(userdata types.UserData) {
 		Type:     typ,
 		Data:     userdata.ID,
 	}
-
 	p.DBNewSitemap(s_data)
+
+	if userdata.Req.Path != "" {
+		if matched, definition := p.detector.GetPathDefinition(userdata.Req.Path); matched != "" {
+			// Add path labels
+			l_data := types.Label{
+				Name:  matched,
+				Color: definition.Color,
+				Type:  "endpoint",
+				ID:    userdata.ID,
+			}
+			p.DBAttachLabel(l_data)
+		}
+	}
+
+	if userdata.Req.Ext != "" {
+		ext := "." + userdata.Req.Ext
+		_, definition := p.detector.GetExtDefinition(ext)
+
+		// Add extension labels
+		l_data := types.Label{
+			Name:  ext,
+			Color: definition.Color,
+			Type:  "extension",
+			ID:    userdata.ID,
+		}
+
+		p.DBAttachLabel(l_data)
+	}
 }

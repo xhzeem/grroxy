@@ -17,6 +17,7 @@ import (
 	"github.com/armon/go-socks5"
 	"github.com/elazarl/goproxy"
 	certs "github.com/glitchedgitz/grroxy-db/certs"
+	"github.com/glitchedgitz/grroxy-db/detections"
 	save "github.com/glitchedgitz/grroxy-db/save"
 	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/sdk"
@@ -252,6 +253,8 @@ func NewProxy(options *Options) (*Proxy, error) {
 		}
 	}
 
+	detector := detections.New()
+
 	proxy := &Proxy{
 		httpproxy: httpproxy,
 		certs:     certs,
@@ -262,6 +265,7 @@ func NewProxy(options *Options) (*Proxy, error) {
 		rbhttp:    rbhttp,
 		rbsocks5:  rbsocks5,
 		grroxydb:  grroxydb,
+		detector:  detector,
 	}
 
 	proxy.grroxydb.CreateCollection(models.Collection{

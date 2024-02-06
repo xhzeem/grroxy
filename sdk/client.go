@@ -328,3 +328,29 @@ func (c *Client) SitemapNew(data types.SitemapGet) error {
 
 	return nil
 }
+
+func (c *Client) LabelAttach(data types.Label) error {
+
+	if err := c.Authorize(); err != nil {
+		return err
+	}
+
+	request := c.client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(data)
+
+	resp, err := request.Post(c.url + "/api/label/attach")
+	if err != nil {
+		return fmt.Errorf("[LabelAttach] can't send update request to sdk, err %w", err)
+	}
+
+	if resp.IsError() {
+		return fmt.Errorf("[LabelAttach] sdk returned status: %d, msg: %s, err %w",
+			resp.StatusCode(),
+			resp.String(),
+			ErrInvalidResponse,
+		)
+	}
+
+	return nil
+}
