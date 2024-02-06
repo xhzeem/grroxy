@@ -4,10 +4,10 @@ import "github.com/pocketbase/pocketbase/models/schema"
 
 var Attached = schema.NewSchema(
 	&schema.SchemaField{
-		Name: "label",
-		Type: schema.FieldTypeJson,
-		Options: &schema.JsonOptions{
-			MaxSize: 100000,
+		Name: "labels",
+		Type: schema.FieldTypeRelation,
+		Options: &schema.RelationOptions{
+			CollectionId: "_labels",
 		},
 	},
 	&schema.SchemaField{

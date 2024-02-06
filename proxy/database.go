@@ -28,6 +28,17 @@ func (p *Proxy) DBNewSitemap(data types.SitemapGet) {
 	log.Println("[DBNewSitemap] Created: ", data)
 }
 
+func (p *Proxy) DBAttachLabel(data types.Label) {
+
+	log.Println("[DBNewSitemap] Sending Sitemap: ", data)
+
+	err := p.grroxydb.LabelAttach(data)
+	if err != nil {
+		log.Print(err)
+	}
+	log.Println("[DBAttachLabel] Attached: ", data)
+}
+
 func (p *Proxy) DBUpdate(db string, id string, userdata any) {
 	err := p.grroxydb.Update(db, id, userdata)
 	if err != nil {

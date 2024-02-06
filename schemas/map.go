@@ -33,6 +33,13 @@ var Collections = []DB{
 		`,
 	},
 	{
+		"_labels",
+		Labels,
+		true, `
+		CREATE UNIQUE INDEX idx_labelsname ON _labels (name);
+		`,
+	},
+	{
 		"_intercept",
 		Intercept,
 		false,

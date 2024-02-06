@@ -6,16 +6,16 @@ import (
 )
 
 type RequestData struct {
-	Url        string `db:"url,omitempty" json:"url,omitempty"`
-	Path       string `db:"path,omitempty" json:"path,omitempty"`
-	Query      string `db:"query,omitempty" json:"query,omitempty"`
-	Fragment   string `db:"fragment,omitempty" json:"fragment,omitempty"`
-	Ext        string `db:"ext,omitempty" json:"ext,omitempty"`
-	Method     string `db:"method,omitempty" json:"method,omitempty"`
-	HasCookies bool   `db:"has_cookies,omitempty" json:"has_cookies,omitempty"`
-	HasParams  bool   `db:"has_params,omitempty" json:"has_params,omitempty"`
-	Length     int    `db:"length,omitempty" json:"length,omitempty"`
-	IsHTTPS    bool   `db:"is_https,omitempty" json:"is_https,omitempty"`
+	Url        string `db:"url" json:"url"`
+	Path       string `db:"path" json:"path"`
+	Query      string `db:"query" json:"query"`
+	Fragment   string `db:"fragment" json:"fragment"`
+	Ext        string `db:"ext" json:"ext"`
+	Method     string `db:"method" json:"method"`
+	HasCookies bool   `db:"has_cookies" json:"has_cookies"`
+	HasParams  bool   `db:"has_params" json:"has_params"`
+	Length     int    `db:"length" json:"length"`
+	IsHTTPS    bool   `db:"is_https" json:"is_https"`
 }
 
 type ResponseData struct {
