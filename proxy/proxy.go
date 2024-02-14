@@ -314,7 +314,7 @@ func NewProxy(options *Options) (*Proxy, error) {
       "filters": [
         {
           "checked": true,
-          "filter": "req.ext !~ 'jpg' && req.ext !~ 'jpeg' && req.ext !~ 'gif' && req.ext !~ 'png' && req.ext !~ 'png'",
+          "filter": "req.ext !~ 'jpg' && req.ext !~ 'jpeg' && req.ext !~ 'gif' && req.ext !~ 'png' && req.ext !~ 'png' && req.ext !~ 'webp' && req.ext !~ 'ico'",
           "id": "dr95ZHgW",
           "type": "single"
         },
