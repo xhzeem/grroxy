@@ -32,6 +32,8 @@ Usage:
   config                     Show config     
 
 Flags:
+  --host                     Default: 127.0.0.1:8090
+  --proxy                    Default: 127.0.0.1:8888
   --no-proxy                 Disable proxy
   --no-banner                Don't print banner
 `

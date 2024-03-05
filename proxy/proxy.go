@@ -176,7 +176,7 @@ func NewProxy(options *Options) (*Proxy, error) {
 	os.MkdirAll(options.Directory, 0755) //nolint
 
 	var grroxydb = sdk.NewClient(
-		"http://127.0.0.1:8090",
+		"http://"+options.AppAddress,
 		sdk.WithAdminEmailPassword("new@example.com", "1234567890"))
 
 	certs, err := certs.New(&certs.Options{

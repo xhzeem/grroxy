@@ -21,6 +21,8 @@ var conf config.Config
 var pb endpoints.DatabaseAPI
 var noUI bool
 var noProxy bool
+var HostAddress string
+var ProxyAddress string
 var showLogs bool
 var noBanner bool
 
@@ -41,6 +43,8 @@ func initialize() {
 	}
 
 	printBanner()
+	conf.HostAddr = HostAddress
+	conf.ProxyAddr = ProxyAddress
 	conf.Initiate()
 }
 
@@ -86,6 +90,8 @@ func main() {
 		},
 	})
 
+	rootCmd.PersistentFlags().StringVar(&HostAddress, "host", "127.0.0.1:8090", "")
+	rootCmd.PersistentFlags().StringVar(&ProxyAddress, "proxy", "127.0.0.1:8888", "")
 	rootCmd.PersistentFlags().BoolVar(&noProxy, "no-proxy", false, "")
 	rootCmd.PersistentFlags().BoolVar(&noBanner, "no-banner", false, "")
 	rootCmd.PersistentFlags().BoolVar(&showLogs, "verbose", false, "")

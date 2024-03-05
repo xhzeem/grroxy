@@ -24,18 +24,18 @@ type DatabaseAPI struct {
 func (pocketbaseDB *DatabaseAPI) Serve() {
 	pocketbaseDB.App.Bootstrap()
 
-	fmt.Println("Application:        http://127.0.0.1:8090")
-	fmt.Println("Database:           http://127.0.0.1:8090/_/")
-	fmt.Println("API:                http://127.0.0.1:8090/api/")
-	fmt.Println("Cert:               http://127.0.0.1:8090/cacert.crt")
-	fmt.Println()
-	fmt.Println("Proxy Listening On: 8888")
-	fmt.Println()
+	fmt.Printf(`
+	Application:        %s
+	Database:           %s/_/
+	API:                %s/api/
+	Cert:               %s/cacert.crt
+	
+	Proxy Listening On: %s
+	`, pocketbaseDB.Config.HostAddr, pocketbaseDB.Config.HostAddr, pocketbaseDB.Config.HostAddr, pocketbaseDB.Config.HostAddr, pocketbaseDB.Config.ProxyAddr)
 
-	var httpAddr string
 	// var httpsAddr string
 
-	httpAddr = "127.0.0.1:8090"
+	var httpAddr = pocketbaseDB.Config.HostAddr
 	log.Println(`
 		_, err := apis.Serve(pocketbaseDB.App, apis.ServeConfig{
 		HttpAddr: httpAddr,
