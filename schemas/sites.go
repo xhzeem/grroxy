@@ -16,4 +16,35 @@ var Sites = schema.NewSchema(
 		Name: "domain",
 		Type: schema.FieldTypeText,
 	},
+	&schema.SchemaField{
+		Name: "title",
+		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name: "status",
+		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name: "favicon",
+		Type: schema.FieldTypeFile,
+		Options: &schema.FileOptions{
+			MimeTypes: []string{"image/png", "image/jpeg", "image/x-icon"},
+			MaxSelect: 1,
+			MaxSize:   100000,
+		},
+	},
+	&schema.SchemaField{
+		Name: "tech",
+		Type: schema.FieldTypeJson,
+		Options: &schema.JsonOptions{
+			MaxSize: 100000,
+		},
+	},
+	&schema.SchemaField{
+		Name: "extra",
+		Type: schema.FieldTypeJson,
+		Options: &schema.JsonOptions{
+			MaxSize: 100000,
+		},
+	},
 )

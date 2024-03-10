@@ -10,6 +10,9 @@ import (
 	"net/http/httputil"
 	"strings"
 	"time"
+
+	"github.com/jpillora/go-tld"
+	"golang.org/x/net/html"
 )
 
 var Color = struct {
@@ -152,4 +155,51 @@ func ResponseToString(resp *http.Response) (string, error) {
 	CheckErr("[ResponseToString]: ", err)
 
 	return string(respBytes), nil
+}
+
+func SmartSort(s string) string {
+	u, _ := tld.Parse(s)
+	arr := strings.Split(u.Subdomain, ".")
+	arr = append(arr, u.TLD)
+	arr = append(arr, u.Domain)
+
+	arr2 := []string{}
+	for i := len(arr); i > 0; i-- {
+		arr2 = append(arr2, arr[i-1])
+	}
+
+	return strings.Join(arr2, ".")
+}
+
+func ExtractTitle(respByte []byte) (string, string) {
+
+	title := ""
+	favicon := ""
+
+	z := html.NewTokenizer(bytes.NewReader(respByte))
+
+	for {
+		tt := z.Next()
+		if tt == html.ErrorToken {
+			break
+		}
+
+		t := z.Token()
+
+		if t.Type == html.StartTagToken {
+			if t.Data == "title" {
+				if z.Next() == html.TextToken {
+					title = strings.TrimSpace(z.Token().Data)
+					break
+				}
+			}
+			// else if t.Data == "link" {
+			// 	if z.Next() == html.TextToken {
+			// 		favicon = strings.TrimSpace(z.Token().Data)
+			// 		break
+			// 	}
+			// }
+		}
+	}
+	return title, favicon
 }
