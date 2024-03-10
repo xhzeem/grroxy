@@ -13,7 +13,6 @@ import (
 	"github.com/elazarl/goproxy"
 	"github.com/glitchedgitz/grroxy-db/base"
 	"github.com/glitchedgitz/grroxy-db/types"
-	"github.com/jpillora/go-tld"
 	"github.com/projectdiscovery/dsl"
 )
 
@@ -216,20 +215,6 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	return req, nil
 }
 
-func smartSort(s string) string {
-	u, _ := tld.Parse(s)
-	arr := strings.Split(u.Subdomain, ".")
-	arr = append(arr, u.TLD)
-	arr = append(arr, u.Domain)
-
-	arr2 := []string{}
-	for i := len(arr); i > 0; i-- {
-		arr2 = append(arr2, arr[i-1])
-	}
-
-	return strings.Join(arr2, ".")
-}
-
 func (p *Proxy) _requestAddToDB(userdata types.UserData) {
 	typ := "folder"
 	if userdata.Req.Ext != "" {
@@ -238,14 +223,6 @@ func (p *Proxy) _requestAddToDB(userdata types.UserData) {
 
 	log.Println("[_requestAddToDB]userdata: ", userdata)
 	p.grroxydb.Create("_data", userdata)
-
-	u, _ := tld.Parse(userdata.Host)
-
-	p.DBCreate("_hosts", map[string]string{
-		"host":      userdata.Host,
-		"smartsort": smartSort(userdata.Host),
-		"domain":    u.Domain + "." + u.TLD,
-	})
 
 	s_data := types.SitemapGet{
 		Host:     userdata.Host,

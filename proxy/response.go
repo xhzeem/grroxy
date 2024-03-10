@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 	"github.com/glitchedgitz/grroxy-db/base"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
-	"golang.org/x/net/html"
 )
 
 type Store_Req struct {
@@ -66,7 +64,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 
 	var title string
 	if responseInBytes != nil {
-		title, _ = extractTitle(responseInBytes)
+		title, _ = base.ExtractTitle(responseInBytes)
 	}
 
 	userdata.Resp = types.ResponseData{
@@ -134,37 +132,4 @@ func (p *Proxy) _responseAddToDB(userdata types.UserData) {
 			p.DBAttachLabel(l_data)
 		}
 	}
-}
-
-func extractTitle(respByte []byte) (string, string) {
-
-	title := ""
-	favicon := ""
-
-	z := html.NewTokenizer(bytes.NewReader(respByte))
-
-	for {
-		tt := z.Next()
-		if tt == html.ErrorToken {
-			break
-		}
-
-		t := z.Token()
-
-		if t.Type == html.StartTagToken {
-			if t.Data == "title" {
-				if z.Next() == html.TextToken {
-					title = strings.TrimSpace(z.Token().Data)
-					break
-				}
-			}
-			// else if t.Data == "link" {
-			// 	if z.Next() == html.TextToken {
-			// 		favicon = strings.TrimSpace(z.Token().Data)
-			// 		break
-			// 	}
-			// }
-		}
-	}
-	return title, favicon
 }

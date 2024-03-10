@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-var version = "v0.15.6"
+var version = "v0.15.7"
 
 var bannerLogo = `
   ____________________________ ________  ____  ________.___.
@@ -20,7 +20,7 @@ func printCenter(text string, width int) string {
 
 var description = printCenter(version, 16) + `
     A framework to make our favourite tools work together!
-              Created by Gitz ¬ Gitesh Sharma
+              Created by Gitesh Sharma
 `
 
 var banner = bannerLogo + description
