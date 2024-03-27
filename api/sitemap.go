@@ -1,4 +1,4 @@
-package endpoints
+package api
 
 import (
 	"encoding/json"
@@ -21,7 +21,7 @@ import (
 	wappalyzer "github.com/projectdiscovery/wappalyzergo"
 )
 
-func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
+func (backend *Backend) SitemapNew(e *core.ServeEvent) error {
 	e.Router.AddRoute(echo.Route{
 		Method: http.MethodPost,
 		Path:   "/api/sitemap/new",
@@ -46,7 +46,7 @@ func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
 			var collectionExists = true
 
 			SitemapCollectionName := base.ParseDatabaseName(data.Host)
-			err := pocketbaseDB.CreateCollection(SitemapCollectionName, schemas.Sitemap)
+			err := backend.CreateCollection(SitemapCollectionName, schemas.Sitemap)
 
 			// Checking error if it is collection already exists
 			// This is the error "constraint failed: UNIQUE constraint failed: collections.name (2067)"
@@ -102,8 +102,8 @@ func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
 					// title, _ := "", ""
 					title, _ := base.ExtractTitle(respData)
 
-					// Instead of searching every time, we might store it in DatabaseAPI
-					collection, err := pocketbaseDB.App.Dao().FindCollectionByNameOrId("_hosts")
+					// Instead of searching every time, we might store it in Backend
+					collection, err := backend.App.Dao().FindCollectionByNameOrId("_hosts")
 					if err != nil {
 						log.Println("Error: ", err)
 					}
@@ -117,7 +117,7 @@ func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
 					record.Set("title", title)
 					record.Set("tech", jsonString)
 
-					err = pocketbaseDB.App.Dao().Save(record)
+					err = backend.App.Dao().Save(record)
 
 					if err != nil {
 						log.Println("Error: ", err)
@@ -126,7 +126,7 @@ func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
 			}()
 
 			// Inserting endpoint data
-			collection, err := pocketbaseDB.App.Dao().FindCollectionByNameOrId(SitemapCollectionName)
+			collection, err := backend.App.Dao().FindCollectionByNameOrId(SitemapCollectionName)
 			if err != nil {
 				log.Println("Error: ", err)
 			}
@@ -140,7 +140,7 @@ func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
 			record.Set("type", data.Type)
 			record.Set("ext", data.Ext)
 			record.Set("data", data.Data)
-			err = pocketbaseDB.App.Dao().Save(record)
+			err = backend.App.Dao().Save(record)
 
 			if err != nil {
 				log.Println("Error: ", err)
@@ -159,13 +159,13 @@ func (pocketbaseDB *DatabaseAPI) SitemapNew(e *core.ServeEvent) error {
 			return c.String(http.StatusOK, "Created")
 		},
 		Middlewares: []echo.MiddlewareFunc{
-			apis.ActivityLogger(pocketbaseDB.App),
+			apis.ActivityLogger(backend.App),
 		},
 	})
 	return nil
 }
 
-func (pocketbaseDB *DatabaseAPI) SitemapFetch(e *core.ServeEvent) error {
+func (backend *Backend) SitemapFetch(e *core.ServeEvent) error {
 	e.Router.AddRoute(echo.Route{
 		Method: http.MethodPost,
 		Path:   "/api/sitemap/fetch",
@@ -199,9 +199,9 @@ func (pocketbaseDB *DatabaseAPI) SitemapFetch(e *core.ServeEvent) error {
 			var err error
 
 			if data.Path == "" {
-				err = pocketbaseDB.App.Dao().DB().NewQuery("SELECT * FROM " + db).All(&result)
+				err = backend.App.Dao().DB().NewQuery("SELECT * FROM " + db).All(&result)
 			} else {
-				err = pocketbaseDB.App.Dao().DB().NewQuery("SELECT * FROM " + db + " WHERE path LIKE '" + regexQuery + "'").All(&result)
+				err = backend.App.Dao().DB().NewQuery("SELECT * FROM " + db + " WHERE path LIKE '" + regexQuery + "'").All(&result)
 			}
 
 			for _, item := range result {
@@ -245,7 +245,7 @@ func (pocketbaseDB *DatabaseAPI) SitemapFetch(e *core.ServeEvent) error {
 			return c.JSON(http.StatusOK, tmpResult2)
 		},
 		Middlewares: []echo.MiddlewareFunc{
-			apis.ActivityLogger(pocketbaseDB.App),
+			apis.ActivityLogger(backend.App),
 		},
 	})
 

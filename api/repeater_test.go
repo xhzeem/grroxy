@@ -1,6 +1,6 @@
 // repeater.go
 
-package endpoints
+package api
 
 import (
 	"log"

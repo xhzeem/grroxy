@@ -1,4 +1,4 @@
-package endpoints
+package api
 
 import (
 	"errors"
@@ -15,14 +15,14 @@ import (
 	pbTypes "github.com/pocketbase/pocketbase/tools/types"
 )
 
-type DatabaseAPI struct {
+type Backend struct {
 	App        *pocketbase.PocketBase
 	Config     *config.Config
 	CmdChannel chan RunCommandData
 }
 
-func (pocketbaseDB *DatabaseAPI) Serve() {
-	pocketbaseDB.App.Bootstrap()
+func (backend *Backend) Serve() {
+	backend.App.Bootstrap()
 
 	fmt.Printf(`
 Application:        http://%s
@@ -32,13 +32,13 @@ Cert:               http://%s/cacert.crt
 
 Proxy Listening On: %s
 
-	`, pocketbaseDB.Config.HostAddr, pocketbaseDB.Config.HostAddr, pocketbaseDB.Config.HostAddr, pocketbaseDB.Config.HostAddr, pocketbaseDB.Config.ProxyAddr)
+	`, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.ProxyAddr)
 
 	// var httpsAddr string
 
-	var httpAddr = pocketbaseDB.Config.HostAddr
+	var httpAddr = backend.Config.HostAddr
 	log.Println(`
-		_, err := apis.Serve(pocketbaseDB.App, apis.ServeConfig{
+		_, err := apis.Serve(backend.App, apis.ServeConfig{
 		HttpAddr: httpAddr,
 		// HttpsAddr:          httpsAddr,
 		// ShowStartBanner:    showStartBanner,
@@ -46,7 +46,7 @@ Proxy Listening On: %s
 		// CertificateDomains: args,
 	})
 	`)
-	_, err := apis.Serve(pocketbaseDB.App, apis.ServeConfig{
+	_, err := apis.Serve(backend.App, apis.ServeConfig{
 		HttpAddr: httpAddr,
 		// HttpsAddr:          httpsAddr,
 		// ShowStartBanner:    showStartBanner,
@@ -117,7 +117,7 @@ func printOutput(reader io.Reader) {
 }
 
 // Create Collection with schema in params
-func (pocketbaseDB *DatabaseAPI) CreateCollection(collectionName string, dbSchema schema.Schema) error {
+func (backend *Backend) CreateCollection(collectionName string, dbSchema schema.Schema) error {
 	collection := &models.Collection{
 		Name:       collectionName,
 		Type:       models.CollectionTypeBase,
@@ -129,7 +129,7 @@ func (pocketbaseDB *DatabaseAPI) CreateCollection(collectionName string, dbSchem
 		Schema:     dbSchema,
 	}
 
-	if err := pocketbaseDB.App.Dao().SaveCollection(collection); err != nil {
+	if err := backend.App.Dao().SaveCollection(collection); err != nil {
 		return err
 	}
 

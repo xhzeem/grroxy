@@ -6,7 +6,7 @@ import (
 
 	// "github.com/pocketbase/dbx"
 
-	"github.com/glitchedgitz/grroxy-db/api/endpoints"
+	"github.com/glitchedgitz/grroxy-db/api"
 	"github.com/glitchedgitz/grroxy-db/proxy"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
@@ -19,7 +19,7 @@ import (
 func serve() {
 
 	// Create an instance of the app structure
-	pb = endpoints.DatabaseAPI{
+	API = api.Backend{
 		App: pocketbase.NewWithConfig(
 			pocketbase.Config{
 				DefaultDataDir:  "grroxy",
@@ -28,18 +28,18 @@ func serve() {
 			},
 		),
 		Config:     &conf,
-		CmdChannel: make(chan endpoints.RunCommandData),
+		CmdChannel: make(chan api.RunCommandData),
 	}
 
 	if !noProxy {
 
 		go proxy.StartProxy(&proxy.Options{
 			Silent:                      false,
-			Directory:                   path.Join(pb.Config.HomeDirectory, ".config", "grroxy"),
+			Directory:                   path.Join(API.Config.HomeDirectory, ".config", "grroxy"),
 			CertCacheSize:               256,
 			Verbosity:                   false,
-			AppAddress:                  pb.Config.HostAddr,
-			ListenAddrHTTP:              pb.Config.ProxyAddr,
+			AppAddress:                  API.Config.HostAddr,
+			ListenAddrHTTP:              API.Config.ProxyAddr,
 			ListenAddrSocks5:            "127.0.0.1:10080",
 			OutputDirectory:             "grroxy_test",
 			RequestDSL:                  "",
@@ -62,34 +62,34 @@ func serve() {
 			Waiting:   true,
 		})
 	}
-	go pb.CommandManager()
+	go API.CommandManager()
 
-	migratecmd.MustRegister(pb.App, pb.App.RootCmd, migratecmd.Config{})
+	migratecmd.MustRegister(API.App, API.App.RootCmd, migratecmd.Config{})
 
 	// Adding custom endpoints
-	pb.App.OnBeforeServe().Add(pb.LabelAttach)
-	pb.App.OnBeforeServe().Add(pb.LabelDelete)
-	pb.App.OnBeforeServe().Add(pb.LabelNew)
-	pb.App.OnBeforeServe().Add(pb.BindFrontend)
-	pb.App.OnBeforeServe().Add(pb.SitemapNew)
-	pb.App.OnBeforeServe().Add(pb.SitemapFetch)
-	pb.App.OnBeforeServe().Add(pb.RunCommand)
-	pb.App.OnBeforeServe().Add(pb.SendRawRequest)
-	pb.App.OnBeforeServe().Add(pb.TextSQL)
-	pb.App.OnBeforeServe().Add(pb.SaveFile)
-	pb.App.OnBeforeServe().Add(pb.ReadFile)
-	pb.App.OnBeforeServe().Add(pb.DownloadCert)
-	pb.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		pb.App.Dao().DB().NewQuery(`
+	API.App.OnBeforeServe().Add(API.LabelAttach)
+	API.App.OnBeforeServe().Add(API.LabelDelete)
+	API.App.OnBeforeServe().Add(API.LabelNew)
+	API.App.OnBeforeServe().Add(API.BindFrontend)
+	API.App.OnBeforeServe().Add(API.SitemapNew)
+	API.App.OnBeforeServe().Add(API.SitemapFetch)
+	API.App.OnBeforeServe().Add(API.RunCommand)
+	API.App.OnBeforeServe().Add(API.SendRawRequest)
+	API.App.OnBeforeServe().Add(API.TextSQL)
+	API.App.OnBeforeServe().Add(API.SaveFile)
+	API.App.OnBeforeServe().Add(API.ReadFile)
+	API.App.OnBeforeServe().Add(API.DownloadCert)
+	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		API.App.Dao().DB().NewQuery(`
 			DELETE FROM _intercept;
 			DELETE FROM tmp_intercept;
 		`).Execute()
 		return nil
 	})
 
-	pb.Serve()
+	API.Serve()
 
-	if err := pb.App.Start(); err != nil {
+	if err := API.App.Start(); err != nil {
 		log.Fatal(err)
 	}
 }
