@@ -102,57 +102,36 @@ func (backend *Backend) SitemapNew(e *core.ServeEvent) error {
 					// title, _ := "", ""
 					title, _ := base.ExtractTitle(respData)
 
-					// Instead of searching every time, we might store it in Backend
-					collection, err := backend.App.Dao().FindCollectionByNameOrId("_hosts")
-					if err != nil {
-						log.Println("Error: ", err)
-					}
+					backend.SaveRecordToCollection("_hosts", map[string]interface{}{
+						"host":      data.Host,
+						"smartsort": base.SmartSort(data.Host),
+						"domain":    u.Domain + "." + u.TLD,
+						"status":    status,
+						"title":     title,
+						"tech":      jsonString,
+					})
 
-					record := models.NewRecord(collection)
-
-					record.Set("host", data.Host)
-					record.Set("smartsort", base.SmartSort(data.Host))
-					record.Set("domain", u.Domain+"."+u.TLD)
-					record.Set("status", status)
-					record.Set("title", title)
-					record.Set("tech", jsonString)
-
-					err = backend.App.Dao().Save(record)
-
-					if err != nil {
-						log.Println("Error: ", err)
+					for key, _ := range fingerprints {
+						backend.SaveRecordToCollection("_tech", map[string]interface{}{
+							"name":     key,
+							"image":    "",
+							"category": "",
+							"extra":    "{}",
+						})
 					}
 				}
 			}()
 
 			// Inserting endpoint data
-			collection, err := backend.App.Dao().FindCollectionByNameOrId(SitemapCollectionName)
-			if err != nil {
-				log.Println("Error: ", err)
-			}
-
-			record := models.NewRecord(collection)
-
-			record.Set("id", data.Data)
-			record.Set("path", data.Path)
-			record.Set("query", data.Query)
-			record.Set("fragment", data.Fragment)
-			record.Set("type", data.Type)
-			record.Set("ext", data.Ext)
-			record.Set("data", data.Data)
-			err = backend.App.Dao().Save(record)
-
-			if err != nil {
-				log.Println("Error: ", err)
-			}
-
-			// log.Println("Executed: ", result)
-
-			if err != nil {
-				// return nil
-				log.Println("Error: ", err)
-				// apis.NewBadRequestError("Failed to create collection", err)
-			}
+			backend.SaveRecordToCollection(SitemapCollectionName, map[string]interface{}{
+				"id":       data.Data,
+				"path":     data.Path,
+				"query":    data.Query,
+				"fragment": data.Fragment,
+				"type":     data.Type,
+				"ext":      data.Ext,
+				"data":     data.Data,
+			})
 
 			wg.Wait()
 
