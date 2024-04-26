@@ -29,6 +29,7 @@ func serve() {
 	API = api.Backend{
 		App: pocketbase.NewWithConfig(
 			pocketbase.Config{
+				// DefaultDev: true,
 				DefaultDataDir:  "grroxy",
 				HideStartBanner: true,
 				// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",

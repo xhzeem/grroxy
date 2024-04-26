@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-var version = "v0.15.9"
+var version = "v0.16.0"
 
 var bannerLogo = `
   ____________________________ ________  ____  ________.___.

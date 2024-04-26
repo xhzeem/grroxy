@@ -92,6 +92,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/wire v0.6.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.3 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
@@ -190,4 +191,7 @@ require (
 
 // replace github.com/glitchedgitz/cook/v2/pkg/cook => ../cook/v2/pkg/cook
 
-// replace github.com/pocketbase/pocketbase => ../grroxy-base
+replace (
+	github.com/ganigeorgiev/fexpr v0.4.0 => ../grroxy-filters
+	github.com/pocketbase/pocketbase v0.22.7 => ../grroxy-base
+)
