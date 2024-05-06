@@ -44,17 +44,17 @@ func (backend *Backend) TextSQL(e *core.ServeEvent) error {
 			query := backend.App.Dao().DB().NewQuery(data.SQL)
 			log.Println("[TextSQL] ", results)
 
-			// if err != nil {
-			// 	apis.NewBadRequestError("Failed to fetch warehouse items", err)
-			// }
+			rows, err := query.Rows()
+			if err != nil {
+				return apis.NewBadRequestError("Failed", err)
+			}
 
-			rows, _ := query.Rows()
 			row := dbx.NullStringMap{}
 
 			resultStr := ""
 			for rows.Next() {
 				_ = rows.ScanMap(row)
-				log.Println("Scanned SQL:, ", row)
+				// log.Println("Scanned SQL:, ", row)
 				jsonStr, _ := json.Marshal(row)
 				resultStr = resultStr + string(jsonStr) + "\n"
 			}
