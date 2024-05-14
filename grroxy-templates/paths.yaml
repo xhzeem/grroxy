@@ -140,7 +140,7 @@ actionslist:
           icon: docker
           color: pink
 
-  - filter: req.path ~ 'jquery.js'
+  - filter: req.path ~ 'jquery'
     actions:
       - action_name: create_label
         data:
@@ -311,7 +311,7 @@ actionslist:
           icon: tsconfig
           color: blue
 
-  - filter: req.path ~ '%swagger.json'  OR req.path ~  '%swagger.yml' OR req.path ~ '%swagger.yaml'
+  - filter: req.path ~ '/swagger'
     actions:
       - action_name: create_label
         data:
@@ -454,3 +454,124 @@ actionslist:
           type: endpoint
           icon: npm_ignored
           color: ignore
+
+  # Wordpress
+  - filter: req.path ~ '/wp-' OR req.path ~ '/wordpress/'
+    actions:
+      - action_name: create_label
+        data:
+          name: wordpress
+          type: endpoint
+          icon: wordpress
+          color: ignore
+
+  # WEB-INF
+  - filter: req.path ~ '/WEB-INF'
+    actions:
+      - action_name: create_label
+        data:
+          name: WEB-INF
+          type: endpoint
+          icon: java
+          color: ignore
+
+  # WEB-INF
+  - filter: req.path ~ '/META-INF'
+    actions:
+      - action_name: create_label
+        data:
+          name: META-INF
+          type: endpoint
+          icon: java
+          color: ignore
+
+  # servlet
+  - filter: req.path ~ '/servlet/'
+    actions:
+      - action_name: create_label
+        data:
+          name: servlet
+          type: endpoint
+          icon: java
+          color: ignore
+
+  # cgi
+  - filter: req.path ~ '/cgi/' OR  req.path ~ '/cgi-'
+    actions:
+      - action_name: create_label
+        data:
+          name: cgi
+          type: endpoint
+          icon: binary
+          color: ignore
+
+  # typo
+  - filter: req.path ~ '/typo3'
+    actions:
+      - action_name: create_label
+        data:
+          name: typo3
+          type: endpoint
+          icon: typo3
+          color: ignore
+
+  # tmp
+  - filter: req.path ~ '/tmp/'
+    actions:
+      - action_name: create_label
+        data:
+          name: tmp
+          type: endpoint
+          icon: tmp
+          color: ignore
+
+  # ckeditor
+  - filter: req.path ~ '/ckeditor/'
+    actions:
+      - action_name: create_label
+        data:
+          name: ckeditor
+          type: endpoint
+          icon: ckeditor
+          color: ignore
+
+  # phpMyAdmin
+  - filter: req.path ~ '/phpMyAdmin/'
+    actions:
+      - action_name: create_label
+        data:
+          name: phpMyAdmin
+          type: endpoint
+          icon: php
+          color: ignore
+
+  # MANIFEST
+  - filter: req.path ~ '/manifest'
+    actions:
+      - action_name: create_label
+        data:
+          name: manifest
+          type: endpoint
+          icon: config
+          color: ignore
+
+  # ht
+  - filter: req.path ~ '.htaccess'
+    actions:
+      - action_name: create_label
+        data:
+          name: .htaccess
+          type: endpoint
+          icon: config
+          color: ignore
+
+  # ht
+  - filter: req.path ~ '.htpasswd'
+    actions:
+      - action_name: create_label
+        data:
+          name: .htpasswd
+          type: endpoint
+          icon: config
+          color: ignore
+

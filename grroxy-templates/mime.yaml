@@ -25,7 +25,7 @@ actionslist:
     actions:
       - action_name: create_label
         data:
-          name: "{{resp.mime}}"
+          name: images
           type: mime
           color: ignore
 
@@ -33,7 +33,7 @@ actionslist:
     actions:
       - action_name: create_label
         data:
-          name: "{{resp.mime}}"
+          name: audio
           type: mime
           color: purple
 
@@ -41,7 +41,7 @@ actionslist:
     actions:
       - action_name: create_label
         data:
-          name: "{{resp.mime}}"
+          name: video
           type: mime
           color: pink
 

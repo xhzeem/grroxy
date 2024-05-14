@@ -104,7 +104,7 @@ actionslist:
           type: extension
           color: green
 
-  - filter: req.ext = '.tgz' OR req.ext = '.zip' OR req.ext = '.tar.gz' OR req.ext = '.rar' OR req.ext = '.tar' OR req.ext = '.jar' OR req.ext = '.gz' OR req.ext = '.tar.bz2' OR req.ext = '.7z' OR req.ext = '.backup'
+  - filter: req.ext ~ '.tar%' OR req.ext = '.zip' OR req.ext = '.rar' OR req.ext = '.jar' OR req.ext = '.tgz' OR req.ext = '.gz' OR req.ext = '.7z' OR req.ext = '.backup'
     actions:
       - action_name: create_label
         data:
