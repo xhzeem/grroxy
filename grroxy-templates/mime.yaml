@@ -1,0 +1,134 @@
+author: Grroxy
+description: Create labels based on request mime type
+on:
+  proxy:
+    - response
+
+mode: any
+
+default:
+  - action_name: create_label
+    data:
+      name: "{{resp.mime}}"
+      type: mime
+      color: ignore
+actionslist:
+  - filter: resp.mime ~ 'image/svg%'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: ignore
+
+  - filter: resp.mime ~ 'image/'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: ignore
+
+  - filter: resp.mime ~ 'audio/'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: purple
+
+  - filter: resp.mime ~ 'video/'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: pink
+
+  - filter: resp.mime ~ 'javascript'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: yellow
+
+  - filter: resp.mime ~ 'json'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: lightyellow
+
+  - filter: resp.mime ~ 'css'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: ignore
+
+  - filter: resp.mime ~ 'font'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: red
+
+  - filter: resp.mime ~ 'html'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: orange
+
+  - filter: resp.mime ~ 'xml'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: orange
+
+  - filter: resp.mime ~ 'ocsp-response'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: ignore
+
+  - filter: resp.mime ~ 'text'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: ignore
+
+  - filter: resp.mime ~ 'binary'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: green
+
+  - filter: resp.mime ~ 'octet'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: blue
+
+  - filter: resp.mime ~ 'protobuf'
+    actions:
+      - action_name: create_label
+        data:
+          name: "{{resp.mime}}"
+          type: mime
+          color: green

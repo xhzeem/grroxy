@@ -15,6 +15,7 @@ type Label struct {
 	Name  string `db:"name" json:"name"`
 	Color string `db:"color" json:"color"`
 	Type  string `db:"type" json:"type"`
+	Icon  string `db:"icon" json:"icon"`
 }
 
 // type SitemapFetchResponse struct {

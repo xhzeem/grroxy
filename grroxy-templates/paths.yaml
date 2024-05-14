@@ -1,0 +1,456 @@
+author: Grroxy
+description: Create labels based on request path
+on:
+  proxy:
+    - request
+
+actionslist:
+  - filter: req.path ~ 'TODO'
+    actions:
+      - action_name: create_label
+        data:
+          name: TODO
+          type: endpoint
+          icon: todo
+          color: blue
+
+  - filter: req.path ~ 'Procfile'
+    actions:
+      - action_name: create_label
+        data:
+          name: Procfile
+          type: endpoint
+          icon: heroku
+          color: purple
+
+  - filter: req.path ~ '%cmakelists.txt'
+    actions:
+      - action_name: create_label
+        data:
+          name: cmakelists
+          type: endpoint
+          icon: makefile
+          color: blue
+
+  - filter: req.path ~ 'omakefile'
+    actions:
+      - action_name: create_label
+        data:
+          name: omakefile
+          type: endpoint
+          icon: makefile
+          color: grey-light
+
+  - filter: req.path ~ 'qmakefile'
+    actions:
+      - action_name: create_label
+        data:
+          name: qmakefile
+          type: endpoint
+          icon: makefile
+          color: purple
+
+  - filter: req.path ~ 'makefile'
+    actions:
+      - action_name: create_label
+        data:
+          name: makefile
+          type: endpoint
+          icon: makefile
+          color: orange
+
+  - filter: req.path ~ 'Makefile'
+    actions:
+      - action_name: create_label
+        data:
+          name: Makefile
+          type: endpoint
+          icon: makefile
+          color: orange
+
+  - filter: req.path ~ 'MAKEFILE'
+    actions:
+      - action_name: create_label
+        data:
+          name: MAKEFILE
+          type: endpoint
+          icon: makefile
+          color: orange
+
+  - filter: req.path ~ 'CONTRIBUTING'
+    actions:
+      - action_name: create_label
+        data:
+          name: CONTRIBUTING
+          type: endpoint
+          icon: license
+          color: red
+
+  - filter: req.path ~ 'COMPILING'
+    actions:
+      - action_name: create_label
+        data:
+          name: COMPILING
+          type: endpoint
+          icon: license
+          color: orange
+
+  - filter: req.path ~ 'COPYING'
+    actions:
+      - action_name: create_label
+        data:
+          name: COPYING
+          type: endpoint
+          icon: license
+          color: yellow
+
+  - filter: req.path ~ 'LICENCE' OR req.path ~ 'LICENSE'
+    actions:
+      - action_name: create_label
+        data:
+          name: LICENCE
+          type: endpoint
+          icon: license
+          color: yellow
+
+  - filter: req.path ~ 'gulpfile'
+    actions:
+      - action_name: create_label
+        data:
+          name: gulpfile
+          type: endpoint
+          icon: gulp
+          color: red
+
+  - filter: req.path ~ 'docker-compose.override.yaml' OR  req.path ~ 'docker-compose.override.yml'
+    actions:
+      - action_name: create_label
+        data:
+          name: docker
+          type: endpoint
+          icon: docker
+          color: pink
+
+  - filter: req.path ~ 'docker'
+    actions:
+      - action_name: create_label
+        data:
+          name: docker
+          type: endpoint
+          icon: docker
+          color: pink
+
+  - filter: req.path ~ 'jquery.js'
+    actions:
+      - action_name: create_label
+        data:
+          name: jquery
+          type: endpoint
+          icon: jquery
+          color: blue
+
+  - filter: req.path ~ '/graphql'
+    actions:
+      - action_name: create_label
+        data:
+          name: graphql
+          type: endpoint
+          icon: graphql
+          color: red
+
+  - filter: req.path ~ '/_next'
+    actions:
+      - action_name: create_label
+        data:
+          name: _next
+          type: endpoint
+          icon: next
+          color: ivory
+
+  - filter: req.path ~ '/oauth'
+    actions:
+      - action_name: create_label
+        data:
+          name: oauth
+          type: endpoint
+          icon: oauth
+          color: purple
+
+  - filter: req.path ~ '/api'
+    actions:
+      - action_name: create_label
+        data:
+          name: api
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '/v1'
+    actions:
+      - action_name: create_label
+        data:
+          name: v1
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '/v2'
+    actions:
+      - action_name: create_label
+        data:
+          name: v2
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '/v3'
+    actions:
+      - action_name: create_label
+        data:
+          name: v3
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '/v4'
+    actions:
+      - action_name: create_label
+        data:
+          name: v4
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '/v5'
+    actions:
+      - action_name: create_label
+        data:
+          name: v5
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '/v6'
+    actions:
+      - action_name: create_label
+        data:
+          name: v6
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '/v7'
+    actions:
+      - action_name: create_label
+        data:
+          name: v7
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '/v8'
+    actions:
+      - action_name: create_label
+        data:
+          name: v8
+          type: endpoint
+          icon: json
+          color: orange
+
+  - filter: req.path ~ '%karma.conf'
+    actions:
+      - action_name: create_label
+        data:
+          name: karma
+          type: endpoint
+          icon: karma
+          color: green
+
+  - filter: req.path ~ '%README.md'
+    actions:
+      - action_name: create_label
+        data:
+          name: README
+          type: endpoint
+          icon: info
+          color: blue
+
+  - filter: req.path ~ 'CHANGELOG' OR req.path ~ '%CHANGES.md'
+    actions:
+      - action_name: create_label
+        data:
+          name: CHANGELOG
+          type: endpoint
+          icon: clock
+          color: blue
+
+  - filter: req.path ~ '%VERSION.md' OR req.path ~ '%VERSION'
+    actions:
+      - action_name: create_label
+        data:
+          name: VERSION
+          type: endpoint
+          icon: clock
+          color: blue
+
+  - filter: req.path ~ '%mvnw'
+    actions:
+      - action_name: create_label
+        data:
+          name: mvnw
+          type: endpoint
+          icon: maven
+          color: red
+
+  - filter: req.path ~ '%tsconfig.json'
+    actions:
+      - action_name: create_label
+        data:
+          name: tsconfig
+          type: endpoint
+          icon: tsconfig
+          color: blue
+
+  - filter: req.path ~ '%swagger.json'  OR req.path ~  '%swagger.yml' OR req.path ~ '%swagger.yaml'
+    actions:
+      - action_name: create_label
+        data:
+          name: swagger
+          type: endpoint
+          icon: json
+          color: green
+
+  - filter: req.path ~ '%mime.types'
+    actions:
+      - action_name: create_label
+        data:
+          name: mime
+          type: endpoint
+          icon: config
+          color: grey-light
+
+  - filter: req.path ~ '%Jenkinsfile'
+    actions:
+      - action_name: create_label
+        data:
+          name: Jenkinsfile
+          type: endpoint
+          icon: jenkins
+          color: red
+
+  - filter: req.path ~ 'babel.config'
+    actions:
+      - action_name: create_label
+        data:
+          name: babel
+          type: endpoint
+          icon: babel
+          color: yellow
+
+  - filter: req.path ~ '%bower.json' OR req.path ~ '%bower.text'
+    actions:
+      - action_name: create_label
+        data:
+          name: bower
+          type: endpoint
+          icon: bower
+          color: orange
+
+  - filter: req.path ~ '%firebase.json'
+    actions:
+      - action_name: create_label
+        data:
+          name: firebase
+          type: endpoint
+          icon: firebase
+          color: orange
+
+  - filter: req.path ~ '%geckodriver'
+    actions:
+      - action_name: create_label
+        data:
+          name: geckodriver
+          type: endpoint
+          icon: firefox
+          color: orange
+
+  - filter: req.path ~ 'gruntfile'
+    actions:
+      - action_name: create_label
+        data:
+          name: Gruntfile
+          type: endpoint
+          icon: grunt
+          color: orange
+
+  - filter: req.path ~ 'ionic'
+    actions:
+      - action_name: create_label
+        data:
+          name: Ionic
+          type: endpoint
+          icon: ionic
+          color: blue
+
+  - filter: req.path ~ '%platformio.ini'
+    actions:
+      - action_name: create_label
+        data:
+          name: platformio
+          type: endpoint
+          icon: platformio
+          color: orange
+
+  - filter: req.path ~ '%rollup.config.js'
+    actions:
+      - action_name: create_label
+        data:
+          name: rollup
+          type: endpoint
+          icon: rollup
+          color: red
+
+  - filter: req.path ~ '%sass-lint.yml'
+    actions:
+      - action_name: create_label
+        data:
+          name: sass
+          type: endpoint
+          icon: sass
+          color: pink
+
+  - filter: req.path ~ '%stylelint.config.js'
+    actions:
+      - action_name: create_label
+        data:
+          name: stylelint
+          type: endpoint
+          icon: stylelint
+          color: white
+
+  - filter: req.path ~ 'yarn'
+    actions:
+      - action_name: create_label
+        data:
+          name: yarn
+          type: endpoint
+          icon: yarn
+          color: blue
+
+  - filter: req.path ~ 'webpack'
+    actions:
+      - action_name: create_label
+        data:
+          name: webpack
+          type: endpoint
+          icon: webpack
+          color: blue
+
+  - filter: req.path ~ '%npm-debug.log'
+    actions:
+      - action_name: create_label
+        data:
+          name: npm
+          type: endpoint
+          icon: npm_ignored
+          color: ignore

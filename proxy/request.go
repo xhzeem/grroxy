@@ -12,6 +12,7 @@ import (
 
 	"github.com/elazarl/goproxy"
 	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
 )
@@ -233,33 +234,42 @@ func (p *Proxy) _requestAddToDB(userdata types.UserData) {
 		Type:     typ,
 		Data:     userdata.ID,
 	}
+
 	p.DBNewSitemap(s_data)
 
-	if userdata.Req.Path != "" {
-		if matched, definition := p.detector.GetPathDefinition(userdata.Req.Path); matched != "" {
-			// Add path labels
-			l_data := types.Label{
-				Name:  matched,
-				Color: definition.Color,
-				Type:  "endpoint",
-				ID:    userdata.ID,
-			}
-			p.DBAttachLabel(l_data)
-		}
+	log.Println("[_requestAddToDB] Checking template")
+
+	// this seems like an extra step, one data struct should be used everywhere
+	tmpdata := types.UserData{
+		Req: userdata.Req,
 	}
 
-	if userdata.Req.Ext != "" {
-		ext := userdata.Req.Ext
-		_, definition := p.detector.GetExtDefinition(ext)
+	d := base.StructToMap(&tmpdata, "json")
+	results, _ := p.templates.Run(d, "proxy:request")
 
-		// Add extension labels
-		l_data := types.Label{
-			Name:  ext,
-			Color: definition.Color,
-			Type:  "extension",
+	log.Println("[_requestAddToDB] Checking template results: ", results)
+
+	for _, y := range results {
+
+		name := y.Data["name"].(string)
+
+		if len(name) == 0 {
+			continue
+		}
+
+		var l_data = types.Label{
+			Name:  name,
+			Color: y.Data["color"].(string),
+			Type:  y.Data["type"].(string),
+			Icon:  y.Data["icon"].(string),
 			ID:    userdata.ID,
 		}
 
-		p.DBAttachLabel(l_data)
+		switch y.ActionName {
+		case actions.CreateLabel:
+			p.DBAttachLabel(l_data)
+		default:
+			log.Println("[_requestAddToDB] Unknown Action")
+		}
 	}
 }

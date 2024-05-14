@@ -10,6 +10,7 @@ import (
 
 	"github.com/elazarl/goproxy"
 	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
 )
@@ -89,7 +90,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 	if p.options.Intercept && p.checkFilters(userdata) {
 
 		responseInString, edited = p.interceptWait(&userdata, "resp", resp.ContentLength)
-		
+
 		if userdata.Action == "drop" {
 			log.Println("[Response][Intercept][%s]: Dropping Response \n", userdata.Host+"/"+userdata.Req.Path)
 			ctx.UserData = userdata
@@ -115,21 +116,42 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 }
 
 func (p *Proxy) _responseAddToDB(userdata types.UserData) {
+	userdata.Resp.Mime = strings.ToLower(userdata.Resp.Mime)
+	userdata.Resp.Mime = strings.ReplaceAll(userdata.Resp.Mime, "\"", "")
+	userdata.Resp.Mime = strings.ReplaceAll(userdata.Resp.Mime, "'", "")
+	userdata.Resp.Mime = strings.ReplaceAll(userdata.Resp.Mime, " ", "")
+
 	p.DBUpdate("_data", userdata.ID, userdata)
-	mime := strings.ToLower(userdata.Resp.Mime)
-	mime = strings.ReplaceAll(mime, "\"", "")
-	mime = strings.ReplaceAll(mime, "'", "")
-	mime = strings.ReplaceAll(mime, " ", "")
-	if userdata.Resp.Mime != "" {
-		if matched, definition := p.detector.GetMimeDefinition(mime); matched != "" {
-			// Add path labels
-			l_data := types.Label{
-				Name:  matched,
-				Color: definition.Color,
-				Type:  "mime",
-				ID:    userdata.ID,
-			}
+
+	tmpdata := types.UserData{
+		Resp: userdata.Resp,
+	}
+
+	d := base.StructToMap(&tmpdata, "json")
+	results, _ := p.templates.Run(d, "proxy:response")
+
+	log.Println("[_requestAddToDB] Checking template results: ", results)
+
+	for _, y := range results {
+
+		name := y.Data["name"].(string)
+
+		if len(name) == 0 {
+			continue
+		}
+
+		var l_data = types.Label{
+			Name:  name,
+			Color: y.Data["color"].(string),
+			Type:  y.Data["type"].(string),
+			ID:    userdata.ID,
+		}
+
+		switch y.ActionName {
+		case actions.CreateLabel:
 			p.DBAttachLabel(l_data)
+		default:
+			log.Println("[_requestAddToDB] Unknown Action")
 		}
 	}
 }

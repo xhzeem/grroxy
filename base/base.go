@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"reflect"
 	"strings"
 	"time"
 
@@ -202,4 +203,64 @@ func ExtractTitle(respByte []byte) (string, string) {
 		}
 	}
 	return title, favicon
+}
+
+func StructToMap(s any, tag string) map[string]any {
+	result := make(map[string]any)
+	val := reflect.ValueOf(s).Elem() // Get the value of the struct
+	typ := val.Type()                // Get the type of the struct
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldTag := typ.Field(i).Tag.Get(tag) // Get the value of the specified tag
+		fieldTag = strings.Split(fieldTag, ",")[0]
+		if field.Kind() == reflect.Struct {
+			result[fieldTag] = StructToMap(field.Addr().Interface(), tag)
+		} else {
+			result[fieldTag] = field.Interface()
+		}
+	}
+
+	fmt.Println("result:", result)
+	return result
+}
+
+func StructToJsonTOMap(s any) (map[string]any, error) {
+	// Convert struct to JSON
+	jsonData, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert JSON to map
+	var result map[string]interface{}
+	err = json.Unmarshal(jsonData, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func StructToMapExtact(s any) map[string]any {
+	result := make(map[string]interface{})
+	val := reflect.ValueOf(s)
+	typ := reflect.TypeOf(s)
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldName := typ.Field(i).Name
+		result[fieldName] = field.Interface()
+	}
+
+	return result
+}
+
+func ArrayContains(slice []string, val string) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
+	}
+	return false
 }
