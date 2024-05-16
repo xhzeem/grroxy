@@ -1,5 +1,10 @@
-author: Grroxy
-description: Create labels based on request path
+id: create-url-based-labels
+
+info:
+  title: Create Url Based labels
+  author: Grroxy
+  description: Analyse url path and create labels in organizer
+
 on:
   proxy:
     - request
@@ -574,4 +579,3 @@ actionslist:
           type: endpoint
           icon: config
           color: ignore
-

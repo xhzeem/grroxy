@@ -1,10 +1,16 @@
-author: Grroxy
-description: Create labels based on extension
+id: create-extension-labels
+
+info:
+  title: Create Extension labels
+  author: Grroxy
+  description: Analyse extensions and create labels in organizer
+
 on:
   proxy:
     - request
 
 mode: any
+
 default:
   # default: when nothing match, run these actions
   - action_name: create_label
@@ -13,6 +19,7 @@ default:
       icon: doc
       type: extension
       color: ignore
+      
 actionslist:
   - filter: req.ext = '.js' OR req.ext = '.mjs' OR req.ext = '.js.gz' OR req.ext = '.es5'  OR req.ext = '.es7' OR req.ext = '.es6' OR req.ext = '.js.map' OR req.ext = '.es'
     actions:

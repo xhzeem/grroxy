@@ -22,11 +22,15 @@ type Actions struct {
 	Actions []Action `yaml:"actions"`
 }
 
+type Info struct {
+	Title       string `yaml:"title,omitempty"`
+	Description string `yaml:"description,omitempty"`
+	Author      string `yaml:"author,omitempty"`
+}
+
 type Template struct {
-	Author      string `yaml:"author"`
-	Description string `yaml:"description"`
-	Email       string `yaml:"email"`
-	Website     string `yaml:"website"`
+	Id   string `yaml:"id"`
+	Info Info   `yaml:"info"`
 
 	// Mode?: By default it's 'all',
 	//        Use 'any' to stop after one match
@@ -135,7 +139,7 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 			}
 		}
 
-		log.Printf("[Templates.Run] Running template: %s", template.Description)
+		log.Printf("[Templates.Run] Running template: %s", template.Info.Title)
 
 		for _, job := range template.ActionsList {
 			check, err := filters.Filter(data, job.Filter)

@@ -1,5 +1,10 @@
-author: Grroxy
-description: Create labels based on request mime type
+id: create-mime-labels
+
+info:
+  title: Create Mime labels
+  author: Grroxy
+  description: Analyse mime and create labels in organizer
+
 on:
   proxy:
     - response
@@ -12,6 +17,7 @@ default:
       name: "{{resp.mime}}"
       type: mime
       color: ignore
+
 actionslist:
   - filter: resp.mime ~ 'image/svg%'
     actions:
