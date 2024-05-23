@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/glitchedgitz/filters"
 	"github.com/glitchedgitz/grroxy-db/base"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
@@ -42,7 +43,8 @@ func (p *Proxy) FiltersManager() {
 	}
 }
 
-func (p *Proxy) checkFilters(userdata types.UserData) bool {
+// need to create test cases to compare the results of both
+func (p *Proxy) checkFiltersUsingCollection(userdata types.UserData) bool {
 	if p.options.Filters == "" {
 		return true
 	}
@@ -64,4 +66,20 @@ func (p *Proxy) checkFilters(userdata types.UserData) bool {
 	base.CheckErr("[tmp_intercept] Getting Response", err)
 
 	return len(response.Items) > 0
+}
+
+func (p *Proxy) checkFilters(data map[string]any) bool {
+	if p.options.Filters == "" {
+		return true
+	}
+
+	check, err := filters.Filter(data, p.options.Filters)
+	if err != nil {
+		log.Println("[Proxy.checkFilters] Filter parsing: ", p.options.Filters, "Error: ", err)
+		return false
+	}
+
+	log.Println("[Proxy.checkFilters] Filter parsing: ", p.options.Filters, "\nResults: ", check)
+
+	return check
 }

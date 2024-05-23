@@ -70,8 +70,8 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 		Time:       time.Now().Format(time.RFC3339),
 	}
 
-	d := base.StructToMap(&userdata, "json")
-	results, err := p.templates.Run(d, "proxy:before_response")
+	responseJson := base.StructToMap(&userdata, "json")
+	results, err := p.templates.Run(responseJson, "proxy:before_response")
 
 	if err != nil {
 		log.Println("Error: [proxy:before_response] template: ", err)
@@ -97,7 +97,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 								log.Println("Error: Template replace", err)
 							}
 
-							extractedValue, err := base.ExtractValueFromMap(&d, r.Key)
+							extractedValue, err := base.ExtractValueFromMap(&responseJson, r.Key)
 							if err != nil {
 								log.Println("Error: Extracting value", err)
 							}
@@ -143,7 +143,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 	// var updatedString string
 	var edited bool
 	// Intercept
-	if p.options.Intercept && p.checkFilters(userdata) {
+	if p.options.Intercept && p.checkFilters(responseJson) {
 
 		responseInString, edited = p.interceptWait(&userdata, "resp", resp.ContentLength)
 

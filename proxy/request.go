@@ -162,8 +162,8 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 		Req: userdata.Req,
 	}
 
-	d := base.StructToMap(&tmpdata, "json")
-	results, err := p.templates.Run(d, "proxy:before_request")
+	requestJson := base.StructToMap(&tmpdata, "json")
+	results, err := p.templates.Run(requestJson, "proxy:before_request")
 
 	if err != nil {
 		log.Println("Error: before_request template: ", err)
@@ -189,7 +189,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 								log.Println("Error: Template replace", err)
 							}
 
-							extractedValue, err := base.ExtractValueFromMap(&d, r.Key)
+							extractedValue, err := base.ExtractValueFromMap(&requestJson, r.Key)
 							if err != nil {
 								log.Println("Error: Extracting value", err)
 							}
@@ -241,7 +241,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	var requestNew *http.Request
 
 	// Intercept
-	if p.options.Intercept && p.checkFilters(userdata) {
+	if p.options.Intercept && p.checkFilters(requestJson) {
 
 		updatedString, edited := p.interceptWait(&userdata, "req", req.ContentLength)
 
