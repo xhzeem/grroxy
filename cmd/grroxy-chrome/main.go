@@ -2,14 +2,23 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"sync"
 
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
 
 func main() {
+
+	if len(os.Args) < 2 {
+		fmt.Println("grroxy-chrome [proxy-address]: Required proxy address")
+		os.Exit(0)
+	}
+
+	address := os.Args[1] // "http://127.0.0.1:8888"
 	dir, err := os.MkdirTemp("", "chromedp-example")
 	if err != nil {
 		log.Fatal(err)
@@ -17,35 +26,36 @@ func main() {
 	defer os.RemoveAll(dir)
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		// chromedp.DisableGPU,
 		chromedp.UserDataDir(dir),
 		chromedp.Flag("headless", false),
-		chromedp.Flag("proxy-server", "http://127.0.0.1:8888"),
+		chromedp.Flag("proxy-server", address),
 	)
 
-	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	defer cancel()
+	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer allocCancel()
 
 	// also set up a custom logger
-	taskCtx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
-	defer cancel()
+	taskCtx, taskCancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
+	defer taskCancel()
 
 	// ensure that the browser process is started
 	if err := chromedp.Run(taskCtx); err != nil {
 		log.Fatal(err)
 	}
 
-	// TODO: Waiting based on close button event
-
 	var wg sync.WaitGroup
 	wg.Add(1)
-	wg.Wait()
 
-	// path := filepath.Join(dir, "DevToolsActivePort")
-	// bs, err := os.ReadFile(path)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// lines := bytes.Split(bs, []byte("\n"))
-	// fmt.Printf("DevToolsActivePort has %d lines\n", len(lines))
+	go func() {
+		chromedp.ListenBrowser(taskCtx, func(ev interface{}) {
+			switch ev.(type) {
+			case *target.EventTargetDestroyed:
+				log.Println("[Chrome browser] Browser tab closed, shutting down...")
+				taskCancel()
+				wg.Done()
+			}
+		})
+	}()
+
+	wg.Wait()
 }
