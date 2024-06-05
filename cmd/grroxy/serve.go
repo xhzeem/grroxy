@@ -102,9 +102,10 @@ func serve() {
 		return nil
 	})
 
-	API.Serve()
-
-	if err := API.App.Start(); err != nil {
-		log.Fatal(err)
+	if launchApp {
+		go API.Serve()
+		runApp()
+	} else {
+		API.Serve()
 	}
 }

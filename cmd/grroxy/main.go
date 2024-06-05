@@ -26,6 +26,7 @@ var HostAddress string
 var ProxyAddress string
 var showLogs bool
 var noBanner bool
+var launchApp bool
 
 func printBanner() {
 	if !noBanner {
@@ -105,6 +106,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			initialize()
 			conf.OpenProject(0)
+			log.Println("Serve")
 			serve()
 		}})
 
@@ -113,6 +115,7 @@ func main() {
 	rootCmd.PersistentFlags().BoolVar(&noProxy, "no-proxy", false, "")
 	rootCmd.PersistentFlags().BoolVar(&noBanner, "no-banner", false, "")
 	rootCmd.PersistentFlags().BoolVar(&showLogs, "verbose", false, "")
+	rootCmd.PersistentFlags().BoolVar(&launchApp, "app", false, "")
 
 	rootCmd.SetHelpTemplate(commandsUsage)
 	rootCmd.SetUsageTemplate(commandsUsage)
