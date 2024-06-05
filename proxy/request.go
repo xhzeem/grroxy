@@ -159,6 +159,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	}
 
 	tmpdata := types.UserData{
+		Host: userdata.Host,
 		Req: userdata.Req,
 	}
 
