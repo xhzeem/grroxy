@@ -1,10 +1,10 @@
-package base_test
+package utils_test
 
 import (
+	"github.com/glitchedgitz/grroxy-db/utils"
+
 	"fmt"
 	"testing"
-
-	"github.com/glitchedgitz/grroxy-db/base"
 )
 
 var data = map[string]any{
@@ -40,7 +40,7 @@ func TestExtractValueFromMap(t *testing.T) {
 	fmt.Println("    Data    :", data)
 	for i, scenario := range scenarios {
 		t.Run(fmt.Sprintf("s%d:%s", i, scenario.key), func(t *testing.T) {
-			v, err := base.ExtractValueFromMap(&data, scenario.key)
+			v, err := utils.ExtractValueFromMap(&data, scenario.key)
 
 			scenarioInfo := fmt.Sprintf(`
 Scenario: ------------------------------------------ %d

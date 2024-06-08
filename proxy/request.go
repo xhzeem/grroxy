@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/elazarl/goproxy"
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
@@ -74,8 +74,8 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	}
 
 	// Convert request to string
-	// requestInBytes, err := httputil.DumpRequestOut(req, true)
-	// base.CheckErr("Req:Dumping Bytes Error", err)
+	// requestInBytes, err := httputils.DumpRequestOut(req, true)
+	// utils.CheckErr("Req:Dumping Bytes Error", err)
 	// requestInString := string(requestInBytes)
 
 	requestRateLimit <- 0
@@ -83,7 +83,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	// Initiate variables
 	var (
 		index   = <-generateIndex
-		id      = base.FormatNumericID(index, 15)
+		id      = utils.FormatNumericID(index, 15)
 		method  = http.MethodGet
 		host    = req.URL.Host
 		port    = ""
@@ -159,7 +159,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 		Req:  userdata.Req,
 	}
 
-	requestJson := base.StructToMap(&tmpdata, "json")
+	requestJson := utils.StructToMap(&tmpdata, "json")
 	results, err := p.templates.Run(requestJson, "proxy:before_request")
 
 	if err != nil {
@@ -186,12 +186,12 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 								log.Println("Error: Template replace", err)
 							}
 
-							extractedValue, err := base.ExtractValueFromMap(&requestJson, r.Key)
+							extractedValue, err := utils.ExtractValueFromMap(&requestJson, r.Key)
 							if err != nil {
 								log.Println("Error: Extracting value", err)
 							}
 
-							updatedValue, err := base.FindAndReplaceAll(fmt.Sprint(extractedValue), r.Search, r.Replace, r.Regex)
+							updatedValue, err := utils.FindAndReplaceAll(fmt.Sprint(extractedValue), r.Search, r.Replace, r.Regex)
 							if err != nil {
 								log.Println(err)
 								continue
@@ -251,7 +251,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 		// Convert string to request
 		req.Body.Close()
 		requestNew, err = http.ReadRequest(bufio.NewReader(strings.NewReader(fmt.Sprint(updatedString))))
-		base.CheckErr("Error in reading updated request", err)
+		utils.CheckErr("Error in reading updated request", err)
 
 		req.Method = requestNew.Method
 		req.Header = requestNew.Header
@@ -310,7 +310,7 @@ func (p *Proxy) runReqTemplates(userdata *types.UserData) {
 		Req: userdata.Req,
 	}
 
-	d := base.StructToMap(&tmpdata, "json")
+	d := utils.StructToMap(&tmpdata, "json")
 	results, _ := p.templates.Run(d, "proxy:request")
 
 	log.Println("[_requestAddToDB] Checking template results: ", results)

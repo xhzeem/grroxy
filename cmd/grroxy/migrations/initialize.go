@@ -4,7 +4,7 @@ package migrations
 import (
 	"log"
 
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/pocketbase/dbx"
@@ -90,22 +90,22 @@ func init() {
 
 		settings := []setting{
 			{
-				ID:    base.AddUnderscore("PROJECT_NAME"),
+				ID:    utils.AddUnderscore("PROJECT_NAME"),
 				Name:  "Project Name",
 				Value: "Untitled Project",
 			},
 			{
-				ID:    base.AddUnderscore("PROXY"),
+				ID:    utils.AddUnderscore("PROXY"),
 				Name:  "Proxy",
 				Value: "127.0.0.1:8080",
 			},
 			{
-				ID:    base.AddUnderscore("INTERCEPT"),
+				ID:    utils.AddUnderscore("INTERCEPT"),
 				Name:  "Intercept",
 				Value: "false",
 			},
 			{
-				ID:    base.AddUnderscore("MAIN_TAB"),
+				ID:    utils.AddUnderscore("MAIN_TAB"),
 				Name:  "Main Tab",
 				Value: "Sitemaps",
 			},
@@ -156,7 +156,7 @@ func init() {
 
 			for _, val := range defaultLabels {
 				record := models.NewRecord(labelsCollection)
-				id := base.RandomString(15)
+				id := utils.RandomString(15)
 				record.Set("id", id)
 				record.Set("name", val.Name)
 				record.Set("color", val.Color)

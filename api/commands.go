@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -43,28 +43,28 @@ var process = struct {
 
 func (backend *Backend) SetProcess(id, state string) {
 	record, err := backend.App.Dao().FindRecordById("_processes", id)
-	base.CheckErr("", err)
+	utils.CheckErr("", err)
 
 	record.Set("state", state)
 
 	err = backend.App.Dao().SaveRecord(record)
-	base.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
+	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
 }
 
 func (backend *Backend) RegisterProcessInDB(data, state string) string {
 	collection, err := backend.App.Dao().FindCollectionByNameOrId("_processes")
-	base.CheckErr("[RunningCommand][FindCollection]:", err)
+	utils.CheckErr("[RunningCommand][FindCollection]:", err)
 
 	record := models.NewRecord(collection)
 
-	id := base.RandomString(15)
+	id := utils.RandomString(15)
 
 	record.Set("id", id)
 	record.Set("data", data)
 	record.Set("state", state)
 
 	err = backend.App.Dao().SaveRecord(record)
-	base.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
+	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
 	return id
 }
 
@@ -219,7 +219,7 @@ func (backend *Backend) RunningCommandSaveToCollection(id, command, collectionNa
 	scanner := bufio.NewScanner(stdout)
 
 	collection, err := backend.App.Dao().FindCollectionByNameOrId(collectionName)
-	base.CheckErr("[RunningCommand][FindCollection]:", err)
+	utils.CheckErr("[RunningCommand][FindCollection]:", err)
 
 	// Read the output in real-time
 	for scanner.Scan() {
@@ -229,7 +229,7 @@ func (backend *Backend) RunningCommandSaveToCollection(id, command, collectionNa
 		record := models.NewRecord(collection)
 		record.Set("data", jsonrow)
 		err = backend.App.Dao().SaveRecord(record)
-		base.CheckErr("[RunningCommand][SaveRecord]:", err)
+		utils.CheckErr("[RunningCommand][SaveRecord]:", err)
 	}
 
 	// Wait for the command to finish

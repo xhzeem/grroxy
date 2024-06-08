@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/glitchedgitz/filters"
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
 )
@@ -21,7 +21,7 @@ func (p *Proxy) FiltersManager() {
 	})
 
 	p.options.Filters = response.Items[0]["data"].(map[string]any)["filterstring"].(string)
-	base.CheckErr("[FiltersManager] Fetching ID", err)
+	utils.CheckErr("[FiltersManager] Fetching ID", err)
 
 	id := response.Items[0]["id"].(string)
 
@@ -50,7 +50,7 @@ func (p *Proxy) checkFiltersUsingCollection(userdata types.UserData) bool {
 	}
 
 	r, err := p.grroxydb.Create("tmp_intercept", userdata)
-	base.CheckErr("[checkFilters][tmp_intercept] Create", err)
+	utils.CheckErr("[checkFilters][tmp_intercept] Create", err)
 	defer p.grroxydb.Delete("tmp_intercept", r.ID)
 
 	filters := fmt.Sprintf("id ~ '%s' && ( %s )", r.ID, p.options.Filters)
@@ -63,7 +63,7 @@ func (p *Proxy) checkFiltersUsingCollection(userdata types.UserData) bool {
 	})
 
 	log.Println("======================== Response ===========================", response)
-	base.CheckErr("[tmp_intercept] Getting Response", err)
+	utils.CheckErr("[tmp_intercept] Getting Response", err)
 
 	return len(response.Items) > 0
 }

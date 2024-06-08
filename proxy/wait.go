@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
 )
@@ -26,7 +26,7 @@ func (p *Proxy) interceptWait(userdata *types.UserData, field string, contentLen
 	// Realtime Subscription
 	stream, err := sdk.CollectionSet[types.RealtimeRecord](p.grroxydb, "_intercept").Subscribe("_intercept/" + id)
 
-	base.CheckErr(fmt.Sprintf("[WaitData][Intercept][%s] Error while creating stream \n", id), err)
+	utils.CheckErr(fmt.Sprintf("[WaitData][Intercept][%s] Error while creating stream \n", id), err)
 	log.Printf("[WaitData][Intercept][%s]: Subcrbied to the record \n", id)
 
 	<-stream.Ready()

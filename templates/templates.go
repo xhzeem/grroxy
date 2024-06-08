@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/glitchedgitz/filters"
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"gopkg.in/yaml.v2"
 )
 
@@ -135,7 +135,7 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 		} else {
 			foundAny := false
 			for _, hook := range hooks[1:] {
-				if base.ArrayContains(values, hook) {
+				if utils.ArrayContains(values, hook) {
 					foundAny = true
 				}
 			}
@@ -198,7 +198,7 @@ func ParseVariable(d *map[string]any, value string) string {
 	for _, match := range matches {
 		if len(match) > 1 {
 			field := match[1]
-			fieldValue, _ := base.ExtractValueFromMap(d, field)
+			fieldValue, _ := utils.ExtractValueFromMap(d, field)
 			value = strings.ReplaceAll(value, match[0], fmt.Sprint(fieldValue))
 		}
 	}

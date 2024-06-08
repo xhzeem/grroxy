@@ -1,6 +1,6 @@
 package main
 
-import (
+import (	
 	"fmt"
 	"io"
 	"log"
@@ -10,7 +10,7 @@ import (
 	// "github.com/pocketbase/dbx"
 
 	"github.com/glitchedgitz/grroxy-db/api"
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/config"
 	"github.com/spf13/cobra"
 
@@ -47,7 +47,7 @@ func initialize() {
 	printBanner()
 
 	var err error
-	conf.HostAddr, err = base.CheckAndFindAvailablePort(HostAddress)
+	conf.HostAddr, err = utils.CheckAndFindAvailablePort(HostAddress)
 	if err != nil {
 		log.Fatalln(err)
 	} else {

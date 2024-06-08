@@ -1,6 +1,6 @@
 package proxy
 
-import (
+import (	
 	"bufio"
 	"fmt"
 	"log"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/elazarl/goproxy"
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
@@ -70,7 +70,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 		Time:       time.Now().Format(time.RFC3339),
 	}
 
-	responseJson := base.StructToMap(&userdata, "json")
+	responseJson := utils.StructToMap(&userdata, "json")
 	results, err := p.templates.Run(responseJson, "proxy:before_response")
 
 	if err != nil {
@@ -97,12 +97,12 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 								log.Println("Error: Template replace", err)
 							}
 
-							extractedValue, err := base.ExtractValueFromMap(&responseJson, r.Key)
+							extractedValue, err := utils.ExtractValueFromMap(&responseJson, r.Key)
 							if err != nil {
 								log.Println("Error: Extracting value", err)
 							}
 
-							updatedValue, err := base.FindAndReplaceAll(fmt.Sprint(extractedValue), r.Search, r.Replace, r.Regex)
+							updatedValue, err := utils.FindAndReplaceAll(fmt.Sprint(extractedValue), r.Search, r.Replace, r.Regex)
 							if err != nil {
 								log.Println(err)
 								continue
@@ -123,13 +123,13 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 		}
 	}
 
-	responseInBytes, err := base.ResponseToByte(resp)
-	base.CheckErr("[OnResponse]", err)
+	responseInBytes, err := utils.ResponseToByte(resp)
+	utils.CheckErr("[OnResponse]", err)
 	responseInString := string(responseInBytes)
 
 	var title string
 	if responseInBytes != nil {
-		title, _ = base.ExtractTitle(responseInBytes)
+		title, _ = utils.ExtractTitle(responseInBytes)
 	}
 
 	userdata.Resp.Title = title
@@ -159,13 +159,13 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 
 		p.grroxydb.Update("_data", userdata.ID, userdata)
 
-		base.CheckErr("Error in reading updated request", err)
+		utils.CheckErr("Error in reading updated request", err)
 
 	}
 
 	p._responseAddToDB(&userdata)
 	resp, err = http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(responseInString))), ctx.Req)
-	base.CheckErr("[onResponse]: ", err)
+	utils.CheckErr("[onResponse]: ", err)
 	ctx.UserData = userdata
 	// defer resp.Body.Close()
 	return resp
@@ -189,7 +189,7 @@ func (p *Proxy) runRespTemplates(userdata *types.UserData) {
 		Resp: userdata.Resp,
 	}
 
-	d := base.StructToMap(&tmpdata, "json")
+	d := utils.StructToMap(&tmpdata, "json")
 	results, _ := p.templates.Run(d, "proxy:response")
 
 	log.Println("[_requestAddToDB] Checking template results: ", results)

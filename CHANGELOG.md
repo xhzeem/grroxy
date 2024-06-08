@@ -22,3 +22,5 @@
   - Use `--app` to launch the desktop application
   - Installation `wails build -skipbindings -debug`
   - We are using one `/frontend` throughout the project, althought wails require to have a fodler name `/frontend` so we have `/cmd/grroxy/frontend`
+
+#### Package name changed from `base` to `utils`

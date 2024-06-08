@@ -1,6 +1,6 @@
 package grrhttp
 
-import (
+import (	
 	"bufio"
 	"compress/gzip"
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/andybalholm/brotli"
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 )
 
 func DecompressResponse(reader io.Reader, contentEncoding string) (io.Reader, error) {
@@ -28,12 +28,12 @@ func DumpResponse(resp *http.Response) string {
 
 	// Check if we should download the resource or not
 	size, err := strconv.Atoi(resp.Header.Get("Content-Length"))
-	base.CheckErr("[DumpResponse]", err)
+	utils.CheckErr("[DumpResponse]", err)
 
 	resp.ContentLength = int64(size)
 
 	bodyReader, err := DecompressResponse(resp.Body, resp.Header.Get("Content-Encoding"))
-	base.CheckErr("", err)
+	utils.CheckErr("", err)
 	// defer bodyReader.Close()
 
 	// var bodyReader io.ReadCloser
@@ -50,7 +50,7 @@ func DumpResponse(resp *http.Response) string {
 	bf := bufio.NewReader(bodyReader)
 	var cl int64
 	respbody, err := io.ReadAll(bf)
-	base.CheckErr("", err)
+	utils.CheckErr("", err)
 	cl = int64(len(respbody))
 
 	finalResp := fmt.Sprintf("%s %s\n", resp.Proto, resp.Status)
@@ -80,8 +80,8 @@ func DumpResponse(resp *http.Response) string {
 // 	if respbody, err := io.ReadAll(bf); err == nil {
 // 		resp.ContentLength = int64(len(respbody))
 // 		resp.Body = io.NopCloser(bytes.NewReader(respbody))
-// 		finalResp, err := httputil.DumpResponse(resp, true)
-// 		base.CheckErr("[DumpResponse]", err)
+// 		finalResp, err := httputils.DumpResponse(resp, true)
+// 		utils.CheckErr("[DumpResponse]", err)
 // 		return string(finalResp)
 // 	} else {
 // 		log.Println("Error reading response body:", err)
