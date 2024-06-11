@@ -8,7 +8,7 @@ info:
 config:
   type: actions
   mode: any
-  hook:
+  hooks:
     proxy: [response]
   default:
     - create_label:
@@ -42,7 +42,7 @@ tasks:
     todo:
       - create_label:
           name: video
-          
+
           type: mime
           color: pink
 
