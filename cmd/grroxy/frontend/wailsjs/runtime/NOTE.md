@@ -1,1 +1,0 @@
-- We are using one `/frontend` throughout the project, althought wails require to have a `/frontend` in the same directory, so we have  this frontend as well

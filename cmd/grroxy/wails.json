@@ -2,7 +2,8 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "grroxy",
   "outputfilename": "grroxy",
-  "frontend:build": "",
+  "frontend:dir": "../../frontend",
+  "frontend:build": "npm run build",
   "frontend:dev:watcher": "",
   "frontend:dev:serverUrl": "auto",
   "author": {
