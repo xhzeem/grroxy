@@ -167,24 +167,15 @@ func (userdata *UserData) ResponseDeleteKey(resp *http.Response, key string) {
 }
 
 type RealtimeRecord struct {
-	CollectionId   string      `db:"collectionId" json:"collectionId"`
-	CollectionName string      `db:"collectionName" json:"collectionName"`
-	Created        string      `db:"created" json:"created"`
-	Index          int         `db:"index" json:"index"`
-	Updated        string      `db:"updated" json:"updated"`
-	ID             string      `db:"id" json:"id"`
-	Host           string      `db:"host" json:"host"`
-	Port           string      `db:"port" json:"port"`
-	Req            interface{} `db:"req" json:"req"`
-	Resp           interface{} `db:"resp" json:"resp"`
-	HasResp        bool        `db:"has_resp" json:"has_resp"`
-	IsReqEdited    bool        `db:"is_req_edited" json:"is_req_edited"`
-	IsRespEdited   bool        `db:"is_resp_edited" json:"is_resp_edited"`
-	ReqEdited      interface{} `db:"req_edited" json:"req_edited"`
-	RespEdited     interface{} `db:"resp_edited" json:"resp_edited"`
-	Raw            interface{} `db:"raw,omitempty" json:"raw,omitempty"`
-	Attached       string      `db:"attached,omitempty" json:"attached,omitempty"`
-	Action         string      `db:"action,omitempty" json:"action,omitempty"`
+	UserData
+
+	CollectionId   string `db:"collectionId" json:"collectionId"`
+	CollectionName string `db:"collectionName" json:"collectionName"`
+	Created        string `db:"created" json:"created"`
+	Index          int    `db:"index" json:"index"`
+	Updated        string `db:"updated" json:"updated"`
+	Action         string `db:"action,omitempty" json:"action,omitempty"`
+	Raw            any    `db:"raw,omitempty" json:"raw,omitempty"`
 }
 
 type OutputData struct {
@@ -197,6 +188,21 @@ type OutputData struct {
 func (d *UserData) Scan(value interface{}) error {
 	if value == nil {
 		*d = UserData{}
+		return nil
+	}
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, d)
+	case string:
+		return json.Unmarshal([]byte(v), d)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+func (d *RealtimeRecord) Scan(value interface{}) error {
+	if value == nil {
+		*d = RealtimeRecord{}
 		return nil
 	}
 	switch v := value.(type) {
