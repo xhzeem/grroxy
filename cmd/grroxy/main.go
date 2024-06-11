@@ -1,6 +1,6 @@
 package main
 
-import (	
+import (
 	"fmt"
 	"io"
 	"log"
@@ -10,8 +10,8 @@ import (
 	// "github.com/pocketbase/dbx"
 
 	"github.com/glitchedgitz/grroxy-db/api"
-	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/config"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/spf13/cobra"
 
 	// "github.com/pocketbase/pocketbase/tools/list"
@@ -56,6 +56,7 @@ func initialize() {
 		}
 	}
 	conf.ProxyAddr = ProxyAddress
+	conf.TemplateDirectory = `D:\sdks\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`
 	conf.Initiate()
 }
 

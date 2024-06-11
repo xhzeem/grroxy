@@ -26,7 +26,7 @@ func (backend *Backend) ListTemplates(e *core.ServeEvent) error {
 
 			list := []Path{}
 
-			err := filepath.Walk(`D:\sdks\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`, func(path string, info os.FileInfo, err error) error {
+			err := filepath.Walk(backend.Config.TemplateDirectory, func(path string, info os.FileInfo, err error) error {
 
 				list = append(list, Path{
 					Name:  info.Name(),

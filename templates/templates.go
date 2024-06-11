@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 
@@ -53,15 +54,15 @@ type Template struct {
 }
 
 type Templates struct {
-	Templates map[string]*Template
+	TempalteDir string
+	Templates   map[string]*Template
 }
 
-func Setup() *Templates {
-	var t Templates
+func (t *Templates) Setup() {
 
 	t.Templates = make(map[string]*Template)
 
-	files, err := os.ReadDir(`D:\sdks\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`)
+	files, err := os.ReadDir(t.TempalteDir)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -71,14 +72,12 @@ func Setup() *Templates {
 	for _, file := range files {
 		fileName := file.Name()
 		if strings.HasSuffix(fileName, ".yaml") || strings.HasPrefix(fileName, ".yml") {
-			l := Read(`D:\sdks\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates\` + fileName)
+			l := Read(path.Join(t.TempalteDir, fileName))
 			log.Printf("Template:%v Scan:%v\n", fileName, len(l.Tasks))
 			log.Printf("Template:%v Mode:%v\n", fileName, l.Config.Mode)
 			t.Templates[l.Id] = l
 		}
 	}
-
-	return &t
 }
 
 func Read(filePath string) *Template {
@@ -124,6 +123,7 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 	results := []Action{}
 
 	log.Println("[Templates.Run] data", data)
+	log.Println("[Templates.Run] hook", hook)
 
 	hooks := strings.Split(hook, ":")
 
@@ -137,6 +137,7 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 		}
 
 		if values, found := template.Config.Hooks[hooks[0]]; !found {
+			log.Println("[Templates.Run] Hook", template.Config.Hooks)
 			continue
 		} else {
 			foundAny := false
@@ -153,6 +154,9 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 		log.Printf("[Templates.Run][%s] Running template: %s", id, template.Info.Title)
 
 		for _, job := range template.Tasks {
+
+			log.Println("Tasks: jobs: ", job)
+
 			check, err := filters.Filter(data, job.Condition)
 			if err != nil {
 				log.Printf("[Templates.Run] Filter parsing: %v", job.Condition)

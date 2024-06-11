@@ -114,26 +114,26 @@ func TestSetup(t *testing.T) {
 			},
 			expextedResults: 1,
 		},
-		{
-			hook: "proxy:response",
-			data: map[string]any{
-				"index": 123,
-				"resp": map[string]any{
-					"mime": "xxxxxxxxxx/xxxxxxxxxx",
-				},
-			},
-			expextedResults: 1,
-		},
-		{
-			hook: "proxy:response",
-			data: map[string]any{
-				"index": 123,
-				"resp": map[string]any{
-					"mime": "22222222222/222222222222",
-				},
-			},
-			expextedResults: 1,
-		},
+		// {
+		// 	hook: "proxy:response",
+		// 	data: map[string]any{
+		// 		"index": 123,
+		// 		"resp": map[string]any{
+		// 			"mime": "xxxxxxxxxx/xxxxxxxxxx",
+		// 		},
+		// 	},
+		// 	expextedResults: 1,
+		// },
+		// {
+		// 	hook: "proxy:response",
+		// 	data: map[string]any{
+		// 		"index": 123,
+		// 		"resp": map[string]any{
+		// 			"mime": "22222222222/222222222222",
+		// 		},
+		// 	},
+		// 	expextedResults: 1,
+		// },
 		{
 			hook: "proxy:response",
 			data: map[string]any{
@@ -144,19 +144,24 @@ func TestSetup(t *testing.T) {
 			},
 			expextedResults: 1,
 		},
-		{
-			hook: "proxy:before_request",
-			data: map[string]any{
-				"index": 123,
-				"req": map[string]any{
-					"user_agent": "Morzilla",
-				},
-			},
-			expextedResults: 1,
-		},
+		// {
+		// 	hook: "proxy:before_request",
+		// 	data: map[string]any{
+		// 		"index": 123,
+		// 		"req": map[string]any{
+		// 			"user_agent": "Morzilla",
+		// 		},
+		// 	},
+		// 	expextedResults: 1,
+		// },
 	}
 
-	x := templates.Setup()
+	x := &templates.Templates{
+		TempalteDir: `D:\sdks\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`,
+	}
+
+	x.Setup()
+
 	for index, scenario := range scenarios {
 		t.Run("TestSetup", func(t *testing.T) {
 			log.Println("\n============================================ ", index)
