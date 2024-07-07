@@ -28,6 +28,7 @@ type Update struct {
 
 type Project struct {
 	Name     string `json:"name"`
+	Index    int    `json:"index"`
 	Location string `json:"location"`
 	Created  string `json:"created"`
 	Updated  string `json:"updated"`
@@ -201,6 +202,10 @@ func (c *Config) LoadAppData() {
 		if err := json.Unmarshal(byteData, &c.AppData); err != nil {
 			log.Fatalln(err)
 			return
+		}
+
+		for index := range c.AppData.Projects {
+			c.AppData.Projects[index].Index = index
 		}
 	}
 }

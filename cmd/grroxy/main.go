@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	// "github.com/pocketbase/dbx"
@@ -71,10 +72,22 @@ func main() {
 	}
 
 	rootCmd.AddCommand(&cobra.Command{
-		Use: "list",
+		Use:   "projects [project index (optional)]",
+		Short: "List all projects or open a specific project by index",
 		Run: func(cmd *cobra.Command, args []string) {
 			initialize()
-			conf.ListProjects()
+			if len(args) > 0 {
+				index, err := strconv.Atoi(args[0])
+
+				if err != nil {
+					fmt.Println("Invalid project index:", args[0])
+					return
+				}
+
+				conf.OpenProject(index)
+			} else {
+				conf.ListProjects()
+			}
 			serve()
 		},
 	})
@@ -88,7 +101,7 @@ func main() {
 	})
 
 	rootCmd.AddCommand(&cobra.Command{
-		Use: "create",
+		Use: "create [project name]",
 		Run: func(cmd *cobra.Command, args []string) {
 			initialize()
 
@@ -107,7 +120,6 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			initialize()
 			conf.OpenProject(0)
-			log.Println("Serve")
 			serve()
 		}})
 

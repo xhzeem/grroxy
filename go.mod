@@ -37,7 +37,7 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tomnomnom/rawhttp v0.0.0-20220611225552-e98e9bba2559
-	github.com/wailsapp/wails/v2 v2.8.0
+	github.com/wailsapp/wails/v2 v2.8.2
 	golang.org/x/net v0.25.0
 	golang.org/x/sync v0.6.0
 	gopkg.in/yaml.v2 v2.4.0

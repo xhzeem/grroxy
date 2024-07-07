@@ -24,6 +24,10 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
+func (a *App) GetHost() string {
+	return HostAddress
+}
+
 func runApp() {
 	app := NewApp()
 	// conf.Initiate()
