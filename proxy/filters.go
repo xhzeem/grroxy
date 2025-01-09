@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/glitchedgitz/filters"
-	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/dadql/dadql"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
+	"github.com/glitchedgitz/grroxy-db/utils"
 )
 
 func (p *Proxy) FiltersManager() {
@@ -73,7 +73,7 @@ func (p *Proxy) checkFilters(data map[string]any) bool {
 		return true
 	}
 
-	check, err := filters.Filter(data, p.options.Filters)
+	check, err := dadql.Filter(data, p.options.Filters)
 	if err != nil {
 		log.Println("[Proxy.checkFilters] Filter parsing: ", p.options.Filters, "Error: ", err)
 		return false

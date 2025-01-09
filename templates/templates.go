@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/glitchedgitz/filters"
+	"github.com/glitchedgitz/dadql/dadql"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"gopkg.in/yaml.v2"
 )
@@ -157,7 +157,7 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 
 			log.Println("Tasks: jobs: ", job)
 
-			check, err := filters.Filter(data, job.Condition)
+			check, err := dadql.Filter(data, job.Condition)
 			if err != nil {
 				log.Printf("[Templates.Run] Filter parsing: %v", job.Condition)
 				break
