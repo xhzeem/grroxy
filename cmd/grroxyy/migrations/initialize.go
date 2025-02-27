@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/glitchedgitz/grroxy-db/schemas"
-	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/daos"
@@ -47,7 +46,7 @@ func init() {
 		}
 
 		// create collections
-		for _, db := range schemas.Collections {
+		for _, db := range schemas.Main {
 			collection := &models.Collection{
 				Name:       db.Name,
 				Type:       models.CollectionTypeBase,
@@ -75,7 +74,7 @@ func init() {
 		}
 
 		var ind = ""
-		for _, db := range schemas.Collections {
+		for _, db := range schemas.Main {
 			ind += db.Index
 			dao.DB().NewQuery(db.Index).Execute()
 		}
@@ -125,60 +124,6 @@ func init() {
 
 				if err := dao.SaveRecord(record); err != nil {
 					return err
-				}
-			}
-			return nil
-		})
-		// =================================
-
-		// Setting Up Default Labels
-		labelsCollection, err := dao.FindCollectionByNameOrId("_labels")
-		if err != nil {
-			return err
-		}
-
-		defaultLabels := []types.Label{
-			{Name: "!high", Color: "red", Type: "mark"},
-			{Name: "!medium", Color: "orange", Type: "mark"},
-			{Name: "!low", Color: "yellow", Type: "mark"},
-			{Name: "!info", Color: "ignore", Type: "mark"},
-			{Name: "!leak", Color: "violet", Type: "mark"},
-			{Name: "interesting", Color: "yellow", Type: "custom"},
-			{Name: "weird", Color: "purple", Type: "custom"},
-			{Name: "^dummy/folder", Color: "blue", Type: "folder"},
-			{Name: "^target/reset", Color: "blue", Type: "folder"},
-		}
-
-		dao.RunInTransaction(func(txDao *daos.Dao) error {
-			if err != nil {
-				return err
-			}
-
-			for _, val := range defaultLabels {
-				record := models.NewRecord(labelsCollection)
-				id := utils.RandomString(15)
-				record.Set("id", id)
-				record.Set("name", val.Name)
-				record.Set("color", val.Color)
-				record.Set("type", val.Type)
-
-				if err := dao.SaveRecord(record); err != nil {
-					return err
-				}
-
-				collection := &models.Collection{
-					Name:       "label_" + id,
-					Type:       models.CollectionTypeBase,
-					ListRule:   pbTypes.Pointer(""),
-					ViewRule:   pbTypes.Pointer(""),
-					CreateRule: pbTypes.Pointer(""),
-					UpdateRule: pbTypes.Pointer(""),
-					DeleteRule: nil,
-					Schema:     schemas.LabelCollection,
-				}
-
-				if err := dao.SaveCollection(collection); err != nil {
-					log.Println("[migration][creating label collection] Error: ", err)
 				}
 			}
 			return nil

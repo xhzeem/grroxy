@@ -29,11 +29,11 @@ var showLogs bool
 var noBanner bool
 var launchApp bool
 
-func printBanner() {
-	if !noBanner {
-		fmt.Fprint(os.Stderr, banner)
-	}
-}
+// func printBanner() {
+// 	if !noBanner {
+// 		fmt.Fprint(os.Stderr, banner)
+// 	}
+// }
 
 func init() {
 	// log.SetOutput(io.Discard)
@@ -45,7 +45,7 @@ func initialize() {
 		log.SetOutput(io.Discard)
 	}
 
-	printBanner()
+	// printBanner()
 
 	var err error
 	conf.HostAddr, err = utils.CheckAndFindAvailablePort(HostAddress)
@@ -66,9 +66,6 @@ func main() {
 	var rootCmd = &cobra.Command{
 		Use:   "grroxy",
 		Short: "grroxy is center of your web hacking operations",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(commandsUsage)
-		},
 	}
 
 	rootCmd.AddCommand(&cobra.Command{
@@ -105,7 +102,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			initialize()
 
-			printBanner()
+			// printBanner()
 			projectName := "Project"
 			if len(args) > 0 && args[0] != "." {
 				projectName = strings.Join([]string(args), " ")
@@ -129,9 +126,6 @@ func main() {
 	rootCmd.PersistentFlags().BoolVar(&noBanner, "no-banner", false, "")
 	rootCmd.PersistentFlags().BoolVar(&showLogs, "verbose", false, "")
 	rootCmd.PersistentFlags().BoolVar(&launchApp, "app", false, "")
-
-	rootCmd.SetHelpTemplate(commandsUsage)
-	rootCmd.SetUsageTemplate(commandsUsage)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

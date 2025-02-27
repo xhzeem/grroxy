@@ -16,6 +16,7 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20231117061959-7cc037d33fb5
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/glitchedgitz/cook/v2 v2.2.0
+	github.com/glitchedgitz/dadql v0.0.0
 	github.com/glitchedgitz/wappalyzergo v0.0.2
 	github.com/go-resty/resty/v2 v2.12.0
 	github.com/hashicorp/golang-lru v1.0.2
@@ -37,6 +38,8 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tomnomnom/rawhttp v0.0.0-20220611225552-e98e9bba2559
 	github.com/wailsapp/wails/v2 v2.8.2
+	golang.design/x/hotkey v0.4.1
+	golang.design/x/mainthread v0.3.0
 	golang.org/x/net v0.25.0
 	golang.org/x/sync v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -85,7 +88,6 @@ require (
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/ffuf/pencode v0.0.0-20240120104927-07e33ef17d5a // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
-	github.com/glitchedgitz/dadql v0.0.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect

@@ -25,7 +25,6 @@ type Update struct {
 	Created     string `json:"created"`
 	Version     string `json:"version"`
 }
-
 type Project struct {
 	Name     string `json:"name"`
 	Index    int    `json:"index"`
@@ -134,13 +133,13 @@ func (c *Config) NewProject(projectName string) {
 func (c *Config) AddProject(project Project) {
 	c.AppData.Projects = append([]Project{project}, c.AppData.Projects...)
 	c.SaveAppData()
-	os.Chdir(project.Location)
+	// os.Chdir(project.Location)
 }
 
 func (c *Config) UpdateProject(project Project, index int) {
 	c.AppData.Projects = append([]Project{project}, append(c.AppData.Projects[:index], c.AppData.Projects[index+1:]...)...)
 	c.SaveAppData()
-	os.Chdir(project.Location)
+	// os.Chdir(project.Location)
 }
 
 func (c *Config) OpenProject(index int) {

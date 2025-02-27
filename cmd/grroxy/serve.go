@@ -29,9 +29,10 @@ func serve() {
 	API = api.Backend{
 		App: pocketbase.NewWithConfig(
 			pocketbase.Config{
-				// DefaultDev: true,
+				ProjectDir:      "D:\\test\\2",
 				DefaultDataDir:  "grroxy",
 				HideStartBanner: true,
+				// DefaultDev: true,
 				// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
 			},
 		),
@@ -95,6 +96,7 @@ func serve() {
 	API.App.OnBeforeServe().Add(API.TemplatesList)
 	API.App.OnBeforeServe().Add(API.TemplatesNew)
 	API.App.OnBeforeServe().Add(API.TemplatesDelete)
+	API.App.OnBeforeServe().Add(API.Tools)
 
 	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		API.App.Dao().DB().NewQuery(`
