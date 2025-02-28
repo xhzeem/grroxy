@@ -23,7 +23,7 @@ type Options struct {
 	Verbosity                   bool
 	CertCacheSize               int
 	Directory                   string
-	AppAddress                  string
+	AppAddress                  string // grroxy address
 	ListenAddrHTTP              string
 	ListenAddrSocks5            string
 	OutputDirectory             string

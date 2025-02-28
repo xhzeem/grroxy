@@ -18,7 +18,7 @@ import (
 	_ "github.com/glitchedgitz/grroxy-db/cmd/grroxy/migrations"
 )
 
-func serve() {
+func serve(projectPath string) {
 
 	wappalyzerClient, err := wappalyzer.New()
 	if err != nil {
@@ -29,7 +29,7 @@ func serve() {
 	API = api.Backend{
 		App: pocketbase.NewWithConfig(
 			pocketbase.Config{
-				ProjectDir:      "D:\\test\\2",
+				ProjectDir:      projectPath,
 				DefaultDataDir:  "grroxy",
 				HideStartBanner: true,
 				// DefaultDev: true,

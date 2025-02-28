@@ -20,9 +20,7 @@ var Main = []DB{
 		"_projects",
 		Projects,
 		true,
-		`
-		CREATE UNIQUE INDEX idx_projects_name ON _projects (name);
-		`,
+		"",
 	},
 	{
 		"_processes",

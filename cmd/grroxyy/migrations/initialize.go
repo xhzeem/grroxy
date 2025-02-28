@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/glitchedgitz/grroxy-db/schemas"
-	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/daos"
 	m "github.com/pocketbase/pocketbase/migrations"
@@ -82,52 +81,52 @@ func init() {
 		log.Println("[migration][init] Creating Indexes: ", ind)
 
 		// Setting Up Default Settings
-		settingsCollection, err := dao.FindCollectionByNameOrId("_settings")
-		if err != nil {
-			return err
-		}
+		// settingsCollection, err := dao.FindCollectionByNameOrId("_settings")
+		// if err != nil {
+		// 	return err
+		// }
 
-		settings := []setting{
-			{
-				ID:    utils.AddUnderscore("PROJECT_NAME"),
-				Name:  "Project Name",
-				Value: "Untitled Project",
-			},
-			{
-				ID:    utils.AddUnderscore("PROXY"),
-				Name:  "Proxy",
-				Value: "127.0.0.1:8080",
-			},
-			{
-				ID:    utils.AddUnderscore("INTERCEPT"),
-				Name:  "Intercept",
-				Value: "false",
-			},
-			{
-				ID:    utils.AddUnderscore("MAIN_TAB"),
-				Name:  "Main Tab",
-				Value: "Sitemaps",
-			},
-		}
+		// settings := []setting{
+		// 	{
+		// 		ID:    utils.AddUnderscore("PROJECT_NAME"),
+		// 		Name:  "Project Name",
+		// 		Value: "Untitled Project",
+		// 	},
+		// 	{
+		// 		ID:    utils.AddUnderscore("PROXY"),
+		// 		Name:  "Proxy",
+		// 		Value: "127.0.0.1:8080",
+		// 	},
+		// 	{
+		// 		ID:    utils.AddUnderscore("INTERCEPT"),
+		// 		Name:  "Intercept",
+		// 		Value: "false",
+		// 	},
+		// 	{
+		// 		ID:    utils.AddUnderscore("MAIN_TAB"),
+		// 		Name:  "Main Tab",
+		// 		Value: "Sitemaps",
+		// 	},
+		// }
 
-		dao.RunInTransaction(func(txDao *daos.Dao) error {
-			if err != nil {
-				return err
-			}
+		// dao.RunInTransaction(func(txDao *daos.Dao) error {
+		// 	if err != nil {
+		// 		return err
+		// 	}
 
-			for _, val := range settings {
-				record := models.NewRecord(settingsCollection)
+		// 	for _, val := range settings {
+		// 		record := models.NewRecord(settingsCollection)
 
-				record.Set("id", val.ID)
-				record.Set("option", val.Name)
-				record.Set("value", val.Value)
+		// 		record.Set("id", val.ID)
+		// 		record.Set("option", val.Name)
+		// 		record.Set("value", val.Value)
 
-				if err := dao.SaveRecord(record); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+		// 		if err := dao.SaveRecord(record); err != nil {
+		// 			return err
+		// 		}
+		// 	}
+		// 	return nil
+		// })
 
 		return nil
 	}, func(db dbx.Builder) error {
