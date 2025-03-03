@@ -10,10 +10,14 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	// "github.com/pocketbase/dbx"
 
+	"github.com/glitchedgitz/cook/v2/pkg/cook"
 	"github.com/glitchedgitz/grroxy-db/api"
+	"github.com/glitchedgitz/grroxy-db/config"
+	"github.com/glitchedgitz/grroxy-db/launcher"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -24,7 +28,6 @@ import (
 	_ "github.com/glitchedgitz/grroxy-db/cmd/grroxy/migrations"
 )
 
-var App *pocketbase.PocketBase
 var API api.Backend
 var noUI bool
 var noProxy bool
@@ -44,7 +47,15 @@ func init() {
 	// log.SetOutput(io.Discard)
 }
 
+var launch *launcher.Launcher
+var conf config.Config
+var wg sync.WaitGroup
+var initOnce sync.Once
+
 func initialize() {
+
+	fmt.Println("Starting grroxyy")
+	wg.Add(1)
 
 	if !showLogs {
 		log.SetOutput(io.Discard)
@@ -53,45 +64,54 @@ func initialize() {
 	var err error
 
 	// Probably not used
-	HomeDirectory, err = os.UserHomeDir()
+	conf.HomeDirectory, err = os.UserHomeDir()
 	utils.CheckErr("", err)
 
-	CacheDirectory, err = os.UserCacheDir()
-	CacheDirectory = path.Join(CacheDirectory, "grroxy")
-	os.MkdirAll(CacheDirectory, 0755)
+	conf.CacheDirectory, err = os.UserCacheDir()
+	conf.CacheDirectory = path.Join(conf.CacheDirectory, "grroxy")
+	os.MkdirAll(conf.CacheDirectory, 0755)
 	utils.CheckErr("", err)
 
-	ConfigDirectory, err = os.UserConfigDir()
-	ConfigDirectory = path.Join(ConfigDirectory, "grroxy")
-	os.MkdirAll(ConfigDirectory, 0755)
+	conf.ConfigDirectory, err = os.UserConfigDir()
+	conf.ConfigDirectory = path.Join(conf.ConfigDirectory, "grroxy")
+	os.MkdirAll(conf.ConfigDirectory, 0755)
 	utils.CheckErr("", err)
+
+	fmt.Println("Config directory:", conf.ConfigDirectory)
+	fmt.Println("Cache directory:", conf.CacheDirectory)
+	fmt.Println("Home directory:", conf.HomeDirectory)
+
+	startCore()
 
 }
 
 func main() {
 
-	fmt.Println("Starting grroxyy")
-	go startCore()
-
 	var rootCmd = &cobra.Command{
 		Use:   "grroxyy",
 		Short: "grroxyy is center of your web hacking operations",
+		Run: func(cmd *cobra.Command, args []string) {
+			initialize()
+		},
 	}
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "projects [project index (optional)]",
 		Short: "List all projects or open a specific project by index",
 		Run: func(cmd *cobra.Command, args []string) {
+			// Wait for initialization
+			wg.Wait()
+
 			if len(args) > 0 {
 				projectIndex, err := strconv.Atoi(args[0])
 				if err != nil {
 					fmt.Println("Invalid project index:", err)
 					return
 				}
-				openProject(projectIndex)
+				launch.OpenProject(projectIndex)
 			} else {
 				initialize()
-				listProjects()
+				launch.ListProjects()
 			}
 		},
 	})
@@ -110,10 +130,19 @@ func main() {
 
 			// printBanner()
 			projectName := "Project"
+
 			if len(args) > 0 && args[0] != "." {
 				projectName = strings.Join([]string(args), " ")
 			}
-			createNewProject(projectName)
+
+			projectData, err := launch.CreateNewProject(projectName)
+
+			if err != nil {
+				fmt.Println("Error creating project:", err)
+				return
+			}
+
+			fmt.Println("Project created successfully:", projectData)
 		},
 	})
 
@@ -138,28 +167,61 @@ func main() {
 }
 
 func startCore() {
-	App = pocketbase.NewWithConfig(
-		pocketbase.Config{
-			ProjectDir:      "D:\\test\\main",
-			DefaultDataDir:  "grroxy-main",
-			HideStartBanner: true,
-			// DefaultDev: true,
-			// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
-		},
-	)
+	// Remove the defer since we want to control when we signal completion
+	// defer wg.Done()
 
-	migratecmd.MustRegister(App, App.RootCmd, migratecmd.Config{})
+	launch = &launcher.Launcher{
+		App: pocketbase.NewWithConfig(
+			pocketbase.Config{
+				ProjectDir:      "D:\\test\\main",
+				DefaultDataDir:  "grroxy-main",
+				HideStartBanner: true,
+				// DefaultDev: true,
+				// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
+			},
+		),
+		Cook:       cook.NewWithoutConfig(),
+		Config:     &conf,
+		CmdChannel: make(chan launcher.RunCommandData),
+	}
 
-	App.Bootstrap()
+	migratecmd.MustRegister(launch.App, launch.App.RootCmd, migratecmd.Config{})
+
+	launch.App.Bootstrap()
+
+	// Reset project states when the app is terminated
+	launch.App.OnBeforeServe().Add(launch.ResetProjectStates)
+
+	// Adding custom endpoints
+	launch.App.OnBeforeServe().Add(launch.API_ListProjects)
+	launch.App.OnBeforeServe().Add(launch.API_CreateNewProject)
+	launch.App.OnBeforeServe().Add(launch.API_OpenProject)
+	launch.App.OnBeforeServe().Add(launch.BindFrontend)
+	launch.App.OnBeforeServe().Add(launch.RunCommand)
+	launch.App.OnBeforeServe().Add(launch.SendRawRequest)
+	launch.App.OnBeforeServe().Add(launch.TextSQL)
+	launch.App.OnBeforeServe().Add(launch.SaveFile)
+	launch.App.OnBeforeServe().Add(launch.ReadFile)
+	launch.App.OnBeforeServe().Add(launch.DownloadCert)
+	launch.App.OnBeforeServe().Add(launch.CookSearch)
+	launch.App.OnBeforeServe().Add(launch.SearchRegex)
+	launch.App.OnBeforeServe().Add(launch.FileWatcher)
+	launch.App.OnBeforeServe().Add(launch.TemplatesList)
+	launch.App.OnBeforeServe().Add(launch.TemplatesNew)
+	launch.App.OnBeforeServe().Add(launch.TemplatesDelete)
+	launch.App.OnBeforeServe().Add(launch.Tools)
 
 	host, err := utils.CheckAndFindAvailablePort("127.0.0.1:8090")
 	if err != nil {
 		panic(err)
 	}
 
+	// Signal that initialization is complete before starting the server
+	wg.Done()
+
 	fmt.Println("Starting core at: ", host)
 
-	_, err = apis.Serve(App, apis.ServeConfig{
+	_, err = apis.Serve(launch.App, apis.ServeConfig{
 		HttpAddr: host,
 	})
 

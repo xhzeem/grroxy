@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -21,8 +22,9 @@ var API api.Backend
 
 // var noUI bool
 var noProxy bool
-var HostAddress string = "127.0.0.1:8090"
-var ProxyAddress string = "127.0.0.1:8888"
+var HostAddress string
+var ProjectPath string
+var ProxyAddress string
 var showLogs bool
 
 // var noBanner bool
@@ -62,14 +64,17 @@ func initialize() {
 
 func main() {
 
-	if len(os.Args) > 1 {
-		path := os.Args[1]
-		fmt.Println(path)
+	flag.StringVar(&HostAddress, "host", "127.0.0.1:8090", "Host address to listen on")
+	flag.StringVar(&ProxyAddress, "proxy", "127.0.0.1:8888", "Proxy address to listen on")
+	flag.StringVar(&ProjectPath, "path", "", "Project directory path")
 
+	flag.Parse()
+
+	if len(os.Args) > 1 {
 		initialize()
 
 		fmt.Println("Initializing done")
-		serve(path)
+		serve(ProjectPath)
 	} else {
 		fmt.Println("No project path provided")
 	}
