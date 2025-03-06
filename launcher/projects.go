@@ -133,9 +133,17 @@ var ProjectState = struct {
 	Unactive: "unactive",
 }
 
-type ProjectData struct {
-	IP    string `json:"ip" db:"ip"`
+type ProjectStateData struct {
+	Ip    string `json:"ip" db:"ip"`
 	State string `json:"state" db:"state"`
+}
+
+type ProjectData struct {
+	Id      string           `json:"id" db:"id"`
+	Name    string           `json:"name" db:"name"`
+	Path    string           `json:"path" db:"path"`
+	Data    ProjectStateData `json:"data" db:"data"`
+	Version string           `json:"version" db:"version"`
 }
 
 func (launcher *Launcher) ListProjects() {
@@ -186,15 +194,20 @@ func (launcher *Launcher) CreateNewProject(projectName string) (ProjectData, err
 	os.MkdirAll(projectPath, 0755)
 
 	projectData := ProjectData{
-		IP:    ProjectIP,
-		State: ProjectState.Active,
+		Id:   projectId,
+		Name: projectName,
+		Path: projectPath,
+		Data: ProjectStateData{
+			Ip:    ProjectIP,
+			State: ProjectState.Active,
+		},
 	}
 
 	record := models.NewRecord(collection)
 	record.Set("name", projectName)
 	record.Set("id", projectId)
 	record.Set("path", projectPath)
-	record.Set("data", projectData)
+	record.Set("data", projectData.Data)
 
 	err = launcher.App.Dao().SaveRecord(record)
 	if err != nil {
@@ -211,17 +224,17 @@ func (launcher *Launcher) CreateNewProject(projectName string) (ProjectData, err
 }
 
 func (launcher *Launcher) setProjectStateClose(projectId string) {
-
 	record, err := launcher.App.Dao().FindRecordById("_projects", projectId)
 	if err != nil {
 		fmt.Println("Error fetching project:", err)
 		return
 	}
 
-	record.Set("data", ProjectData{
-		IP:    "",
+	stateData := ProjectStateData{
+		Ip:    "",
 		State: ProjectState.Unactive,
-	})
+	}
+	record.Set("data", stateData)
 
 	err = launcher.App.Dao().SaveRecord(record)
 	if err != nil {
@@ -253,11 +266,16 @@ func (launcher *Launcher) OpenProject(projectIndex int) (ProjectData, error) {
 	}
 
 	projectData := ProjectData{
-		IP:    ProjectIP,
-		State: ProjectState.Active,
+		Id:   _record_id.(string),
+		Name: record.Get("name").(string),
+		Path: record.Get("path").(string),
+		Data: ProjectStateData{
+			Ip:    ProjectIP,
+			State: ProjectState.Active,
+		},
 	}
 
-	record.Set("data", projectData)
+	record.Set("data", projectData.Data)
 
 	err = launcher.App.Dao().SaveRecord(record)
 	if err != nil {
@@ -288,11 +306,16 @@ func (launcher *Launcher) OpenProjectId(projectIp string, projectId string) (Pro
 	}
 
 	projectData := ProjectData{
-		IP:    projectIp,
-		State: ProjectState.Active,
+		Id:   projectId,
+		Name: record.Get("name").(string),
+		Path: record.Get("path").(string),
+		Data: ProjectStateData{
+			Ip:    projectIp,
+			State: ProjectState.Active,
+		},
 	}
 
-	record.Set("data", projectData)
+	record.Set("data", projectData.Data)
 
 	err = launcher.App.Dao().SaveRecord(record)
 	if err != nil {
@@ -340,7 +363,7 @@ func (launcher *Launcher) ResetProjectStates(e *core.ServeEvent) error {
 	}
 
 	for _, record := range records {
-		var projectData ProjectData
+		var projectStateData ProjectStateData
 		dataInterface := record.Get("data")
 		if dataInterface == nil {
 			continue
@@ -352,17 +375,17 @@ func (launcher *Launcher) ResetProjectStates(e *core.ServeEvent) error {
 			continue
 		}
 
-		if err := json.Unmarshal(jsonData, &projectData); err != nil {
+		if err := json.Unmarshal(jsonData, &projectStateData); err != nil {
 			fmt.Printf("Error parsing project data for record %s: %v\n", record.Id, err)
 			continue
 		}
 
-		if projectData.State != ProjectState.Active {
+		if projectStateData.State != ProjectState.Active {
 			continue
 		}
 
-		record.Set("data", ProjectData{
-			IP:    "",
+		record.Set("data", ProjectStateData{
+			Ip:    "",
 			State: ProjectState.Unactive,
 		})
 
