@@ -39,7 +39,6 @@ func serve(projectPath string) {
 		Cook:       cook.NewWithoutConfig(),
 		Wappalyzer: wappalyzerClient,
 		Config:     &conf,
-		CmdChannel: make(chan api.RunCommandData),
 	}
 
 	if !noProxy {
@@ -73,7 +72,6 @@ func serve(projectPath string) {
 			Waiting:   true,
 		})
 	}
-	go API.CommandManager()
 
 	migratecmd.MustRegister(API.App, API.App.RootCmd, migratecmd.Config{})
 
@@ -84,7 +82,6 @@ func serve(projectPath string) {
 	API.App.OnBeforeServe().Add(API.BindFrontend)
 	API.App.OnBeforeServe().Add(API.SitemapNew)
 	API.App.OnBeforeServe().Add(API.SitemapFetch)
-	API.App.OnBeforeServe().Add(API.RunCommand)
 	API.App.OnBeforeServe().Add(API.SendRawRequest)
 	API.App.OnBeforeServe().Add(API.TextSQL)
 	API.App.OnBeforeServe().Add(API.SaveFile)

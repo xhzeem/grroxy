@@ -20,7 +20,6 @@ type Backend struct {
 	Config     *config.Config
 	Cook       *cook.COOK
 	Wappalyzer *wappalyzer.Wappalyze
-	CmdChannel chan RunCommandData
 }
 
 func (backend *Backend) Serve() {
