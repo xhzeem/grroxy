@@ -11,6 +11,7 @@ import (
 
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/models"
@@ -93,25 +94,20 @@ func (launcher *Launcher) API_OpenProject(e *core.ServeEvent) error {
 		Handler: func(c echo.Context) error {
 
 			var data struct {
-				Id string `json:"id"`
+				Project string `json:"project"`
 			}
 
 			if err := c.Bind(&data); err != nil {
 				return c.String(http.StatusBadRequest, "Invalid request body")
 			}
 
-			if data.Id == "" || strings.TrimSpace(data.Id) == "" {
-				return c.String(http.StatusBadRequest, "Project ID cannot be empty or just whitespace")
+			if data.Project == "" || strings.TrimSpace(data.Project) == "" {
+				return c.String(http.StatusBadRequest, "Project can't be empty, send name or id")
 			}
 
-			projectIp, err := utils.CheckAndFindAvailablePort("127.0.0.1:8091")
+			projectData, err := launcher.OpenProjectFromNameOrId(data.Project)
 			if err != nil {
-				return c.String(http.StatusInternalServerError, "Error creating project")
-			}
-
-			projectData, err := launcher.OpenProjectId(projectIp, data.Id)
-			if err != nil {
-				return c.String(http.StatusInternalServerError, "Error creating project")
+				return c.String(http.StatusInternalServerError, err.Error())
 			}
 
 			return c.JSON(http.StatusOK, projectData)
@@ -253,15 +249,35 @@ func (launcher *Launcher) OpenProject(projectIndex int) (ProjectData, error) {
 
 	_record_id := records[projectIndex].Get("id")
 
-	ProjectIP, err := utils.CheckAndFindAvailablePort("127.0.0.1:8091")
-	if err != nil {
-		fmt.Println("Error fetching project IP:", err)
-		return ProjectData{}, err
-	}
-
 	record, err := launcher.App.Dao().FindRecordById("_projects", _record_id.(string))
 	if err != nil {
 		fmt.Println("Error fetching project:", err)
+		return ProjectData{}, err
+	}
+
+	// Check if project is already running
+	var existingStateData ProjectStateData
+	dataInterface := record.Get("data")
+	if dataInterface != nil {
+		jsonData, err := json.Marshal(dataInterface)
+		if err == nil {
+			if err := json.Unmarshal(jsonData, &existingStateData); err == nil {
+				if existingStateData.State == ProjectState.Active && existingStateData.Ip != "" {
+					// Project is already running, return existing data
+					return ProjectData{
+						Id:   _record_id.(string),
+						Name: record.Get("name").(string),
+						Path: record.Get("path").(string),
+						Data: existingStateData,
+					}, nil
+				}
+			}
+		}
+	}
+
+	ProjectIP, err := utils.CheckAndFindAvailablePort("127.0.0.1:8091")
+	if err != nil {
+		fmt.Println("Error fetching project IP:", err)
 		return ProjectData{}, err
 	}
 
@@ -297,25 +313,54 @@ func (launcher *Launcher) OpenProject(projectIndex int) (ProjectData, error) {
 	return projectData, nil
 }
 
-func (launcher *Launcher) OpenProjectId(projectIp string, projectId string) (ProjectData, error) {
+func (launcher *Launcher) OpenProjectFromNameOrId(project string) (ProjectData, error) {
+	record, err := launcher.App.Dao().FindFirstRecordByFilter("_projects", "name~{:project} OR id~{:project}", dbx.Params{
+		"project": project,
+	})
 
-	record, err := launcher.App.Dao().FindRecordById("_projects", projectId)
-	if err != nil {
-		fmt.Println("Error fetching project:", err)
+	if record == nil || err != nil {
 		return ProjectData{}, err
 	}
 
-	projectData := ProjectData{
-		Id:   projectId,
-		Name: record.Get("name").(string),
-		Path: record.Get("path").(string),
-		Data: ProjectStateData{
-			Ip:    projectIp,
-			State: ProjectState.Active,
-		},
+	// Check if project is already running
+	var existingStateData ProjectStateData
+	dataInterface := record.Get("data")
+	if dataInterface != nil {
+		jsonData, err := json.Marshal(dataInterface)
+		if err == nil {
+			if err := json.Unmarshal(jsonData, &existingStateData); err == nil {
+				if existingStateData.State == ProjectState.Active && existingStateData.Ip != "" {
+					// Project is already running, return existing data
+					return ProjectData{
+						Id:   record.Get("id").(string),
+						Name: record.Get("name").(string),
+						Path: record.Get("path").(string),
+						Data: existingStateData,
+					}, nil
+				}
+			}
+		}
 	}
 
-	record.Set("data", projectData.Data)
+	projectIp, err := utils.CheckAndFindAvailablePort("127.0.0.1:8091")
+	if err != nil {
+		fmt.Println("Error fetching project IP:", err)
+		return ProjectData{}, err
+	}
+
+	projectStateData := ProjectStateData{
+		Ip:    projectIp,
+		State: ProjectState.Active,
+	}
+
+	projectData := ProjectData{
+		Id:   record.Get("id").(string),
+		Name: record.Get("name").(string),
+		Path: record.Get("path").(string),
+		Data: projectStateData,
+	}
+
+	record.Set("data", projectStateData)
 
 	err = launcher.App.Dao().SaveRecord(record)
 	if err != nil {

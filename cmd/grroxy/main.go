@@ -95,8 +95,12 @@ func main() {
 		Use:   "grroxyy",
 		Short: "grroxyy is center of your web hacking operations",
 		Run: func(cmd *cobra.Command, args []string) {
-			go initialize()
-			runApp()
+			if launchApp {
+				go initialize()
+				runApp()
+			} else {
+				initialize()
+			}
 		},
 	}
 
