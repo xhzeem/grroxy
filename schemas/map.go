@@ -60,6 +60,15 @@ var Main = []DB{
 	},
 }
 
+var Tools = []DB{
+	{
+		"_processes",
+		PROCESSES,
+		false,
+		"",
+	},
+}
+
 var Collections = []DB{
 	{
 		"_raw",

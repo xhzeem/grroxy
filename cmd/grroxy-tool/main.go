@@ -9,7 +9,8 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 
 	// "github.com/pocketbase/pocketbase/tools/list"
-	_ "github.com/glitchedgitz/grroxy-db/cmd/grroxy/migrations"
+	_ "github.com/glitchedgitz/grroxy-db/cmd/grroxy-tool/migrations"
+	"github.com/glitchedgitz/grroxy-db/cmd/grroxy-tool/tools_api"
 )
 
 func main() {
@@ -20,22 +21,24 @@ func main() {
 
 	flag.StringVar(&host, "host", "127.0.0.1:8090", "Host address to listen on")
 	flag.StringVar(&path, "path", ".", "Project directory path")
-	flag.StringVar(&name, "name", "grroxy", "Project name")
+	flag.StringVar(&name, "name", "grroxy-tool", "Project name")
 	flag.Parse()
 
-	App := pocketbase.NewWithConfig(
-		pocketbase.Config{
-			ProjectDir:      path,
-			DefaultDataDir:  name,
-			HideStartBanner: true,
-			// DefaultDev: true,
-			// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
-		},
-	)
+	backend := tools_api.Tools{
+		App: pocketbase.NewWithConfig(
+			pocketbase.Config{
+				ProjectDir:      path,
+				DefaultDataDir:  name,
+				HideStartBanner: true,
+			},
+		),
+		CmdChannel: make(chan tools_api.RunCommandData),
+	}
 
-	App.Bootstrap()
+	backend.App.Bootstrap()
+	go backend.CommandManager()
 
-	_, err := apis.Serve(App, apis.ServeConfig{
+	_, err := apis.Serve(backend.App, apis.ServeConfig{
 		HttpAddr: host,
 	})
 

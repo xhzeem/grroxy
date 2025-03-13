@@ -4,10 +4,12 @@ package migrations
 import (
 	"log"
 
+	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/daos"
 	m "github.com/pocketbase/pocketbase/migrations"
 	"github.com/pocketbase/pocketbase/models"
+	pbTypes "github.com/pocketbase/pocketbase/tools/types"
 )
 
 type setting struct {
@@ -41,6 +43,42 @@ func init() {
 		if err := dao.SaveAdmin(admin); err != nil {
 			log.Println(err)
 		}
+
+		// create collections
+		for _, db := range schemas.Tools {
+			collection := &models.Collection{
+				Name:       db.Name,
+				Type:       models.CollectionTypeBase,
+				ListRule:   pbTypes.Pointer(""),
+				ViewRule:   pbTypes.Pointer(""),
+				CreateRule: pbTypes.Pointer(""),
+				UpdateRule: pbTypes.Pointer(""),
+				DeleteRule: nil,
+				Schema:     db.Schema,
+			}
+
+			collection.SetId(db.Name)
+
+			// if db.HasIndex {
+			// 	collection.Indexes = pbTypes.JsonArray[string]{db.Index}
+			// }
+
+			if err := dao.SaveCollection(collection); err != nil {
+				log.Println("[migration][init] Error: ", err)
+			}
+
+			// sites
+
+			log.Println("[migration][init] Creating collectionasdf: ", db.Name)
+		}
+
+		var ind = ""
+		for _, db := range schemas.Tools {
+			ind += db.Index
+			dao.DB().NewQuery(db.Index).Execute()
+		}
+
+		log.Println("[migration][init] Creating Indexes: ", ind)
 
 		return nil
 	}, func(db dbx.Builder) error {
