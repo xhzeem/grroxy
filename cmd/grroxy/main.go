@@ -187,6 +187,7 @@ func startCore() {
 
 	migratecmd.MustRegister(launch.App, launch.App.RootCmd, migratecmd.Config{})
 
+	go launch.CommandManager()
 	launch.App.Bootstrap()
 
 	// Reset project states when the app is terminated

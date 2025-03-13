@@ -20,6 +20,7 @@ type Backend struct {
 	Config     *config.Config
 	Cook       *cook.COOK
 	Wappalyzer *wappalyzer.Wappalyze
+	CmdChannel chan RunCommandData
 }
 
 func (backend *Backend) Serve() {
@@ -34,6 +35,8 @@ Cert:               http://%s/cacert.crt
 Proxy Listening On: %s
 
 	`, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.ProxyAddr)
+
+	go backend.CommandManager()
 
 	// var httpsAddr string
 
