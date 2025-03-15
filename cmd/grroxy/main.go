@@ -4,8 +4,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -48,9 +46,9 @@ func initialize() {
 
 	fmt.Println("Starting grroxyy")
 
-	if !showLogs {
-		log.SetOutput(io.Discard)
-	}
+	// if !showLogs {
+	// 	log.SetOutput(io.Discard)
+	// }
 
 	var err error
 
@@ -211,6 +209,7 @@ func startCore() {
 	launch.App.OnBeforeServe().Add(launch.TemplatesNew)
 	launch.App.OnBeforeServe().Add(launch.TemplatesDelete)
 	launch.App.OnBeforeServe().Add(launch.Tools)
+	launch.App.OnBeforeServe().Add(launch.ToolsServer)
 
 	host, err := utils.CheckAndFindAvailablePort("127.0.0.1:8090")
 	if err != nil {
