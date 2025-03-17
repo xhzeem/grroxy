@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
@@ -29,18 +30,6 @@ func (launcher *Launcher) CommandManager() {
 	}
 }
 
-var process = struct {
-	inqueue   string
-	running   string
-	completed string
-	killed    string
-}{
-	inqueue:   "In Queue",
-	running:   "Running",
-	completed: "Completed",
-	killed:    "Killed",
-}
-
 func (launcher *Launcher) SetProcess(id, state string) {
 	record, err := launcher.App.Dao().FindRecordById("_processes", id)
 	utils.CheckErr("", err)
@@ -51,7 +40,7 @@ func (launcher *Launcher) SetProcess(id, state string) {
 	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
 }
 
-func (launcher *Launcher) RegisterProcessInDB(data, state string) string {
+func (launcher *Launcher) RegisterProcessInDB(input, data any, state string) string {
 	collection, err := launcher.App.Dao().FindCollectionByNameOrId("_processes")
 	utils.CheckErr("[RunningCommand][FindCollection]:", err)
 
@@ -60,8 +49,11 @@ func (launcher *Launcher) RegisterProcessInDB(data, state string) string {
 	id := utils.RandomString(15)
 
 	record.Set("id", id)
-	record.Set("data", data)
+	record.Set("name", "name") // Use command as name
+	record.Set("input", input) // Store the input data
+	record.Set("data", data)   // Store full command data
 	record.Set("state", state)
+	record.Set("type", "type") // Store whether it saves to file or collection
 
 	err = launcher.App.Dao().SaveRecord(record)
 	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
@@ -113,7 +105,7 @@ func (launcher *Launcher) RunCommand(e *core.ServeEvent) error {
 
 			log.Println("[RunCommand]: ", data)
 
-			id := launcher.RegisterProcessInDB(data.Data, process.inqueue)
+			id := launcher.RegisterProcessInDB(data.Data, data, schemas.ProcessState.Inqueue)
 
 			data.ID = id
 
@@ -132,17 +124,11 @@ func (launcher *Launcher) RunCommand(e *core.ServeEvent) error {
 }
 
 func (launcher *Launcher) RunningCommand(id string, command string, filename string) {
-
-	launcher.SetProcess(id, process.running)
+	launcher.SetProcess(id, schemas.ProcessState.Running)
 	var cmd *exec.Cmd
 	saveToFile := filename != ""
 
 	var useBash = runtime.GOOS != "windows"
-
-	// if saveToFile {
-	// 	command = command + " > " + c.Filename
-	// }
-	// cmd = exec.Command("cmd", "/C", command)
 
 	if saveToFile {
 		command = command + " > " + filename
@@ -181,12 +167,11 @@ func (launcher *Launcher) RunningCommand(id string, command string, filename str
 		return
 	}
 
-	launcher.SetProcess(id, process.completed)
+	launcher.SetProcess(id, schemas.ProcessState.Completed)
 }
 
 func (launcher *Launcher) RunningCommandSaveToCollection(id, command, collectionName string) {
-
-	launcher.SetProcess(id, process.running)
+	launcher.SetProcess(id, schemas.ProcessState.Running)
 
 	log.Println("RunningCommand: ", command)
 	var cmd *exec.Cmd
@@ -241,6 +226,5 @@ func (launcher *Launcher) RunningCommandSaveToCollection(id, command, collection
 		return
 	}
 
-	launcher.SetProcess(id, process.completed)
-
+	launcher.SetProcess(id, schemas.ProcessState.Completed)
 }

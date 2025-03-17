@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
@@ -29,18 +30,6 @@ func (backend *Backend) CommandManager() {
 	}
 }
 
-var process = struct {
-	inqueue   string
-	running   string
-	completed string
-	killed    string
-}{
-	inqueue:   "In Queue",
-	running:   "Running",
-	completed: "Completed",
-	killed:    "Killed",
-}
-
 func (backend *Backend) SetProcess(id, state string) {
 	record, err := backend.App.Dao().FindRecordById("_processes", id)
 	utils.CheckErr("", err)
@@ -51,7 +40,7 @@ func (backend *Backend) SetProcess(id, state string) {
 	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
 }
 
-func (backend *Backend) RegisterProcessInDB(data, state string) string {
+func (backend *Backend) RegisterProcessInDB(input, data any, state string) string {
 	collection, err := backend.App.Dao().FindCollectionByNameOrId("_processes")
 	utils.CheckErr("[RunningCommand][FindCollection]:", err)
 
@@ -60,8 +49,11 @@ func (backend *Backend) RegisterProcessInDB(data, state string) string {
 	id := utils.RandomString(15)
 
 	record.Set("id", id)
-	record.Set("data", data)
+	record.Set("name", "name") // Use command as name
+	record.Set("input", input) // Store the input data
+	record.Set("data", data)   // Store full command data
 	record.Set("state", state)
+	record.Set("type", "type") // Store whether it saves to file or collection
 
 	err = backend.App.Dao().SaveRecord(record)
 	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
@@ -113,7 +105,7 @@ func (backend *Backend) RunCommand(e *core.ServeEvent) error {
 
 			log.Println("[RunCommand]: ", data)
 
-			id := backend.RegisterProcessInDB(data.Data, process.inqueue)
+			id := backend.RegisterProcessInDB(data.Data, data, schemas.ProcessState.Inqueue)
 
 			data.ID = id
 
@@ -133,7 +125,7 @@ func (backend *Backend) RunCommand(e *core.ServeEvent) error {
 
 func (backend *Backend) RunningCommand(id string, command string, filename string) {
 
-	backend.SetProcess(id, process.running)
+	backend.SetProcess(id, schemas.ProcessState.Running)
 	var cmd *exec.Cmd
 	saveToFile := filename != ""
 
@@ -181,12 +173,12 @@ func (backend *Backend) RunningCommand(id string, command string, filename strin
 		return
 	}
 
-	backend.SetProcess(id, process.completed)
+	backend.SetProcess(id, schemas.ProcessState.Completed)
 }
 
 func (backend *Backend) RunningCommandSaveToCollection(id, command, collectionName string) {
 
-	backend.SetProcess(id, process.running)
+	backend.SetProcess(id, schemas.ProcessState.Running)
 
 	log.Println("RunningCommand: ", command)
 	var cmd *exec.Cmd
@@ -241,6 +233,6 @@ func (backend *Backend) RunningCommandSaveToCollection(id, command, collectionNa
 		return
 	}
 
-	backend.SetProcess(id, process.completed)
+	backend.SetProcess(id, schemas.ProcessState.Completed)
 
 }
