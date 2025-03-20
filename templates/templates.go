@@ -155,7 +155,7 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 
 		for _, job := range template.Tasks {
 
-			log.Println("Tasks: jobs: ", job)
+			// log.Println("Tasks: jobs: ", job)
 
 			check, err := dadql.Filter(data, job.Condition)
 			if err != nil {
@@ -167,10 +167,10 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 				log.Println("[template.Run] Found with:", job.Condition)
 
 				for _, action := range job.Todo {
-					for function, data := range action {
+					for function, d := range action {
 						actions = append(actions, getParsedValue(data, Action{
 							ActionName: function,
-							Data:       data,
+							Data:       d,
 						}))
 					}
 				}
@@ -195,7 +195,11 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 						}
 
 						log.Println("Before even sending: ", _action)
-						results = append(results, getParsedValue(data, a))
+
+						p := getParsedValue(data, a)
+						log.Println("After parsing: ", p)
+
+						results = append(results, p)
 					}
 				}
 			}
@@ -209,7 +213,7 @@ func (t *Templates) Run(data map[string]any, hook string) ([]Action, error) {
 
 func ParseVariable(d *map[string]any, value string) string {
 
-	log.Println("[ParseVariables] Using data ", *d)
+	log.Println("[ParseVariables] Using data ", value)
 
 	re := regexp.MustCompile(`{{(.*?)}}`)
 
@@ -224,6 +228,8 @@ func ParseVariable(d *map[string]any, value string) string {
 			value = strings.ReplaceAll(value, match[0], fmt.Sprint(fieldValue))
 		}
 	}
+
+	log.Println("[ParseVariables] Parsed value ", value)
 
 	return value
 }
