@@ -41,6 +41,7 @@ func (c *Config) Initiate() {
 
 	c.LoadAppData()
 }
+
 func (c *Config) ShowConfig() {
 	fmt.Println("Home:         ", c.HomeDirectory)
 	fmt.Println("Cache:        ", c.CacheDirectory)

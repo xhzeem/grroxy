@@ -2,13 +2,14 @@ package api
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
 	"runtime"
 
+	"github.com/glitchedgitz/grroxy-db/process"
+	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
@@ -29,67 +30,12 @@ func (backend *Backend) CommandManager() {
 	}
 }
 
-var process = struct {
-	inqueue   string
-	running   string
-	completed string
-	killed    string
-}{
-	inqueue:   "In Queue",
-	running:   "Running",
-	completed: "Completed",
-	killed:    "Killed",
-}
-
 func (backend *Backend) SetProcess(id, state string) {
-	record, err := backend.App.Dao().FindRecordById("_processes", id)
-	utils.CheckErr("", err)
-
-	record.Set("state", state)
-
-	err = backend.App.Dao().SaveRecord(record)
-	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
+	process.SetState(backend.App, id, state)
 }
 
-func (backend *Backend) RegisterProcessInDB(data, state string) string {
-	collection, err := backend.App.Dao().FindCollectionByNameOrId("_processes")
-	utils.CheckErr("[RunningCommand][FindCollection]:", err)
-
-	record := models.NewRecord(collection)
-
-	id := utils.RandomString(15)
-
-	record.Set("id", id)
-	record.Set("data", data)
-	record.Set("state", state)
-
-	err = backend.App.Dao().SaveRecord(record)
-	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
-	return id
-}
-
-type RunCommandData struct {
-	ID         string `db:"id,omitempty" json:"id,omitempty"`
-	SaveTo     string `db:"save_to,omitempty" json:"save_to,omitempty"`
-	Data       string `db:"data,omitempty" json:"data,omitempty"`
-	Command    string `db:"command,omitempty" json:"command,omitempty"`
-	Collection string `db:"collection,omitempty" json:"collection,omitempty"`
-	Filename   string `db:"filename,omitempty" json:"filename,omitempty"`
-}
-
-func (d *RunCommandData) Scan(value interface{}) error {
-	if value == nil {
-		*d = RunCommandData{}
-		return nil
-	}
-	switch v := value.(type) {
-	case []byte:
-		return json.Unmarshal(v, d)
-	case string:
-		return json.Unmarshal([]byte(v), d)
-	default:
-		return fmt.Errorf("unsupported type: %T", v)
-	}
+func (backend *Backend) RegisterProcessInDB(input, data any, state string) string {
+	return process.RegisterInDB(backend.App, input, data, state)
 }
 
 func (backend *Backend) RunCommand(e *core.ServeEvent) error {
@@ -106,14 +52,14 @@ func (backend *Backend) RunCommand(e *core.ServeEvent) error {
 				return c.String(http.StatusForbidden, "")
 			}
 
-			var data RunCommandData
+			var data process.RunCommandData
 			if err := c.Bind(&data); err != nil {
 				return err
 			}
 
 			log.Println("[RunCommand]: ", data)
 
-			id := backend.RegisterProcessInDB(data.Data, process.inqueue)
+			id := backend.RegisterProcessInDB(data.Data, data, schemas.ProcessState.Inqueue)
 
 			data.ID = id
 
@@ -133,7 +79,7 @@ func (backend *Backend) RunCommand(e *core.ServeEvent) error {
 
 func (backend *Backend) RunningCommand(id string, command string, filename string) {
 
-	backend.SetProcess(id, process.running)
+	backend.SetProcess(id, schemas.ProcessState.Running)
 	var cmd *exec.Cmd
 	saveToFile := filename != ""
 
@@ -181,12 +127,12 @@ func (backend *Backend) RunningCommand(id string, command string, filename strin
 		return
 	}
 
-	backend.SetProcess(id, process.completed)
+	backend.SetProcess(id, schemas.ProcessState.Completed)
 }
 
 func (backend *Backend) RunningCommandSaveToCollection(id, command, collectionName string) {
 
-	backend.SetProcess(id, process.running)
+	backend.SetProcess(id, schemas.ProcessState.Running)
 
 	log.Println("RunningCommand: ", command)
 	var cmd *exec.Cmd
@@ -241,6 +187,6 @@ func (backend *Backend) RunningCommandSaveToCollection(id, command, collectionNa
 		return
 	}
 
-	backend.SetProcess(id, process.completed)
+	backend.SetProcess(id, schemas.ProcessState.Completed)
 
 }

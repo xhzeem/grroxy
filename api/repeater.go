@@ -1,6 +1,6 @@
 package api
 
-import (	
+import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/grrhttp"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"

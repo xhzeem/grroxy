@@ -7,9 +7,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
-	// "github.com/pocketbase/pocketbase/tools/list"
-	_ "github.com/glitchedgitz/grroxy-db/cmd/grroxy/migrations"
-	"github.com/glitchedgitz/grroxy-db/frontend"
+	"github.com/glitchedgitz/grroxy-db/cmd/grroxy/frontend"
 )
 
 type App struct {
@@ -25,7 +23,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) GetHost() string {
-	return HostAddress
+	return "http://" + MainHostAddress
 }
 
 func runApp() {

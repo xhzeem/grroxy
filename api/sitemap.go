@@ -1,6 +1,6 @@
 package api
 
-import (	
+import (
 	"context"
 	"fmt"
 	"io"
@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/types"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	wappalyzer "github.com/glitchedgitz/wappalyzergo"
 	"github.com/jpillora/go-tld"
 	"github.com/labstack/echo/v5"
