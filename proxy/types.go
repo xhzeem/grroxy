@@ -6,9 +6,9 @@ import (
 	"github.com/armon/go-socks5"
 	"github.com/elazarl/goproxy"
 	"github.com/glitchedgitz/grroxy-db/certs"
-	"github.com/glitchedgitz/grroxy-db/detections"
 	"github.com/glitchedgitz/grroxy-db/save"
 	"github.com/glitchedgitz/grroxy-db/sdk"
+	"github.com/glitchedgitz/grroxy-db/templates"
 	"github.com/haxii/fastproxy/bufiopool"
 	"github.com/haxii/fastproxy/superproxy"
 	"github.com/projectdiscovery/fastdialer/fastdialer"
@@ -23,7 +23,7 @@ type Options struct {
 	Verbosity                   bool
 	CertCacheSize               int
 	Directory                   string
-	AppAddress                  string
+	AppAddress                  string // grroxy address
 	ListenAddrHTTP              string
 	ListenAddrSocks5            string
 	OutputDirectory             string
@@ -64,5 +64,5 @@ type Proxy struct {
 	rbhttp       *rbtransport.RoundTransport
 	rbsocks5     *rbtransport.RoundTransport
 	grroxydb     *sdk.Client
-	detector     *detections.Definitions
+	templates    *templates.Templates
 }

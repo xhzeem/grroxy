@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -19,10 +18,10 @@ import (
 	"github.com/armon/go-socks5"
 	"github.com/elazarl/goproxy"
 	certs "github.com/glitchedgitz/grroxy-db/certs"
-	"github.com/glitchedgitz/grroxy-db/detections"
 	save "github.com/glitchedgitz/grroxy-db/save"
 	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/sdk"
+	"github.com/glitchedgitz/grroxy-db/templates"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/haxii/fastproxy/bufiopool"
 	"github.com/haxii/fastproxy/superproxy"
@@ -137,7 +136,7 @@ func (p *Proxy) RunProxy() error {
 					StatusCode:       200,
 					Status:           http.StatusText(200),
 					ContentLength:    int64(reader.Len()),
-					Body:             ioutil.NopCloser(reader),
+					Body:             io.NopCloser(reader),
 				}
 				return r, resp
 			},
@@ -214,7 +213,7 @@ func NewProxy(options *Options) (*Proxy, error) {
 	if options.ListenAddrHTTP != "" {
 		httpproxy = goproxy.NewProxyHttpServer()
 		// if options.Silent {
-		// 	httpproxy.Logger = log.New(ioutil.Discard, "", log.Ltime|log.Lshortfile)
+		// 	httpproxy.Logger = log.New(ioutils.Discard, "", log.Ltime|log.Lshortfile)
 		// } else if options.Verbose {
 		// 	httpproxy.Verbose = true
 		// } else {
@@ -278,7 +277,11 @@ func NewProxy(options *Options) (*Proxy, error) {
 		}
 	}
 
-	detector := detections.New()
+	t := &templates.Templates{
+		TempalteDir: `D:\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`,
+	}
+
+	t.Setup()
 
 	proxy := &Proxy{
 		httpproxy: httpproxy,
@@ -290,7 +293,7 @@ func NewProxy(options *Options) (*Proxy, error) {
 		rbhttp:    rbhttp,
 		rbsocks5:  rbsocks5,
 		grroxydb:  grroxydb,
-		detector:  detector,
+		templates: t,
 	}
 
 	proxy.grroxydb.CreateCollection(models.Collection{
@@ -309,72 +312,8 @@ func NewProxy(options *Options) (*Proxy, error) {
 		"unique_id": "___INTERCEPT___",
 		"data": `{
   "attachedFilters": "",
-  "filters": [
-    {
-      "checked": false,
-      "filter": "req.url ~ '=http'",
-      "id": "v20O9W5o",
-      "type": "single"
-    },
-    {
-      "checked": false,
-      "filter": "req.url ~ 'api'",
-      "id": "EqMjWJb0",
-      "type": "single"
-    },
-    {
-      "checked": false,
-      "filter": "req.has_params = true",
-      "id": "3kLPgRga",
-      "type": "single"
-    },
-    {
-      "checked": false,
-      "filter": "resp.has_cookies = true",
-      "id": "bLXLRG8s",
-      "type": "single"
-    },
-    {
-      "checked": true,
-      "filters": [
-        {
-          "checked": true,
-          "filter": "req.ext !~ 'jpg' && req.ext !~ 'jpeg' && req.ext !~ 'gif' && req.ext !~ 'png' && req.ext !~ 'png' && req.ext !~ 'webp' && req.ext !~ 'ico'",
-          "id": "dr95ZHgW",
-          "type": "single"
-        },
-        {
-          "checked": true,
-          "filter": "req.ext !~ 'css'",
-          "id": "sHCDkSIf",
-          "type": "single"
-        },
-        {
-          "checked": true,
-          "filter": "req.ext !~ 'ttf' && req.ext !~ 'otf' && req.ext !~ 'woff' && req.ext !~ 'woff2' && req.ext !~ 'eot' && req.ext !~ 'svg' && req.ext !~ 'dfont' && req.ext !~ 'pfa' && req.ext !~ 'pfb' && req.ext !~ 'fon'",
-          "id": "T3nJMVAg",
-          "type": "single"
-        },
-        {
-          "checked": true,
-          "filter": "req.ext !~ 'mp4' && req.ext !~ 'avi' && req.ext !~ 'mkv' && req.ext !~ 'mov' && req.ext !~ 'webm'",
-          "id": "CbhXj0aq",
-          "type": "single"
-        },
-        {
-          "checked": true,
-          "filter": "req.ext !~ 'mp3' && req.ext !~ 'wav'",
-          "id": "qQWIr0ID",
-          "type": "single"
-        }
-      ],
-      "id": "L1WDv5fF",
-      "name": "No Media/CSS",
-      "operator": "AND",
-      "type": "group"
-    }
-  ],
-  "filterstring": "(req.ext !~ 'jpg' && req.ext !~ 'jpeg' && req.ext !~ 'gif' && req.ext !~ 'png' && req.ext !~ 'png' && req.ext !~ 'css' && req.ext !~ 'ttf' && req.ext !~ 'otf' && req.ext !~ 'woff' && req.ext !~ 'woff2' && req.ext !~ 'eot' && req.ext !~ 'svg' && req.ext !~ 'dfont' && req.ext !~ 'pfa' && req.ext !~ 'pfb' && req.ext !~ 'fon' && req.ext !~ 'mp4' && req.ext !~ 'avi' && req.ext !~ 'mkv' && req.ext !~ 'mov' && req.ext !~ 'webm' && req.ext !~ 'mp3' && req.ext !~ 'wav')",
+  "filters": [{"id":"5Nss0D4G","checked":false,"type":"single","filter":"req.has_params = true"},{"id":"K9u39n88","checked":false,"type":"single","filter":"resp.has_cookies = true"},{"id":"HNyq4PQq","checked":false,"name":"API","type":"global"},{"id":"1LI7esrR","checked":true,"name":"No Media/CSS","type":"global"}],
+  "filterstring": "",
   "selectedIndex": 0,
   "sort": "created"
 }`,

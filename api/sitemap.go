@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/glitchedgitz/grroxy-db/base"
 	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/types"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	wappalyzer "github.com/glitchedgitz/wappalyzergo"
 	"github.com/jpillora/go-tld"
 	"github.com/labstack/echo/v5"
@@ -46,7 +46,7 @@ func (backend *Backend) SitemapNew(e *core.ServeEvent) error {
 
 			var collectionExists = true
 
-			SitemapCollectionName := base.ParseDatabaseName(data.Host)
+			SitemapCollectionName := utils.ParseDatabaseName(data.Host)
 			err := backend.CreateCollection(SitemapCollectionName, schemas.Sitemap)
 
 			// Checking error if it is collection already exists
@@ -109,7 +109,7 @@ func (backend *Backend) SitemapNew(e *core.ServeEvent) error {
 					}
 
 					// title, _ := "", ""
-					title, _ := base.ExtractTitle(respData)
+					title, _ := utils.ExtractTitle(respData)
 
 					recordIDs := []string{}
 
@@ -137,7 +137,7 @@ func (backend *Backend) SitemapNew(e *core.ServeEvent) error {
 
 					backend.SaveRecordToCollection("_hosts", map[string]interface{}{
 						"host":      data.Host,
-						"smartsort": base.SmartSort(data.Host),
+						"smartsort": utils.SmartSort(data.Host),
 						"domain":    u.Domain + "." + u.TLD,
 						"status":    status,
 						"title":     title,
@@ -190,7 +190,7 @@ func (backend *Backend) SitemapFetch(e *core.ServeEvent) error {
 				return err
 			}
 
-			db := base.ParseDatabaseName(data.Host)
+			db := utils.ParseDatabaseName(data.Host)
 
 			// Regex: '^path/([^/]+\s*)?$'
 			// regexQuery := fmt.Sprintf(`^%s/([^/]+\s*)?$`, data.Path)

@@ -72,6 +72,11 @@ var Labels = schema.NewSchema(
 		Required: true,
 	},
 	&schema.SchemaField{
+		Name:     "icon",
+		Type:     schema.FieldTypeText,
+		Required: false,
+	},
+	&schema.SchemaField{
 		Name:     "type",
 		Type:     schema.FieldTypeText,
 		Required: true,

@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/dadql/dadql"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
+	"github.com/glitchedgitz/grroxy-db/utils"
 )
 
 func (p *Proxy) FiltersManager() {
@@ -20,7 +21,7 @@ func (p *Proxy) FiltersManager() {
 	})
 
 	p.options.Filters = response.Items[0]["data"].(map[string]any)["filterstring"].(string)
-	base.CheckErr("[FiltersManager] Fetching ID", err)
+	utils.CheckErr("[FiltersManager] Fetching ID", err)
 
 	id := response.Items[0]["id"].(string)
 
@@ -42,13 +43,14 @@ func (p *Proxy) FiltersManager() {
 	}
 }
 
-func (p *Proxy) checkFilters(userdata types.UserData) bool {
+// need to create test cases to compare the results of both
+func (p *Proxy) checkFiltersUsingCollection(userdata types.UserData) bool {
 	if p.options.Filters == "" {
 		return true
 	}
 
 	r, err := p.grroxydb.Create("tmp_intercept", userdata)
-	base.CheckErr("[checkFilters][tmp_intercept] Create", err)
+	utils.CheckErr("[checkFilters][tmp_intercept] Create", err)
 	defer p.grroxydb.Delete("tmp_intercept", r.ID)
 
 	filters := fmt.Sprintf("id ~ '%s' && ( %s )", r.ID, p.options.Filters)
@@ -61,7 +63,23 @@ func (p *Proxy) checkFilters(userdata types.UserData) bool {
 	})
 
 	log.Println("======================== Response ===========================", response)
-	base.CheckErr("[tmp_intercept] Getting Response", err)
+	utils.CheckErr("[tmp_intercept] Getting Response", err)
 
 	return len(response.Items) > 0
+}
+
+func (p *Proxy) checkFilters(data map[string]any) bool {
+	if p.options.Filters == "" {
+		return true
+	}
+
+	check, err := dadql.Filter(data, p.options.Filters)
+	if err != nil {
+		log.Println("[Proxy.checkFilters] Filter parsing: ", p.options.Filters, "Error: ", err)
+		return false
+	}
+
+	log.Println("[Proxy.checkFilters] Filter parsing: ", p.options.Filters, "\nResults: ", check)
+
+	return check
 }

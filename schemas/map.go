@@ -15,6 +15,60 @@ type DB struct {
 //	       "CREATE UNIQUE INDEX idx_user ON example (user)",
 //	   },
 
+var Main = []DB{
+	{
+		"_projects",
+		Projects,
+		true,
+		"CREATE UNIQUE INDEX idx_projects_name ON _projects (name);",
+	},
+	{
+		"_processes",
+		PROCESSES,
+		false,
+		"",
+	},
+	{
+		"_labels",
+		Labels,
+		false,
+		"",
+	},
+	{
+		"_searches",
+		Searches,
+		false,
+		"",
+	},
+	{
+		"_payloads",
+		Payloads,
+		false,
+		"",
+	},
+	{
+		"_store",
+		Store,
+		false,
+		"",
+	},
+	{
+		"_settings",
+		Settings,
+		false,
+		"",
+	},
+}
+
+var Tools = []DB{
+	{
+		"_processes",
+		PROCESSES,
+		false,
+		"",
+	},
+}
+
 var Collections = []DB{
 	{
 		"_raw",

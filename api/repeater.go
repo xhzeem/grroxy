@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/glitchedgitz/grroxy-db/base"
 	"github.com/glitchedgitz/grroxy-db/grrhttp"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -64,7 +64,7 @@ func SendHTTPRawRequest(data rawhttp.RawRequest) (string, string, error) {
 		return "", "", err
 	}
 
-	timeTaken = base.CalculateTime(timeBefore, timeAfter)
+	timeTaken = utils.CalculateTime(timeBefore, timeAfter)
 
 	defer conn.Close()
 
@@ -143,7 +143,7 @@ func SendHTTP2RawRequest(data rawhttp.RawRequest) (string, string, error) {
 	// Convert the raw HTTP request to a HTTP/2 request
 	var buf bytes.Buffer
 	b, err := io.ReadAll(r)
-	base.CheckErr("", err)
+	utils.CheckErr("", err)
 	buf.WriteString(string(b))
 
 	// Configure the HTTP/2 Transport
@@ -183,7 +183,7 @@ func SendHTTP2RawRequest(data rawhttp.RawRequest) (string, string, error) {
 	resp, err := http.DefaultClient.Do(req)
 	timeAfter = time.Now()
 
-	timeTaken = base.CalculateTime(timeBefore, timeAfter)
+	timeTaken = utils.CalculateTime(timeBefore, timeAfter)
 
 	if err != nil {
 		return "", "", fmt.Errorf("failed to send HTTP/2 request: %w", err)

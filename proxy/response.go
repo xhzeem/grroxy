@@ -1,6 +1,6 @@
 package proxy
 
-import (
+import (	
 	"bufio"
 	"fmt"
 	"log"
@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/elazarl/goproxy"
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
+	"gopkg.in/yaml.v2"
 )
 
 type Store_Req struct {
@@ -37,12 +39,11 @@ func (p *Proxy) MatchReplaceResponse(resp string) string {
 
 func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 
-	if strings.Contains(resp.Request.URL.Host, "grroxy") {
-		return resp
-	}
-
 	log.Print("[OnResponse] Starting OnResponse")
 	userdata := ctx.UserData.(types.UserData)
+	if strings.Contains(userdata.Host, "grroxy") {
+		return resp
+	}
 	if userdata.Action == "drop" {
 		log.Printf("[Response][Intercept][%s]: Dropping Response because request dropped \n", userdata.ID)
 		return DropReqResp(ctx.Req)
@@ -58,24 +59,80 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 		return nil
 	}
 
-	responseInBytes, err := base.ResponseToByte(resp)
-	base.CheckErr("[OnResponse]", err)
+	userdata.Resp = types.ResponseData{
+		HasCookies: len(resp.Cookies()) > 0,
+		Title:      "",
+		Mime:       resp.Header.Get("content-type"),
+		Headers:    getHeaders(resp.Header),
+		Status:     resp.StatusCode,
+		Length:     resp.ContentLength,
+		Date:       resp.Header.Get("Date"),
+		Time:       time.Now().Format(time.RFC3339),
+	}
+
+	responseJson := utils.StructToMap(&userdata, "json")
+	results, err := p.templates.Run(responseJson, "proxy:before_response")
+
+	if err != nil {
+		log.Println("Error: [proxy:before_response] template: ", err)
+	} else {
+
+		log.Println("[OnResponse] before_response Checking template results: ", results)
+
+		for _, action := range results {
+			switch action.ActionName {
+			case actions.Modify:
+
+				for key, value := range action.Data {
+					if key == "replace" {
+						for _, replace := range value.([]any) {
+							var r actions.ModifierReplace
+							intermediate, err := yaml.Marshal(replace)
+							if err != nil {
+								log.Println("Error: ", err)
+							}
+
+							err = yaml.Unmarshal(intermediate, &r)
+							if err != nil {
+								log.Println("Error: Template replace", err)
+							}
+
+							extractedValue, err := utils.ExtractValueFromMap(&responseJson, r.Key)
+							if err != nil {
+								log.Println("Error: Extracting value", err)
+							}
+
+							updatedValue, err := utils.FindAndReplaceAll(fmt.Sprint(extractedValue), r.Search, r.Replace, r.Regex)
+							if err != nil {
+								log.Println(err)
+								continue
+							}
+							userdata.ResponseUpdateKey(resp, r.Key, updatedValue)
+
+						}
+					} else if key == "delete" {
+						userdata.ResponseDeleteKey(resp, key)
+					} else if strings.HasPrefix(key, "resp.") {
+						userdata.ResponseUpdateKey(resp, key, value)
+					}
+				}
+
+			default:
+				log.Println("[OnRequest] Unknown Action for before_request ")
+			}
+		}
+	}
+
+	responseInBytes, err := utils.ResponseToByte(resp)
+	utils.CheckErr("[OnResponse]", err)
 	responseInString := string(responseInBytes)
 
 	var title string
 	if responseInBytes != nil {
-		title, _ = base.ExtractTitle(responseInBytes)
+		title, _ = utils.ExtractTitle(responseInBytes)
 	}
 
-	userdata.Resp = types.ResponseData{
-		HasCookies: len(resp.Cookies()) > 0,
-		Title:      title,
-		Mime:       resp.Header.Get("content-type"),
-		Status:     resp.StatusCode,
-		Length:     len(responseInString),
-		Date:       resp.Header.Get("Date"),
-		Time:       time.Now().Format(time.RFC3339),
-	}
+	userdata.Resp.Title = title
 
 	r_data := Store_Resp{
 		Response: responseInString,
@@ -86,12 +143,12 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 	// var updatedString string
 	var edited bool
 	// Intercept
-	if p.options.Intercept && p.checkFilters(userdata) {
+	if p.options.Intercept && p.checkFilters(responseJson) {
 
 		responseInString, edited = p.interceptWait(&userdata, "resp", resp.ContentLength)
-		
+
 		if userdata.Action == "drop" {
-			log.Println("[Response][Intercept][%s]: Dropping Response \n", userdata.Host+"/"+userdata.Req.Path)
+			log.Printf("[Response][Intercept][%s]: Dropping Response \n", userdata.Host+"/"+userdata.Req.Path)
 			ctx.UserData = userdata
 			return DropReqResp(ctx.Req)
 		}
@@ -102,34 +159,61 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 
 		p.grroxydb.Update("_data", userdata.ID, userdata)
 
-		base.CheckErr("Error in reading updated request", err)
+		utils.CheckErr("Error in reading updated request", err)
 
 	}
 
-	p._responseAddToDB(userdata)
+	p._responseAddToDB(&userdata)
 	resp, err = http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(responseInString))), ctx.Req)
-	base.CheckErr("[onResponse]: ", err)
+	utils.CheckErr("[onResponse]: ", err)
 	ctx.UserData = userdata
 	// defer resp.Body.Close()
 	return resp
 }
 
-func (p *Proxy) _responseAddToDB(userdata types.UserData) {
+func (p *Proxy) _responseAddToDB(userdata *types.UserData) {
+	userdata.Resp.Mime = strings.ToLower(userdata.Resp.Mime)
+	userdata.Resp.Mime = strings.ReplaceAll(userdata.Resp.Mime, "\"", "")
+	userdata.Resp.Mime = strings.ReplaceAll(userdata.Resp.Mime, "'", "")
+	userdata.Resp.Mime = strings.ReplaceAll(userdata.Resp.Mime, " ", "")
+
 	p.DBUpdate("_data", userdata.ID, userdata)
-	mime := strings.ToLower(userdata.Resp.Mime)
-	mime = strings.ReplaceAll(mime, "\"", "")
-	mime = strings.ReplaceAll(mime, "'", "")
-	mime = strings.ReplaceAll(mime, " ", "")
-	if userdata.Resp.Mime != "" {
-		if matched, definition := p.detector.GetMimeDefinition(mime); matched != "" {
-			// Add path labels
-			l_data := types.Label{
-				Name:  matched,
-				Color: definition.Color,
-				Type:  "mime",
-				ID:    userdata.ID,
-			}
+
+	go p.runRespTemplates(userdata)
+}
+
+func (p *Proxy) runRespTemplates(userdata *types.UserData) {
+
+	tmpdata := types.UserData{
+		Req:  userdata.Req,
+		Resp: userdata.Resp,
+	}
+
+	d := utils.StructToMap(&tmpdata, "json")
+	results, _ := p.templates.Run(d, "proxy:response")
+
+	log.Println("[_requestAddToDB] Checking template results: ", results)
+
+	for _, y := range results {
+
+		name := y.Data["name"].(string)
+
+		if len(name) == 0 {
+			continue
+		}
+
+		var l_data = types.Label{
+			Name:  name,
+			Color: y.Data["color"].(string),
+			Type:  y.Data["type"].(string),
+			ID:    userdata.ID,
+		}
+
+		switch y.ActionName {
+		case actions.CreateLabel:
 			p.DBAttachLabel(l_data)
+		default:
+			log.Println("[_requestAddToDB] Unknown Action")
 		}
 	}
 }

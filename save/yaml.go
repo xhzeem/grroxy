@@ -25,7 +25,14 @@ func ReadFile(filepath string) []byte {
 func WriteFile(filepath string, data []byte) {
 	err := os.WriteFile(filepath, data, 0644)
 	if err != nil {
-		log.Fatalln("Err: Writing File ", filepath, err)
+		log.Println("Err: Writing File ", filepath, err)
+	}
+}
+
+func DeleteFile(filepath string) {
+	err := os.Remove(filepath)
+	if err != nil {
+		log.Println("Err: Delete File ", filepath, err)
 	}
 }
 

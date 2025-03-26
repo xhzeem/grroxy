@@ -1,7 +1,7 @@
 package proxy
 
 import (
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
 )
@@ -20,7 +20,7 @@ func (p *Proxy) RateLimitManager() {
 
 	total = result.TotalItems
 
-	base.CheckErr("", err)
+	utils.CheckErr("", err)
 
 	for {
 		<-requestRateLimit

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/types"
-	// "github.com/r--w/pocketbase/migrations"
+	"github.com/r--w/pocketbase/migrations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -344,7 +344,7 @@ func TestClient_SitemapNew(t *testing.T) {
 				Type:     "file",
 				Query:    "?test=1&test2=2",
 				Fragment: "#frag",
-				Data:     base.RandomString(15),
+				Data:     utils.RandomString(15),
 			},
 			wantErr: false,
 			wantID:  true,

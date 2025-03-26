@@ -4,7 +4,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/types"
 )
@@ -23,7 +23,7 @@ func (p *Proxy) InterceptManager() {
 
 	p.options.Intercept = false
 
-	stream, err := sdk.CollectionSet[any](p.grroxydb, "_settings").Subscribe("_settings/" + base.AddUnderscore("INTERCEPT"))
+	stream, err := sdk.CollectionSet[any](p.grroxydb, "_settings").Subscribe("_settings/" + utils.AddUnderscore("INTERCEPT"))
 
 	log.Print("Subscribed to setting")
 	if err != nil {

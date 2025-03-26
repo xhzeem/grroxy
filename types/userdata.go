@@ -1,31 +1,38 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
 )
 
 type RequestData struct {
-	Url        string `db:"url" json:"url"`
-	Path       string `db:"path" json:"path"`
-	Query      string `db:"query" json:"query"`
-	Fragment   string `db:"fragment" json:"fragment"`
-	Ext        string `db:"ext" json:"ext"`
-	Method     string `db:"method" json:"method"`
-	HasCookies bool   `db:"has_cookies" json:"has_cookies"`
-	HasParams  bool   `db:"has_params" json:"has_params"`
-	Length     int    `db:"length" json:"length"`
-	IsHTTPS    bool   `db:"is_https" json:"is_https"`
+	Url        string            `db:"url" json:"url"`
+	Path       string            `db:"path" json:"path"`
+	Query      string            `db:"query" json:"query"`
+	Headers    map[string]string `db:"headers" json:"headers"`
+	Fragment   string            `db:"fragment" json:"fragment"`
+	Ext        string            `db:"ext" json:"ext"`
+	Method     string            `db:"method" json:"method"`
+	HasCookies bool              `db:"has_cookies" json:"has_cookies"`
+	HasParams  bool              `db:"has_params" json:"has_params"`
+	Length     int64             `db:"length" json:"length"`
+	IsHTTPS    bool              `db:"is_https" json:"is_https"`
 }
 
 type ResponseData struct {
-	Title      string `db:"title" json:"title"`
-	Mime       string `db:"mime" json:"mime"`
-	Status     int    `db:"status" json:"status"`
-	Length     int    `db:"length" json:"length"`
-	HasCookies bool   `db:"has_cookies" json:"has_cookies"`
-	Date       string `db:"date" json:"date"`
-	Time       string `db:"time" json:"time"`
+	Title      string            `db:"title" json:"title"`
+	Mime       string            `db:"mime" json:"mime"`
+	Status     int               `db:"status" json:"status"`
+	Headers    map[string]string `db:"headers" json:"headers"`
+	Length     int64             `db:"length" json:"length"`
+	HasCookies bool              `db:"has_cookies" json:"has_cookies"`
+	Date       string            `db:"date" json:"date"`
+	Time       string            `db:"time" json:"time"`
 }
 
 type UserData struct {
@@ -47,25 +54,128 @@ type UserData struct {
 	Action string `db:"action,omitempty" json:"action,omitempty"`
 }
 
+func (userdata *UserData) RequestUpdateKey(req *http.Request, key string, value any) {
+	if key == "req.method" {
+		req.Method = value.(string)
+		userdata.Req.Method = value.(string)
+	} else if key == "req.url" {
+		parsedURL, err := url.Parse(value.(string))
+		if err != nil {
+			return
+		}
+		req.URL = parsedURL
+		userdata.Req.Url = parsedURL.RequestURI()
+
+	} else if key == "req.path" {
+		req.URL.Path = value.(string)
+		userdata.Req.Path = value.(string)
+
+	} else if strings.HasPrefix(key, "req.query") {
+		params := req.URL.Query()
+		params.Set(key, value.(string))
+		req.URL.RawQuery = params.Encode()
+
+	} else if strings.HasPrefix(key, "req.headers") {
+		header := strings.TrimPrefix(key, "req.headers")[1:]
+		req.Header.Set(header, value.(string))
+		userdata.Req.Headers[header] = value.(string)
+
+	} else if key == "req.body" {
+		newBody := value.(string)
+		req.Body = io.NopCloser(bytes.NewBufferString(newBody))
+		newLength := int64(len(newBody))
+		req.ContentLength = newLength
+		userdata.Req.Length = newLength
+
+	}
+}
+
+func (userdata *UserData) RequestDeleteKey(req *http.Request, key string) {
+	if key == "req.method" {
+		req.Method = "GET"
+
+	} else if key == "req.url" {
+		parsedURL, _ := url.Parse("")
+		req.URL = parsedURL
+
+	} else if key == "req.path" {
+		req.URL.Path = ""
+
+	} else if strings.HasPrefix(key, "req.query") {
+		params := req.URL.Query()
+		params.Del(key)
+		req.URL.RawQuery = params.Encode()
+
+	} else if strings.HasPrefix(key, "req.headers") {
+		header := strings.TrimPrefix(key, "req.headers")[1:]
+		req.Header.Del(header)
+		delete(userdata.Req.Headers, header)
+
+	} else if key == "req.body" {
+		newBody := ""
+		req.Body = io.NopCloser(bytes.NewBufferString(newBody))
+		newLength := int64(len(newBody))
+		req.ContentLength = newLength
+		userdata.Req.Length = newLength
+	}
+}
+
+func (userdata *UserData) ResponseUpdateKey(resp *http.Response, key string, value any) {
+	if key == "resp.mime" {
+		resp.Header.Set("Content-Type", value.(string))
+		userdata.Resp.Headers["Content-Type"] = value.(string)
+
+	} else if key == "resp.status" {
+		resp.StatusCode = value.(int)
+		userdata.Resp.Status = value.(int)
+
+	} else if strings.HasPrefix(key, "resp.headers") {
+
+		header := strings.TrimPrefix(key, "resp.headers")[1:]
+		resp.Header.Set(header, value.(string))
+		userdata.Resp.Headers[header] = value.(string)
+
+	} else if key == "resp.body" {
+		newBody := value.(string)
+		resp.Body = io.NopCloser(bytes.NewBufferString(newBody))
+		newLength := int64(len(newBody))
+		resp.ContentLength = newLength
+		userdata.Resp.Length = newLength
+
+	}
+}
+
+func (userdata *UserData) ResponseDeleteKey(resp *http.Response, key string) {
+	if key == "resp.mime" {
+		resp.Header.Del("Content-Type")
+		delete(userdata.Resp.Headers, "Content-Type")
+
+	} else if strings.HasPrefix(key, "resp.headers") {
+
+		header := strings.TrimPrefix(key, "resp.headers")[1:]
+		resp.Header.Del(header)
+		delete(userdata.Resp.Headers, header)
+
+	} else if key == "resp.body" {
+		newBody := ""
+		resp.Body = io.NopCloser(bytes.NewBufferString(newBody))
+		newLength := int64(len(newBody))
+		resp.ContentLength = newLength
+		userdata.Resp.Length = newLength
+
+	}
+}
+
 type RealtimeRecord struct {
-	CollectionId   string      `db:"collectionId" json:"collectionId"`
-	CollectionName string      `db:"collectionName" json:"collectionName"`
-	Created        string      `db:"created" json:"created"`
-	Index          int         `db:"index" json:"index"`
-	Updated        string      `db:"updated" json:"updated"`
-	ID             string      `db:"id" json:"id"`
-	Host           string      `db:"host" json:"host"`
-	Port           string      `db:"port" json:"port"`
-	Req            interface{} `db:"req" json:"req"`
-	Resp           interface{} `db:"resp" json:"resp"`
-	HasResp        bool        `db:"has_resp" json:"has_resp"`
-	IsReqEdited    bool        `db:"is_req_edited" json:"is_req_edited"`
-	IsRespEdited   bool        `db:"is_resp_edited" json:"is_resp_edited"`
-	ReqEdited      interface{} `db:"req_edited" json:"req_edited"`
-	RespEdited     interface{} `db:"resp_edited" json:"resp_edited"`
-	Raw            interface{} `db:"raw,omitempty" json:"raw,omitempty"`
-	Attached       string      `db:"attached,omitempty" json:"attached,omitempty"`
-	Action         string      `db:"action,omitempty" json:"action,omitempty"`
+	UserData
+
+	CollectionId   string `db:"collectionId" json:"collectionId"`
+	CollectionName string `db:"collectionName" json:"collectionName"`
+	Created        string `db:"created" json:"created"`
+	Index          int    `db:"index" json:"index"`
+	Updated        string `db:"updated" json:"updated"`
+	Action         string `db:"action,omitempty" json:"action,omitempty"`
+	Raw            any    `db:"raw,omitempty" json:"raw,omitempty"`
 }
 
 type OutputData struct {
@@ -78,6 +188,21 @@ type OutputData struct {
 func (d *UserData) Scan(value interface{}) error {
 	if value == nil {
 		*d = UserData{}
+		return nil
+	}
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, d)
+	case string:
+		return json.Unmarshal([]byte(v), d)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+func (d *RealtimeRecord) Scan(value interface{}) error {
+	if value == nil {
+		*d = RealtimeRecord{}
 		return nil
 	}
 	switch v := value.(type) {

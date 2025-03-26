@@ -118,7 +118,7 @@ func (l *Logger) Save(folder string, userdata types.UserData) error {
 }
 
 // func isASCIICheckRequired(contentType string) bool {
-// 	return stringsutil.ContainsAny(contentType, "application/octet-stream", "application/x-www-form-urlencoded")
+// 	return stringsutils.ContainsAny(contentType, "application/octet-stream", "application/x-www-form-urlencoded")
 // }
 
 // Close logger instance

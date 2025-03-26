@@ -11,9 +11,11 @@ import (
 	"strings"
 
 	"github.com/elazarl/goproxy"
-	"github.com/glitchedgitz/grroxy-db/base"
+	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/projectdiscovery/dsl"
+	"gopkg.in/yaml.v2"
 )
 
 // MatchReplaceRequest strings or regex
@@ -47,6 +49,16 @@ type attach = struct {
 	Note   string   `db:"note" json:"note"`
 }
 
+func getHeaders(h http.Header) map[string]string {
+	headers := map[string]string{}
+	for header, value := range h {
+		// header = strings.ReplaceAll(header, "-", "_")
+		// header = strings.ToLower(header)
+		headers[header] = strings.Join(value, " ///// ")
+	}
+	return headers
+}
+
 func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
 	// rateLimit <- ""
 	// defer func() { <-rateLimit }()
@@ -62,16 +74,16 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	}
 
 	// Convert request to string
-	requestInBytes, err := httputil.DumpRequestOut(req, true)
-	base.CheckErr("Req:Dumping Bytes Error", err)
-	requestInString := string(requestInBytes)
+	// requestInBytes, err := httputils.DumpRequestOut(req, true)
+	// utils.CheckErr("Req:Dumping Bytes Error", err)
+	// requestInString := string(requestInBytes)
 
 	requestRateLimit <- 0
 
 	// Initiate variables
 	var (
 		index   = <-generateIndex
-		id      = base.FormatNumericID(index, 15)
+		id      = utils.FormatNumericID(index, 15)
 		method  = http.MethodGet
 		host    = req.URL.Host
 		port    = ""
@@ -79,22 +91,18 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	)
 
 	// Set method
-	func() {
-		if req.Method != "" {
-			method = req.Method
-		}
-	}()
+	if req.Method != "" {
+		method = req.Method
+	}
 
 	// Set host and port
-	func() {
-		if strings.Contains(host, ":") {
-			t := strings.Split(host, ":")
-			host = t[0]
-			port = t[1]
-		}
+	if strings.Contains(host, ":") {
+		t := strings.Split(host, ":")
+		host = t[0]
+		port = t[1]
+	}
 
-		host = req.URL.Scheme + "://" + host
-	}()
+	host = req.URL.Scheme + "://" + host
 
 	extension := ""
 
@@ -124,7 +132,8 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 			Method:     method,
 			HasCookies: len(req.Cookies()) > 0,
 			HasParams:  len(req.URL.Query()) > 0,
-			Length:     len(requestInString),
+			Length:     req.ContentLength,
+			Headers:    getHeaders(req.Header),
 			IsHTTPS:    isHttps,
 			Url:        req.URL.RequestURI(),
 			Path:       req.URL.Path,
@@ -145,30 +154,84 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 		IsRespEdited: false,
 	}
 
+	tmpdata := types.UserData{
+		Host: userdata.Host,
+		Req:  userdata.Req,
+	}
+
+	requestJson := utils.StructToMap(&tmpdata, "json")
+	results, err := p.templates.Run(requestJson, "proxy:before_request")
+
+	if err != nil {
+		log.Println("Error: before_request template: ", err)
+	} else {
+
+		log.Println("[OnRequest] before_request Checking template results: ", results)
+
+		for _, action := range results {
+			switch action.ActionName {
+			case actions.Modify:
+
+				for key, value := range action.Data {
+					if key == "replace" {
+						for _, replace := range value.([]any) {
+							var r actions.ModifierReplace
+							intermediate, err := yaml.Marshal(replace)
+							if err != nil {
+								panic(err)
+							}
+
+							err = yaml.Unmarshal(intermediate, &r)
+							if err != nil {
+								log.Println("Error: Template replace", err)
+							}
+
+							extractedValue, err := utils.ExtractValueFromMap(&requestJson, r.Key)
+							if err != nil {
+								log.Println("Error: Extracting value", err)
+							}
+
+							updatedValue, err := utils.FindAndReplaceAll(fmt.Sprint(extractedValue), r.Search, r.Replace, r.Regex)
+							if err != nil {
+								log.Println(err)
+								continue
+							}
+							userdata.RequestUpdateKey(req, r.Key, updatedValue)
+
+						}
+					} else if key == "delete" {
+						userdata.RequestDeleteKey(req, key)
+					} else if strings.HasPrefix(key, "req.") {
+						userdata.RequestUpdateKey(req, key, value)
+					}
+				}
+
+			default:
+				log.Println("[OnRequest] Unknown Action for before_request ")
+			}
+		}
+	}
+
+	requestInBytes, _ := httputil.DumpRequestOut(req, true)
+	requestInString := string(requestInBytes)
+
 	// Add to database
-	func() {
-		p.DBCreate("_attached", map[string]any{
-			"id":     userdata.ID,
-			"labels": []string{},
-			"note":   "",
-		})
-		// p.DBCreate("_attached", attach{
-		// 	Id:     userdata.ID,
-		// 	Labels: []string{},
-		// 	Note:   "",
-		// })
-		p.DBCreate("_raw", map[string]string{
-			"id":       userdata.ID,
-			"req":      requestInString,
-			"attached": userdata.ID,
-		})
-		// p.grroxydb.Create("data", userdata)
-	}()
+	p.DBCreate("_attached", map[string]any{
+		"id":     userdata.ID,
+		"labels": []string{},
+		"note":   "",
+	})
+
+	p.DBCreate("_raw", map[string]string{
+		"id":       userdata.ID,
+		"req":      requestInString,
+		"attached": userdata.ID,
+	})
 
 	var requestNew *http.Request
 
 	// Intercept
-	if p.options.Intercept && p.checkFilters(userdata) {
+	if p.options.Intercept && p.checkFilters(requestJson) {
 
 		updatedString, edited := p.interceptWait(&userdata, "req", req.ContentLength)
 
@@ -188,7 +251,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 		// Convert string to request
 		req.Body.Close()
 		requestNew, err = http.ReadRequest(bufio.NewReader(strings.NewReader(fmt.Sprint(updatedString))))
-		base.CheckErr("Error in reading updated request", err)
+		utils.CheckErr("Error in reading updated request", err)
 
 		req.Method = requestNew.Method
 		req.Header = requestNew.Header
@@ -207,7 +270,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 		// req.URL.Scheme
 	}
 
-	p._requestAddToDB(userdata)
+	p._requestAddToDB(&userdata)
 	ctx.UserData = userdata
 	// ctx.Req = req
 
@@ -215,7 +278,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	return req, nil
 }
 
-func (p *Proxy) _requestAddToDB(userdata types.UserData) {
+func (p *Proxy) _requestAddToDB(userdata *types.UserData) {
 	typ := "folder"
 	if userdata.Req.Ext != "" {
 		typ = "file"
@@ -233,33 +296,50 @@ func (p *Proxy) _requestAddToDB(userdata types.UserData) {
 		Type:     typ,
 		Data:     userdata.ID,
 	}
+
 	p.DBNewSitemap(s_data)
 
-	if userdata.Req.Path != "" {
-		if matched, definition := p.detector.GetPathDefinition(userdata.Req.Path); matched != "" {
-			// Add path labels
-			l_data := types.Label{
-				Name:  matched,
-				Color: definition.Color,
-				Type:  "endpoint",
-				ID:    userdata.ID,
-			}
-			p.DBAttachLabel(l_data)
-		}
+	log.Println("[_requestAddToDB] Checking template")
+
+	// this seems like an extra step, one data struct should be used everywhere
+	go p.runReqTemplates(userdata)
+}
+
+func (p *Proxy) runReqTemplates(userdata *types.UserData) {
+	tmpdata := types.UserData{
+		Req: userdata.Req,
 	}
 
-	if userdata.Req.Ext != "" {
-		ext := userdata.Req.Ext
-		_, definition := p.detector.GetExtDefinition(ext)
+	d := utils.StructToMap(&tmpdata, "json")
+	results, _ := p.templates.Run(d, "proxy:request")
 
-		// Add extension labels
-		l_data := types.Label{
-			Name:  ext,
-			Color: definition.Color,
-			Type:  "extension",
+	log.Println("[_requestAddToDB] Checking template results: ", results)
+
+	for _, y := range results {
+
+		name := y.Data["name"].(string)
+
+		if len(name) == 0 {
+			continue
+		}
+
+		var l_data = types.Label{
+			Name:  name,
+			Color: y.Data["color"].(string),
+			Type:  y.Data["type"].(string),
+			Icon:  y.Data["icon"].(string),
 			ID:    userdata.ID,
 		}
 
-		p.DBAttachLabel(l_data)
+		switch y.ActionName {
+		case actions.CreateLabel:
+			p.DBAttachLabel(l_data)
+		default:
+			log.Println("[_requestAddToDB] Unknown Action")
+		}
 	}
+}
+
+func (p *Proxy) SearchAndReplaceRequest() {
+
 }
