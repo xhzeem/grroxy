@@ -68,6 +68,7 @@ func setConfig() {
 func initialize() {
 
 	fmt.Println("Starting grroxyy")
+	setConfig()
 
 	// if !showLogs {
 	// 	log.SetOutput(io.Discard)
@@ -133,7 +134,8 @@ func main() {
 	// })
 
 	rootCmd.AddCommand(&cobra.Command{
-		Use: "config",
+		Use:   "config",
+		Short: "Set config directory",
 		Run: func(cmd *cobra.Command, args []string) {
 			// fmt.Println("Config")
 			setConfig()
@@ -141,7 +143,8 @@ func main() {
 	})
 
 	rootCmd.AddCommand(&cobra.Command{
-		Use: "start",
+		Use:   "start",
+		Short: "Start grroxy",
 		Run: func(cmd *cobra.Command, args []string) {
 			initialize()
 		},
@@ -205,7 +208,7 @@ func startCore() {
 	launch = &launcher.Launcher{
 		App: pocketbase.NewWithConfig(
 			pocketbase.Config{
-				ProjectDir:      "D:\\test\\main",
+				ProjectDir:      path.Join(conf.ConfigDirectory),
 				DefaultDataDir:  "grroxy-main",
 				HideStartBanner: true,
 				// DefaultDev: true,
