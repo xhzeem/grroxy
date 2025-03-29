@@ -11,12 +11,12 @@ ORIGINAL_DIR=$(pwd)
 # Define the project root directory
 PROJECT_ROOT="$SCRIPT_DIR"
 
-# Array of directories to process - using Windows-style paths
-DIRS=("cmd\\grroxy" "cmd\\grroxy-app" "cmd\\grroxy-tool")
+# Array of directories to process - using Unix-style paths
+DIRS=("cmd/grroxy" "cmd/grroxy-app" "cmd/grroxy-tool")
 
 # Loop through each directory
 for dir in "${DIRS[@]}"; do
-    FULL_PATH="$PROJECT_ROOT\\$dir"
+    FULL_PATH="$PROJECT_ROOT/$dir"
     echo "Installing in $dir..."
     if [ ! -d "$FULL_PATH" ]; then
         echo "Directory $dir not found at $FULL_PATH"
