@@ -3,6 +3,7 @@ package templates_test
 import (
 	"fmt"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/glitchedgitz/grroxy-db/templates"
@@ -156,8 +157,11 @@ func TestSetup(t *testing.T) {
 		// },
 	}
 
+	if os.Getenv("GRROXY_TEMPLATE_DIR") == "" {
+		panic("GRROXY_TEMPLATE_DIR environment variable is not set")
+	}
 	x := &templates.Templates{
-		TempalteDir: `D:\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`,
+		TempalteDir: os.Getenv("GRROXY_TEMPLATE_DIR"),
 	}
 
 	x.Setup()

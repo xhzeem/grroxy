@@ -53,7 +53,12 @@ func initialize() {
 		}
 	}
 	conf.ProxyAddr = ProxyAddress
-	conf.TemplateDirectory = `D:\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`
+	
+	if os.Getenv("GRROXY_TEMPLATE_DIR") == "" {
+		panic("GRROXY_TEMPLATE_DIR environment variable is not set")
+	}
+	conf.TemplateDirectory = os.Getenv("GRROXY_TEMPLATE_DIR")
+	
 	conf.Initiate()
 }
 
@@ -62,6 +67,7 @@ func main() {
 	flag.StringVar(&HostAddress, "host", "127.0.0.1:8090", "Host address to listen on")
 	flag.StringVar(&ProxyAddress, "proxy", "127.0.0.1:8888", "Proxy address to listen on")
 	flag.StringVar(&ProjectPath, "path", "", "Project directory path")
+	flag.BoolVar(&showLogs, "log", false, "Show debug logs")
 
 	flag.Parse()
 

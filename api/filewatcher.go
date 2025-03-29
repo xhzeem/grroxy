@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"log"
+	"os"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/labstack/echo/v5"
@@ -21,7 +22,11 @@ func (backend *Backend) FileWatcher(e *core.ServeEvent) error {
 			c.Response().Header().Set(echo.HeaderConnection, "keep-alive")
 
 			updateChan := make(chan fsnotify.Event)
-			settingsFilePath := `D:\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`
+			
+			if os.Getenv("GRROXY_TEMPLATE_DIR") == "" {
+				panic("GRROXY_TEMPLATE_DIR environment variable is not set")
+			}
+			settingsFilePath := os.Getenv("GRROXY_TEMPLATE_DIR")
 
 			go func() {
 				watcher, err := fsnotify.NewWatcher()

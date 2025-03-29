@@ -39,7 +39,7 @@ func (c *Config) Initiate() {
 
 	c.ProjectFile = path.Join(c.ConfigDirectory, "projects.json")
 
-	c.LoadAppData()
+	// c.LoadAppData()
 }
 
 func (c *Config) ShowConfig() {

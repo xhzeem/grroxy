@@ -277,8 +277,11 @@ func NewProxy(options *Options) (*Proxy, error) {
 		}
 	}
 
+	if os.Getenv("GRROXY_TEMPLATE_DIR") == "" {
+		panic("GRROXY_TEMPLATE_DIR environment variable is not set")
+	}
 	t := &templates.Templates{
-		TempalteDir: `D:\go\src\github.com\glitchedgitz\grroxy-db\grroxy-templates`,
+		TempalteDir: os.Getenv("GRROXY_TEMPLATE_DIR"),
 	}
 
 	t.Setup()
