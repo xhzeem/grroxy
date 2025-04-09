@@ -34,8 +34,8 @@ func (backend *Backend) SetProcess(id, state string) {
 	process.SetState(backend.App, id, state)
 }
 
-func (backend *Backend) RegisterProcessInDB(input, data any, state string) string {
-	return process.RegisterInDB(backend.App, input, data, state)
+func (backend *Backend) RegisterProcessInDB(input, data any, name, typz, state string) string {
+	return process.RegisterInDB(backend.App, input, data, name, typz, state)
 }
 
 func (backend *Backend) RunCommand(e *core.ServeEvent) error {
@@ -59,7 +59,7 @@ func (backend *Backend) RunCommand(e *core.ServeEvent) error {
 
 			log.Println("[RunCommand]: ", data)
 
-			id := backend.RegisterProcessInDB(data.Data, data, schemas.ProcessState.Inqueue)
+			id := backend.RegisterProcessInDB(data.Data, data, data.Command, "command", schemas.ProcessState.Inqueue)
 
 			data.ID = id
 

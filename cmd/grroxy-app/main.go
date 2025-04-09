@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 
@@ -38,7 +37,7 @@ func init() {
 func initialize() {
 
 	if !showLogs {
-		log.SetOutput(io.Discard)
+		// log.SetOutput(io.Discard)
 	}
 
 	// printBanner()
@@ -53,12 +52,12 @@ func initialize() {
 		}
 	}
 	conf.ProxyAddr = ProxyAddress
-	
+
 	if os.Getenv("GRROXY_TEMPLATE_DIR") == "" {
 		panic("GRROXY_TEMPLATE_DIR environment variable is not set")
 	}
 	conf.TemplateDirectory = os.Getenv("GRROXY_TEMPLATE_DIR")
-	
+
 	conf.Initiate()
 }
 

@@ -42,7 +42,9 @@ func (launcher *Launcher) ToolsServer(e *core.ServeEvent) error {
 				return c.String(http.StatusInternalServerError, err.Error())
 			}
 
-			id := launcher.RegisterProcessInDB("grroxy-tool -path "+path+" -host "+hostAddress+" -name "+name, nil, schemas.ProcessState.Inqueue)
+			_c := "grroxy-tool -path " + path + " -host " + hostAddress + " -name " + name
+			id := launcher.RegisterProcessInDB(_c, nil,
+				"grroxy-tool", "tool-server", schemas.ProcessState.Inqueue)
 
 			go launcher.toolsServerStart(hostAddress, path, name, func() {
 				fmt.Println("toolsServerStart closed")

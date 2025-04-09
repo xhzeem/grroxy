@@ -35,8 +35,8 @@ func (backend *Tools) SetProcess(id, state string) {
 	process.SetState(backend.App, id, state)
 }
 
-func (backend *Tools) RegisterProcessInDB(input, data any, state string) string {
-	return process.RegisterInDB(backend.App, input, data, state)
+func (backend *Tools) RegisterProcessInDB(input, data any, name, typz, state string) string {
+	return process.RegisterInDB(backend.App, input, data, name, typz, state)
 }
 
 type RunCommandData struct {
@@ -85,7 +85,7 @@ func (backend *Tools) RunCommand(e *core.ServeEvent) error {
 			log.Println("[RunCommand]: ", data)
 
 			// Pass both input data and full command data
-			id := backend.RegisterProcessInDB(data.Data, data, schemas.ProcessState.Inqueue)
+			id := backend.RegisterProcessInDB(data.Data, data, data.Command, "command", schemas.ProcessState.Inqueue)
 
 			data.ID = id
 

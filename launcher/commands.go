@@ -35,8 +35,8 @@ func (launcher *Launcher) SetProcess(id, state string) {
 	process.SetState(launcher.App, id, state)
 }
 
-func (launcher *Launcher) RegisterProcessInDB(input, data any, state string) string {
-	return process.RegisterInDB(launcher.App, input, data, state)
+func (launcher *Launcher) RegisterProcessInDB(input, data any, name, typz, state string) string {
+	return process.RegisterInDB(launcher.App, input, data, name, typz, state)
 }
 
 type RunCommandData struct {
@@ -84,7 +84,7 @@ func (launcher *Launcher) RunCommand(e *core.ServeEvent) error {
 
 			log.Println("[RunCommand]: ", data)
 
-			id := launcher.RegisterProcessInDB(data.Data, data, schemas.ProcessState.Inqueue)
+			id := launcher.RegisterProcessInDB(data.Data, data, data.Command, "command", schemas.ProcessState.Inqueue)
 
 			data.ID = id
 
