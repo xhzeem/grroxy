@@ -10,9 +10,81 @@ import (
 	"github.com/pocketbase/pocketbase/models"
 )
 
+func (backend *Backend) CookGenerate(e *core.ServeEvent) error {
+	e.Router.AddRoute(echo.Route{
+		Method: http.MethodPost,
+		Path:   "/api/cook/generate",
+		Handler: func(c echo.Context) error {
+			admin, _ := c.Get(apis.ContextAdminKey).(*models.Admin)
+			recordd, _ := c.Get(apis.ContextAuthRecordKey).(*models.Record)
+
+			isGuest := admin == nil && recordd == nil
+
+			if isGuest {
+				return c.String(http.StatusForbidden, "")
+			}
+
+			type Data struct {
+				Pattern []string `json:"pattern"`
+			}
+
+			var data Data
+			if err := c.Bind(&data); err != nil {
+				return err
+			}
+
+			results := backend.Cook.Generate(data.Pattern)
+
+			jsonData := make(map[string]any)
+			jsonData["results"] = results
+
+			return c.JSON(http.StatusOK, jsonData)
+		},
+		Middlewares: []echo.MiddlewareFunc{
+			apis.ActivityLogger(backend.App),
+		},
+	})
+
+	return nil
+}
+
+func (backend *Backend) CookApplyMethods(e *core.ServeEvent) error {
+	e.Router.AddRoute(echo.Route{
+		Method: http.MethodPost,
+		Path:   "/api/cook/apply",
+		Handler: func(c echo.Context) error {
+			admin, _ := c.Get(apis.ContextAdminKey).(*models.Admin)
+			recordd, _ := c.Get(apis.ContextAuthRecordKey).(*models.Record)
+
+			isGuest := admin == nil && recordd == nil
+
+			if isGuest {
+				return c.String(http.StatusForbidden, "")
+			}
+
+			type Data struct {
+				Strings []string `json:"strings"`
+				Methods []string `json:"methods"`
+			}
+
+			var data Data
+			if err := c.Bind(&data); err != nil {
+				return err
+			}
+
+			results := backend.Cook.ApplyMethods(data.Strings, data.Methods)
+			return c.JSON(http.StatusOK, map[string]any{"results": results})
+		},
+		Middlewares: []echo.MiddlewareFunc{
+			apis.ActivityLogger(backend.App),
+		},
+	})
+	return nil
+}
+
 func (backend *Backend) CookSearch(e *core.ServeEvent) error {
 	e.Router.AddRoute(echo.Route{
-		Method: "POST",
+		Method: http.MethodPost,
 		Path:   "/api/cook/search",
 		Handler: func(c echo.Context) error {
 			admin, _ := c.Get(apis.ContextAdminKey).(*models.Admin)

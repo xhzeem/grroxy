@@ -215,7 +215,7 @@ func startCore() {
 				// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
 			},
 		),
-		Cook:       cook.NewWithoutConfig(),
+		Cook:       cook.NewGenerator(),
 		Config:     &conf,
 		CmdChannel: make(chan process.RunCommandData),
 	}

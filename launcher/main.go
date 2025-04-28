@@ -18,7 +18,7 @@ import (
 type Launcher struct {
 	App        *pocketbase.PocketBase
 	Config     *config.Config
-	Cook       *cook.COOK
+	Cook       *cook.CookGenerator
 	CmdChannel chan process.RunCommandData
 }
 

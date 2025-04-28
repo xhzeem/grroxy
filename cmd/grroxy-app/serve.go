@@ -36,7 +36,7 @@ func serve(projectPath string) {
 				// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
 			},
 		),
-		Cook:       cook.NewWithoutConfig(),
+		Cook:       cook.NewGenerator(),
 		Wappalyzer: wappalyzerClient,
 		Config:     &conf,
 		CmdChannel: make(chan process.RunCommandData),
@@ -88,7 +88,6 @@ func serve(projectPath string) {
 	API.App.OnBeforeServe().Add(API.SaveFile)
 	API.App.OnBeforeServe().Add(API.ReadFile)
 	API.App.OnBeforeServe().Add(API.DownloadCert)
-	API.App.OnBeforeServe().Add(API.CookSearch)
 	API.App.OnBeforeServe().Add(API.SearchRegex)
 	API.App.OnBeforeServe().Add(API.FileWatcher)
 	API.App.OnBeforeServe().Add(API.TemplatesList)
@@ -96,6 +95,9 @@ func serve(projectPath string) {
 	API.App.OnBeforeServe().Add(API.TemplatesDelete)
 	API.App.OnBeforeServe().Add(API.RunCommand)
 	API.App.OnBeforeServe().Add(API.Tools)
+	API.App.OnBeforeServe().Add(API.CookSearch)
+	API.App.OnBeforeServe().Add(API.CookApplyMethods)
+	API.App.OnBeforeServe().Add(API.CookGenerate)
 
 	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		API.App.Dao().DB().NewQuery(`

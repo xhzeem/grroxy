@@ -19,7 +19,7 @@ import (
 type Backend struct {
 	App        *pocketbase.PocketBase
 	Config     *config.Config
-	Cook       *cook.COOK
+	Cook       *cook.CookGenerator
 	Wappalyzer *wappalyzer.Wappalyze
 	CmdChannel chan process.RunCommandData
 }
