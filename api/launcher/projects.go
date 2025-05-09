@@ -314,7 +314,7 @@ func (launcher *Launcher) OpenProject(projectIndex int) (ProjectData, error) {
 }
 
 func (launcher *Launcher) OpenProjectFromNameOrId(project string) (ProjectData, error) {
-	record, err := launcher.App.Dao().FindFirstRecordByFilter("_projects", "name~{:project} OR id~{:project}", dbx.Params{
+	record, err := launcher.App.Dao().FindFirstRecordByFilter("_projects", "name={:project} OR id={:project}", dbx.Params{
 		"project": project,
 	})
 
