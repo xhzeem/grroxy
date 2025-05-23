@@ -1,10 +1,54 @@
 # API Documentation
 
+## All endpoints
+
+```http
+# Playground
+POST      /api/playground/new
+POST      /api/playground/add
+POST      /api/playground/delete
+
+# Templates
+GET       /api/templates/list
+POST      /api/templates/new
+DELETE    /api/templates/:template
+
+# File Operations
+POST      /api/readfile
+POST      /api/savefile
+
+# Cook Engine
+POST      /api/cook/generate
+POST      /api/cook/apply
+POST      /api/cook/search
+
+# Labels
+POST      /api/label/new
+POST      /api/label/delete
+POST      /api/label/attach
+
+# Regex
+POST      /api/regex
+
+# Sitemap
+POST      /api/sitemap/new
+POST      /api/sitemap/fetch
+
+# Commands
+POST      /api/runcommand
+
+# Tools
+GET       /api/tool
+
+# Certificates
+GET       /cacert.crt
+```
+
 ## Playground
 
 ### New Playground
 
-Creates or finds a folder and playground based on host, port, and url.
+Creates a new playground item with specified name, type, and parent ID.
 
 ```http
 POST /api/playground/new
@@ -12,48 +56,63 @@ POST /api/playground/new
 
 ```json
 {
-  "data": {
-    "host": "string",
-    "port": "string",
-    "req": { "url": "string", ... }
-  }
+  "name": "string",
+  "parent_id": "string",
+  "type": "string",
+  "expanded": false
 }
-```
-
-```json
-// JSON record of the created/found playground.
-```
-
----
-
-### Initiate Playground with Child
-
-Creates or finds a folder and playground, then creates a child (e.g., repeater, fuzzer) under it.
-
-```http
-POST /api/playground/initiate
 ```
 
 ```json
 {
-  "type": "repeater|fuzzer|...",
-  "data": {
-    "host": "string",
-    "port": "string",
-    "req": { "url": "string", ... }
-  }
+  "id": "string",
+  "name": "string",
+  "type": "string",
+  "parent_id": "string",
+  "sort_order": 0,
+  "expanded": false
+}
+```
+
+---
+
+### Add Playground Items
+
+Adds one or more items to a playground, supporting different types like repeater and fuzzer.
+
+```http
+POST /api/playground/add
+```
+
+```json
+{
+  "parent_id": "string",
+  "items": [
+    {
+      "name": "string",
+      "original_id": "string",
+      "type": "repeater|fuzzer",
+      "tool_data": {
+        "url": "string",
+        "req": "string",
+        "resp": "string",
+        "data": "string",
+        "extra": { "variables": [] }
+      }
+    }
+  ]
 }
 ```
 
 ```json
-// JSON record of the created child.
+{ "success": true }
 ```
 
 ---
 
 ### Delete Playground
 
-Deletes a playground, folder, or child record by its ID.
+Deletes a playground item by its ID.
 
 ```http
 POST /api/playground/delete
@@ -119,7 +178,7 @@ POST /api/repeater/delete
 
 ### Send Raw Request
 
-Sends a raw HTTP request and returns the response.
+Sends a raw HTTP request and returns the response. Supports both HTTP/1.1 and HTTP/2.
 
 ```http
 POST /api/sendrawrequest
@@ -131,14 +190,15 @@ POST /api/sendrawrequest
   "port": "string",
   "req": "string",
   "tls": true,
-  "timeout": 10
+  "timeout": 10,
+  "httpversion": 1
 }
 ```
 
 ```json
 {
-  "response": "string",
-  "timeTaken": "string"
+  "resp": "string",
+  "time": "string"
 }
 ```
 
@@ -250,7 +310,7 @@ _Response:_
 
 ---
 
-## File
+## File Operations
 
 ### Read File
 
@@ -295,7 +355,7 @@ POST /api/savefile
 
 ---
 
-## Cook
+## Cook Engine
 
 ### Generate Patterns
 
@@ -503,3 +563,67 @@ POST /api/sitemap/fetch
 ]
 ```
 
+---
+
+## Commands
+
+### Run Command
+
+Executes a command and saves the output to a collection or file.
+
+```http
+POST /api/runcommand
+```
+
+```json
+{
+  "command": "string",
+  "data": "any",
+  "saveTo": "collection|file",
+  "collection": "string",
+  "filename": "string"
+}
+```
+
+```json
+{
+  "id": "string"
+}
+```
+
+---
+
+## Tools
+
+### Tool Server
+
+Starts a tool server for a specific path.
+
+```http
+GET /api/tool
+```
+
+Query Parameters:
+
+- `path`: Path to the tool directory
+
+_Response:_
+
+- 200 OK with host address on success
+- 500 Internal Server Error on failure
+
+---
+
+## Certificates
+
+### Download CA Certificate
+
+Downloads the CA certificate for HTTPS interception.
+
+```http
+GET /cacert.crt
+```
+
+_Response:_
+
+- File download of the CA certificate

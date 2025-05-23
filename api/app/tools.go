@@ -2,13 +2,11 @@ package api
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
 
 	"github.com/glitchedgitz/grroxy-db/schemas"
-	"github.com/glitchedgitz/grroxy-db/sdk"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase"
@@ -86,36 +84,6 @@ type login struct {
 	Host     string `json:"host"`
 	Username string `json:"username"`
 	Password string `json:"password"`
-}
-
-// TODO: Close connection and terminate process if there is no activity for 5 minutes
-func (backend *Backend) ToolLoginAndSubscribe(processID string, login login) {
-	var toolsSdks = sdk.NewClient("http://"+login.Host, sdk.WithAdminEmailPassword(login.Username, login.Password))
-
-	stream, err := sdk.CollectionSet[any](toolsSdks, "_process").Subscribe("_process")
-
-	log.Print("Subscribed to setting")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	<-stream.Ready()
-	defer stream.Unsubscribe()
-
-	for ev := range stream.Events() {
-		log.Print("[Main][ToolLoginAndSubscribe]: ", ev.Action, ev.Record)
-
-		// extract the value field from ev.Record using type assertion
-		value, ok := ev.Record.(map[string]interface{})["state"].(string)
-		if !ok {
-			log.Print("invalid value field type")
-			continue
-		}
-
-		if value == schemas.ProcessState.Completed {
-			backend.SetProcess(processID, schemas.ProcessState.Completed)
-		}
-	}
 }
 
 func (backend *Backend) ToolsServer(e *core.ServeEvent) error {

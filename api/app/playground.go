@@ -1,39 +1,88 @@
 package api
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
 	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/labstack/echo/v5"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/models"
 )
 
-type PlaygroundData struct {
-	Type string `json:"type,omitempty"`
-	Data struct {
-		Host string                 `json:"host"`
-		Port string                 `json:"port"`
-		Req  map[string]interface{} `json:"req"`
-		// Add other fields as needed
-	} `json:"data"`
+const SORT_GAP = 1000
+
+type PlaygroundNew struct {
+	Name     string `json:"name,omitempty"`
+	ParentId string `json:"parent_id"`
+	Type     string `json:"type,omitempty"`
+	Expanded bool   `json:"expanded,omitempty"`
+}
+
+type PlaygroundAdd struct {
+	ParentId string           `json:"parent_id"`
+	Items    []PlaygroundItem `json:"items"`
+}
+
+type PlaygroundItem struct {
+	Name        string         `json:"name,omitempty"`
+	Original_Id string         `json:"original_id,omitempty"`
+	Type        string         `json:"type,omitempty"`
+	ToolData    map[string]any `json:"tool_data,omitempty"`
 }
 
 type NewRepeaterRequest struct {
-	URL   string                 `json:"url"`
-	Data  string                 `json:"data"`
-	Req   string                 `json:"req"`
-	Resp  string                 `json:"resp"`
-	Extra map[string]interface{} `json:"extra"`
+	URL   string         `json:"url,omitempty"`
+	Req   string         `json:"req,omitempty"`
+	Resp  string         `json:"resp,omitempty"`
+	Data  map[string]any `json:"data,omitempty"`
+	Extra map[string]any `json:"extra,omitempty"`
 }
 
 type NewIntruderRequest struct {
-	ID      string `json:"id"`
-	URL     string `json:"url"`
-	Req     string `json:"req"`
-	Payload string `json:"payload"`
+	ID      string `json:"id,omitempty"`
+	URL     string `json:"url,omitempty"`
+	Req     string `json:"req,omitempty"`
+	Payload string `json:"payload,omitempty"`
+}
+
+func GetSortOrder(items []*models.Record) int {
+	// Calculate new sort order
+	newSortOrder := 0
+	if items != nil && len(items) > 0 {
+		// Find the highest sort order
+		maxSortOrder := 0
+		for _, item := range items {
+			if sortOrder, ok := item.Get("sort_order").(int); ok && sortOrder > maxSortOrder {
+				maxSortOrder = sortOrder
+			}
+		}
+		newSortOrder = maxSortOrder + SORT_GAP
+	}
+	return newSortOrder
+}
+
+func (backend *Backend) GetOrCreatePlayground(name string, typeVal string, parentId string) (*models.Record, error) {
+	pgRecord, err := backend.GetRecord("_playground", "name = '"+name+"' AND type = '"+typeVal+"' AND parent_id = '"+parentId+"'")
+	if err != nil {
+		return nil, err
+	}
+
+	if pgRecord == nil {
+		pgRecord, err = backend.SaveRecordToCollection("_playground", map[string]interface{}{
+			"name":       name,
+			"type":       typeVal,
+			"parent_id":  parentId,
+			"sort_order": 0,
+			"expanded":   false,
+		})
+	}
+
+	return pgRecord, nil
 }
 
 func (backend *Backend) PlaygroundNew(e *core.ServeEvent) error {
@@ -51,45 +100,45 @@ func (backend *Backend) PlaygroundNew(e *core.ServeEvent) error {
 				return c.String(http.StatusForbidden, "")
 			}
 
-			var data PlaygroundData
-			if err := c.Bind(&data); err != nil {
-				return err
+			log.Println("/api/playground/new")
+
+			var body PlaygroundNew
+			if err := c.Bind(&body); err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
-			host := data.Data.Host
-			port := data.Data.Port
-			url := ""
-			if u, ok := data.Data.Req["url"].(string); ok {
-				url = u
+			log.Println("pg body", body)
+
+			name := body.Name
+
+			if name == "" {
+				name = "New Playground"
+			}
+			if body.Type == "" {
+				body.Type = "playground"
 			}
 
-			titleFolder := host + ":" + port
-			titlePG := url
+			// Get all top-level items (parent_id is null)
+			topLevelItems, err := backend.App.Dao().FindRecordsByFilter("_playground", `parent_id = {:parent_id}`, "sort_order", 0, 0, dbx.Params{
+				"parent_id": body.ParentId,
+			})
 
-			// Check if folder exists
-			folderFilter := "name = '" + titleFolder + "' AND type = 'folder' AND parent_id = null"
-			folderRecord, _ := backend.GetRecord("playground", folderFilter)
-			if folderRecord == nil {
-				folderRecord, _ = backend.SaveRecordToCollection("playground", map[string]interface{}{
-					"name":       titleFolder,
-					"type":       "folder",
-					"parent_id":  nil,
-					"sort_order": 0,
-					"expanded":   false,
-				})
+			newSortOrder := GetSortOrder(topLevelItems)
+
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
-			// Check if playground exists under this folder
-			pgFilter := "name = '" + titlePG + "' AND type = 'playground' AND parent_id = '" + folderRecord.Id + "'"
-			pgRecord, _ := backend.GetRecord("playground", pgFilter)
-			if pgRecord == nil {
-				pgRecord, _ = backend.SaveRecordToCollection("playground", map[string]interface{}{
-					"name":       titlePG,
-					"type":       "playground",
-					"parent_id":  folderRecord.Id,
-					"sort_order": 0,
-					"expanded":   true,
-				})
+			pgRecord, err := backend.SaveRecordToCollection("_playground", map[string]interface{}{
+				"name":       name,
+				"type":       body.Type,
+				"parent_id":  body.ParentId,
+				"sort_order": newSortOrder,
+				"expanded":   body.Expanded,
+			})
+
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
 			return c.JSON(http.StatusOK, pgRecord)
@@ -101,73 +150,78 @@ func (backend *Backend) PlaygroundNew(e *core.ServeEvent) error {
 	return nil
 }
 
-func (backend *Backend) PlaygroundInitiate(e *core.ServeEvent) error {
+func (backend *Backend) PlaygroundAddChild(e *core.ServeEvent) error {
+
 	e.Router.AddRoute(echo.Route{
 		Method: http.MethodPost,
-		Path:   "/api/playground/initiate",
+		Path:   "/api/playground/add",
 		Handler: func(c echo.Context) error {
 			admin, _ := c.Get(apis.ContextAdminKey).(*models.Admin)
 			recordd, _ := c.Get(apis.ContextAuthRecordKey).(*models.Record)
 
 			isGuest := admin == nil && recordd == nil
+
 			if isGuest {
 				return c.String(http.StatusForbidden, "")
 			}
 
-			var data PlaygroundData
-			if err := c.Bind(&data); err != nil {
-				return err
+			log.Println("/api/playground/add")
+
+			var body PlaygroundAdd
+			if err := c.Bind(&body); err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
-			typeVal := data.Type
-			host := data.Data.Host
-			port := data.Data.Port
-			url := ""
-			if u, ok := data.Data.Req["url"].(string); ok {
-				url = u
+			log.Println("pg body", body)
+
+			fmt.Println("Items: ", body.Items)
+
+			// Get all items under the parent to determine sort order
+			existingItems, err := backend.App.Dao().FindRecordsByFilter("_playground", `parent_id = {:parent_id}`, "sort_order", 0, 0, dbx.Params{
+				"parent_id": body.ParentId,
+			})
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
-			titleFolder := host + ":" + port
-			titlePG := url
+			newSortOrder := GetSortOrder(existingItems)
 
-			// Check if folder exists
-			folderFilter := "name = '" + titleFolder + "' AND type = 'folder' AND parent_id = null"
-			folderRecord, _ := backend.GetRecord("playground", folderFilter)
-			if folderRecord == nil {
-				folderRecord, _ = backend.SaveRecordToCollection("playground", map[string]interface{}{
-					"name":       titleFolder,
-					"type":       "folder",
-					"parent_id":  nil,
-					"sort_order": 0,
+			// Handle list of items
+			for _, item := range body.Items {
+				fmt.Println("Items loop ", item)
+				newSortOrder += SORT_GAP
+
+				pgRecord, err := backend.SaveRecordToCollection("_playground", map[string]interface{}{
+					"name":       item.Name,
+					"type":       item.Type,
+					"parent_id":  body.ParentId,
+					"sort_order": newSortOrder,
 					"expanded":   false,
 				})
+
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+				}
+
+				switch item.Type {
+				case "repeater":
+					fmt.Println("PlaygroundItem: ", item)
+					err = backend.RepeaterNew(pgRecord.Id, item)
+					if err != nil {
+						return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+					}
+				case "fuzzer":
+					fmt.Println("IntruderRequest: ", item)
+					err = backend.IntruderNew(pgRecord.Id, item)
+					if err != nil {
+						return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+					}
+				default:
+					fmt.Println("Not Found: ")
+				}
 			}
 
-			// Check if playground exists under this folder
-			pgFilter := "name = '" + titlePG + "' AND type = 'playground' AND parent_id = '" + folderRecord.Id + "'"
-			pgRecord, _ := backend.GetRecord("playground", pgFilter)
-			if pgRecord == nil {
-				pgRecord, _ = backend.SaveRecordToCollection("playground", map[string]interface{}{
-					"name":       titlePG,
-					"type":       "playground",
-					"parent_id":  folderRecord.Id,
-					"sort_order": 0,
-					"expanded":   true,
-				})
-			}
-
-			// Create the child record under the playground
-			childData := map[string]interface{}{
-				"name":       typeVal,
-				"type":       typeVal,
-				"parent_id":  pgRecord.Id,
-				"sort_order": 0,
-				"expanded":   false,
-				"data":       data.Data, // store the original data if needed
-			}
-			childRecord, _ := backend.SaveRecordToCollection("playground", childData)
-
-			return c.JSON(http.StatusOK, childRecord)
+			return c.JSON(http.StatusOK, map[string]interface{}{"success": true})
 		},
 		Middlewares: []echo.MiddlewareFunc{
 			apis.ActivityLogger(backend.App),
@@ -189,135 +243,84 @@ func (backend *Backend) PlaygroundDelete(e *core.ServeEvent) error {
 				return c.String(http.StatusForbidden, "")
 			}
 
-			var data map[string]interface{}
-			if err := c.Bind(&data); err != nil {
+			var body map[string]interface{}
+			if err := c.Bind(&body); err != nil {
 				return err
 			}
 
-			id, ok := data["id"].(string)
+			id, ok := body["id"].(string)
 			if !ok || id == "" {
 				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "Missing or invalid id"})
 			}
 
-			record, err := backend.App.Dao().FindRecordById("playground", id)
+			// Function to recursively delete children
+			var deleteChildren func(parentId string) error
+			deleteChildren = func(parentId string) error {
+				// Find all children of the current parent
+				children, err := backend.App.Dao().FindRecordsByFilter("_playground", `parent_id = {:parent_id}`, "sort_order", 0, 0, dbx.Params{
+					"parent_id": parentId,
+				})
+				if err != nil {
+					return err
+				}
+
+				// Recursively delete each child
+				for _, child := range children {
+					// Delete children of this child first
+					if err := deleteChildren(child.Id); err != nil {
+						return err
+					}
+
+					// Delete the child record
+					if err := backend.App.Dao().DeleteRecord(child); err != nil {
+						return err
+					}
+
+					// If the child is a repeater or intruder, delete its associated collection
+					childType, _ := child.Get("type").(string)
+					switch childType {
+					case "repeater":
+						if err := backend.RepeaterDelete(child.Id); err != nil {
+							return err
+						}
+					case "fuzzer":
+						if err := backend.IntruderDelete(child.Id); err != nil {
+							return err
+						}
+					}
+				}
+				return nil
+			}
+
+			// Get the record to be deleted
+			record, err := backend.App.Dao().FindRecordById("_playground", id)
 			if err != nil {
 				return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "Record not found"})
 			}
 
-			err = backend.App.Dao().DeleteRecord(record)
-			if err != nil {
+			// Delete all children first
+			if err := deleteChildren(id); err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
-			return c.JSON(http.StatusOK, map[string]interface{}{"success": true, "id": id})
-		},
-		Middlewares: []echo.MiddlewareFunc{
-			apis.ActivityLogger(backend.App),
-		},
-	})
-	return nil
-}
-
-func (backend *Backend) RepeaterNew(e *core.ServeEvent) error {
-	e.Router.AddRoute(echo.Route{
-		Method: http.MethodPost,
-		Path:   "/api/repeater/new",
-		Handler: func(c echo.Context) error {
-			admin, _ := c.Get(apis.ContextAdminKey).(*models.Admin)
-			recordd, _ := c.Get(apis.ContextAuthRecordKey).(*models.Record)
-
-			isGuest := admin == nil && recordd == nil
-			if isGuest {
-				return c.String(http.StatusForbidden, "")
-			}
-
-			var data NewRepeaterRequest
-			if err := c.Bind(&data); err != nil {
-				return err
-			}
-
-			// Create main repeater record
-			repeaterRecord, err := backend.SaveRecordToCollection("repeater", map[string]interface{}{
-				"name": "Repeater - " + data.URL,
-				"data": data.Data,
-			})
-			if err != nil {
+			// Delete the parent record
+			if err := backend.App.Dao().DeleteRecord(record); err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
-			// Create repeater_[ID] collection if not exists
-			collectionName := "repeater_" + repeaterRecord.Id
-			err = backend.CreateCollection(collectionName, schemas.RepeaterTabSchema)
-			if err != nil {
-				// If already exists, ignore error
-				if !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			// If the parent is a repeater or intruder, delete its associated collection
+			recordType, _ := record.Get("type").(string)
+			switch recordType {
+			case "repeater":
+				if err := backend.RepeaterDelete(id); err != nil {
+					return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+				}
+			case "fuzzer":
+				if err := backend.IntruderDelete(id); err != nil {
 					return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 				}
 			}
 
-			// Insert row into repeater_[ID]
-			_, err = backend.SaveRecordToCollection(collectionName, map[string]interface{}{
-				"url":   data.URL,
-				"req":   data.Req,
-				"resp":  data.Resp,
-				"extra": data.Extra,
-			})
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
-
-			return c.JSON(http.StatusOK, repeaterRecord)
-		},
-		Middlewares: []echo.MiddlewareFunc{
-			apis.ActivityLogger(backend.App),
-		},
-	})
-	return nil
-}
-
-func (backend *Backend) RepeaterDelete(e *core.ServeEvent) error {
-	e.Router.AddRoute(echo.Route{
-		Method: http.MethodPost,
-		Path:   "/api/repeater/delete",
-		Handler: func(c echo.Context) error {
-			admin, _ := c.Get(apis.ContextAdminKey).(*models.Admin)
-			recordd, _ := c.Get(apis.ContextAuthRecordKey).(*models.Record)
-
-			isGuest := admin == nil && recordd == nil
-			if isGuest {
-				return c.String(http.StatusForbidden, "")
-			}
-
-			var data map[string]interface{}
-			if err := c.Bind(&data); err != nil {
-				return err
-			}
-
-			id, ok := data["id"].(string)
-			if !ok || id == "" {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "Missing or invalid id"})
-			}
-
-			record, err := backend.App.Dao().FindRecordById("repeater", id)
-			if err != nil {
-				return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "Record not found"})
-			}
-
-			err = backend.App.Dao().DeleteRecord(record)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
-
-			// Optionally, delete the associated repeater_[ID] collection
-			collectionName := "repeater_" + id
-			coll, err := backend.App.Dao().FindCollectionByNameOrId(collectionName)
-			if err == nil && coll != nil {
-				err = backend.App.Dao().DeleteCollection(coll)
-				if err != nil {
-					return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": "Deleted record but failed to delete collection: " + err.Error()})
-				}
-			}
-
 			return c.JSON(http.StatusOK, map[string]interface{}{"success": true, "id": id})
 		},
 		Middlewares: []echo.MiddlewareFunc{
@@ -327,91 +330,91 @@ func (backend *Backend) RepeaterDelete(e *core.ServeEvent) error {
 	return nil
 }
 
-func (backend *Backend) IntruderNew(e *core.ServeEvent) error {
-	e.Router.AddRoute(echo.Route{
-		Method: http.MethodPost,
-		Path:   "/api/intruder/new",
-		Handler: func(c echo.Context) error {
-			admin, _ := c.Get(apis.ContextAdminKey).(*models.Admin)
-			recordd, _ := c.Get(apis.ContextAuthRecordKey).(*models.Record)
+func (backend *Backend) RepeaterNew(id string, data PlaygroundItem) error {
 
-			isGuest := admin == nil && recordd == nil
-			if isGuest {
-				return c.String(http.StatusForbidden, "")
-			}
+	// Create repeater_[ID] collection if not exists
+	collectionName := "repeater_" + id
+	err := backend.CreateCollection(collectionName, schemas.RepeaterTabSchema)
+	if err != nil {
+		// If already exists, ignore error
+		if !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return err
+		}
+	}
 
-			var data NewIntruderRequest
-			if err := c.Bind(&data); err != nil {
-				return err
-			}
-
-			if data.ID == "" {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "Missing or invalid id"})
-			}
-
-			collectionName := "intruder_" + data.ID
-			err := backend.CreateCollection(collectionName, schemas.IntruderTabSchema)
-			if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
-
-			_, err = backend.SaveRecordToCollection(collectionName, map[string]interface{}{
-				"url":     data.URL,
-				"req":     data.Req,
-				"payload": data.Payload,
-			})
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
-
-			return c.JSON(http.StatusOK, map[string]interface{}{"success": true, "id": data.ID})
-		},
-		Middlewares: []echo.MiddlewareFunc{
-			apis.ActivityLogger(backend.App),
-		},
+	// Insert row into repeater_[ID]
+	_, err = backend.SaveRecordToCollection(collectionName, map[string]any{
+		"url":   data.ToolData["url"],
+		"req":   data.ToolData["req"],
+		"resp":  data.ToolData["resp"],
+		"data":  data.ToolData,
+		"extra": data.ToolData,
 	})
+
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (backend *Backend) IntruderDelete(e *core.ServeEvent) error {
-	e.Router.AddRoute(echo.Route{
-		Method: http.MethodPost,
-		Path:   "/api/intruder/delete",
-		Handler: func(c echo.Context) error {
-			admin, _ := c.Get(apis.ContextAdminKey).(*models.Admin)
-			recordd, _ := c.Get(apis.ContextAuthRecordKey).(*models.Record)
+func (backend *Backend) RepeaterDelete(id string) error {
 
-			isGuest := admin == nil && recordd == nil
-			if isGuest {
-				return c.String(http.StatusForbidden, "")
-			}
+	record, err := backend.App.Dao().FindRecordById("repeater", id)
+	if err != nil {
+		return err
+	}
 
-			var data map[string]interface{}
-			if err := c.Bind(&data); err != nil {
-				return err
-			}
+	err = backend.App.Dao().DeleteRecord(record)
+	if err != nil {
+		return err
+	}
 
-			id, ok := data["id"].(string)
-			if !ok || id == "" {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "Missing or invalid id"})
-			}
+	// Optionally, delete the associated repeater_[ID] collection
+	collectionName := "repeater_" + id
+	coll, err := backend.App.Dao().FindCollectionByNameOrId(collectionName)
+	if err == nil && coll != nil {
+		err = backend.App.Dao().DeleteCollection(coll)
+		if err != nil {
+			return err
+		}
+	}
 
-			collectionName := "intruder_" + id
-			coll, err := backend.App.Dao().FindCollectionByNameOrId(collectionName)
-			if err != nil || coll == nil {
-				return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "Collection not found"})
-			}
+	return nil
+}
 
-			err = backend.App.Dao().DeleteCollection(coll)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
+func (backend *Backend) IntruderNew(id string, data PlaygroundItem) error {
 
-			return c.JSON(http.StatusOK, map[string]interface{}{"success": true, "id": id})
-		},
-		Middlewares: []echo.MiddlewareFunc{
-			apis.ActivityLogger(backend.App),
-		},
+	collectionName := "intruder_" + id
+	err := backend.CreateCollection(collectionName, schemas.IntruderTabSchema)
+	if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		return err
+	}
+
+	_, err = backend.SaveRecordToCollection(collectionName, map[string]any{
+		"url":     data.ToolData["url"],
+		"req":     data.ToolData["req"],
+		"payload": data.ToolData["payload"],
 	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (backend *Backend) IntruderDelete(id string) error {
+
+	collectionName := "intruder_" + id
+	coll, err := backend.App.Dao().FindCollectionByNameOrId(collectionName)
+	if err != nil || coll == nil {
+		return err
+	}
+
+	err = backend.App.Dao().DeleteCollection(coll)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

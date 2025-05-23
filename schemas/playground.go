@@ -25,6 +25,10 @@ var Playground = schema.NewSchema(
 		Type: schema.FieldTypeBool,
 	},
 	&schema.SchemaField{
+		Name: "state",
+		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
 		Name: "sort_order",
 		Type: schema.FieldTypeNumber,
 	},

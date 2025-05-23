@@ -98,6 +98,9 @@ func serve(projectPath string) {
 	API.App.OnBeforeServe().Add(API.CookSearch)
 	API.App.OnBeforeServe().Add(API.CookApplyMethods)
 	API.App.OnBeforeServe().Add(API.CookGenerate)
+	API.App.OnBeforeServe().Add(API.PlaygroundNew)
+	API.App.OnBeforeServe().Add(API.PlaygroundDelete)
+	API.App.OnBeforeServe().Add(API.PlaygroundAddChild)
 
 	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		API.App.Dao().DB().NewQuery(`
