@@ -186,6 +186,8 @@ func (backend *Backend) PlaygroundAddChild(e *core.ServeEvent) error {
 
 			newSortOrder := GetSortOrder(existingItems)
 
+			records := []*models.Record{}
+
 			// Handle list of items
 			for _, item := range body.Items {
 				fmt.Println("Items loop ", item)
@@ -198,6 +200,8 @@ func (backend *Backend) PlaygroundAddChild(e *core.ServeEvent) error {
 					"sort_order": newSortOrder,
 					"expanded":   false,
 				})
+
+				records = append(records, pgRecord)
 
 				if err != nil {
 					return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
@@ -221,7 +225,7 @@ func (backend *Backend) PlaygroundAddChild(e *core.ServeEvent) error {
 				}
 			}
 
-			return c.JSON(http.StatusOK, map[string]interface{}{"success": true})
+			return c.JSON(http.StatusOK, map[string]interface{}{"success": true, "items": records})
 		},
 		Middlewares: []echo.MiddlewareFunc{
 			apis.ActivityLogger(backend.App),

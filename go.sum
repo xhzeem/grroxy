@@ -148,8 +148,6 @@ github.com/fsnotify/fsnotify v1.8.0 h1:dAwr6QBTBZIkG8roQaJjGof0pp0EeF+tNV7YBP3F/
 github.com/fsnotify/fsnotify v1.8.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=
 github.com/gabriel-vasile/mimetype v1.4.3 h1:in2uUcidCuFcDKtdcBxlR0rJ1+fsokWf+uqxgUFjbI0=
 github.com/gabriel-vasile/mimetype v1.4.3/go.mod h1:d8uq/6HKRL6CGdk+aubisF/M5GcPfT7nKyLpA0lbSSk=
-github.com/glitchedgitz/cook/v2 v2.2.0 h1:Zclej4WF7zaklE2ewI9sv87a4tfGQPsOQ5MrUkmA+rY=
-github.com/glitchedgitz/cook/v2 v2.2.0/go.mod h1:D1IT4k6xroTdvnn1xQmS9QL8WYNq7jrXgAXtRLv9YwU=
 github.com/glitchedgitz/wappalyzergo v0.0.2 h1:xcb2Pb/Caxdq+6QbDy2zbZNITv43fCp4V7MZuu0Vsr0=
 github.com/glitchedgitz/wappalyzergo v0.0.2/go.mod h1:BKaron6hw6U0zTDtMpYOvDePID2ZkuzLs2l/tfJhJ2o=
 github.com/go-logr/logr v1.4.1 h1:pKouT5E8xu9zeFC39JXRDukb6JFQPXM5p5I91188VAQ=
