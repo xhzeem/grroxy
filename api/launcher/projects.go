@@ -383,7 +383,7 @@ func (launcher *Launcher) OpenProjectFromNameOrId(project string) (ProjectData, 
 }
 
 func StartProject(projectPath string, host string, proxy string, onClose func()) {
-	cmd := exec.Command("grroxy-app", "-path", projectPath, "-host", host, "-proxy", proxy)
+	cmd := exec.Command("grroxy-app", "-path", projectPath, "-host", host, "-proxy", proxy, "-log")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

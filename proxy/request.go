@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/elazarl/goproxy"
-	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
+	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/projectdiscovery/dsl"
 	"gopkg.in/yaml.v2"
 )
@@ -170,39 +170,42 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 
 		for _, action := range results {
 			switch action.ActionName {
-			case actions.Modify:
-
+			case actions.Set:
+				log.Println("[OnRequest] Set: ", action.Data)
 				for key, value := range action.Data {
-					if key == "replace" {
-						for _, replace := range value.([]any) {
-							var r actions.ModifierReplace
-							intermediate, err := yaml.Marshal(replace)
-							if err != nil {
-								panic(err)
-							}
-
-							err = yaml.Unmarshal(intermediate, &r)
-							if err != nil {
-								log.Println("Error: Template replace", err)
-							}
-
-							extractedValue, err := utils.ExtractValueFromMap(&requestJson, r.Key)
-							if err != nil {
-								log.Println("Error: Extracting value", err)
-							}
-
-							updatedValue, err := utils.FindAndReplaceAll(fmt.Sprint(extractedValue), r.Search, r.Replace, r.Regex)
-							if err != nil {
-								log.Println(err)
-								continue
-							}
-							userdata.RequestUpdateKey(req, r.Key, updatedValue)
-
+					userdata.RequestUpdateKey(req, key, value)
+				}
+			case actions.Delete:
+				log.Println("[OnRequest] Delete: ", action.Data)
+				for key := range action.Data {
+					userdata.RequestDeleteKey(req, key)
+				}
+			case actions.Replace:
+				log.Println("[OnRequest] Replace: ", action.Data)
+				for key, replaces := range action.Data {
+					for _, replace := range replaces.([]any) {
+						var r actions.ModifierReplace
+						intermediate, err := yaml.Marshal(replace)
+						if err != nil {
+							log.Println("Error: Template replace 1", err)
 						}
-					} else if key == "delete" {
-						userdata.RequestDeleteKey(req, key)
-					} else if strings.HasPrefix(key, "req.") {
-						userdata.RequestUpdateKey(req, key, value)
+
+						err = yaml.Unmarshal(intermediate, &r)
+						if err != nil {
+							log.Println("Error: Template replace 2", err)
+						}
+
+						extractedValue, err := utils.ExtractValueFromMap(&requestJson, key)
+						if err != nil {
+							log.Println("Error: Extracting value", err)
+						}
+
+						updatedValue, err := utils.FindAndReplaceAll(fmt.Sprint(extractedValue), r.Search, r.Value, r.Regex)
+						if err != nil {
+							log.Println(err)
+							continue
+						}
+						userdata.RequestUpdateKey(req, key, updatedValue)
 					}
 				}
 

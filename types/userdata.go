@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -55,6 +56,7 @@ type UserData struct {
 }
 
 func (userdata *UserData) RequestUpdateKey(req *http.Request, key string, value any) {
+	log.Println("[RequestUpdateKey] key: '", key, "' value: '", value, "'")
 	if key == "req.method" {
 		req.Method = value.(string)
 		userdata.Req.Method = value.(string)
@@ -76,6 +78,8 @@ func (userdata *UserData) RequestUpdateKey(req *http.Request, key string, value 
 		req.URL.RawQuery = params.Encode()
 
 	} else if strings.HasPrefix(key, "req.headers") {
+		log.Println("[RequestUpdateKey] req.headers: ", key, value)
+
 		header := strings.TrimPrefix(key, "req.headers")[1:]
 		req.Header.Set(header, value.(string))
 		userdata.Req.Headers[header] = value.(string)

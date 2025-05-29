@@ -1,0 +1,10 @@
+id: proxy-configs
+info:
+  title: Proxy Configs
+  description: ""
+  author: ""
+config:
+  hooks:
+    proxy:
+      - before_request
+tasks: []
