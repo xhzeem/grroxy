@@ -1,6 +1,6 @@
 package grrhttp
 
-import (	
+import (
 	"bufio"
 	"compress/gzip"
 	"fmt"
@@ -30,10 +30,17 @@ func DumpResponse(resp *http.Response) string {
 	size, err := strconv.Atoi(resp.Header.Get("Content-Length"))
 	utils.CheckErr("[DumpResponse]", err)
 
-	resp.ContentLength = int64(size)
+	var bodyReader io.Reader
 
-	bodyReader, err := DecompressResponse(resp.Body, resp.Header.Get("Content-Encoding"))
-	utils.CheckErr("", err)
+	if size > 0 {
+		resp.ContentLength = int64(size)
+
+		bodyReader, err = DecompressResponse(resp.Body, resp.Header.Get("Content-Encoding"))
+		utils.CheckErr("", err)
+	} else {
+		bodyReader = resp.Body
+	}
+
 	// defer bodyReader.Close()
 
 	// var bodyReader io.ReadCloser
