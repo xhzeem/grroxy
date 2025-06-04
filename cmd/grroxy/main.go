@@ -235,7 +235,6 @@ func startCore() {
 	launch.App.OnBeforeServe().Add(launch.API_OpenProject)
 	launch.App.OnBeforeServe().Add(launch.BindFrontend)
 	launch.App.OnBeforeServe().Add(launch.RunCommand)
-	launch.App.OnBeforeServe().Add(launch.SendRawRequest)
 	launch.App.OnBeforeServe().Add(launch.TextSQL)
 	launch.App.OnBeforeServe().Add(launch.SaveFile)
 	launch.App.OnBeforeServe().Add(launch.ReadFile)
