@@ -12,16 +12,54 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/models"
 	"github.com/rs/xid"
 )
 
 type ToolsServerResponse struct {
-	Path        string `db:"path" json:"path"`
-	HostAddress string `db:"hostAddress" json:"hostAddress"`
-	ID          string `db:"id" json:"id"`
-	Name        string `db:"name" json:"name"`
-	Username    string `db:"username" json:"username"`
-	Password    string `db:"password" json:"password"`
+	Path     string `db:"path" json:"path"`
+	Host     string `db:"host" json:"host"`
+	ID       string `db:"id" json:"id"`
+	Name     string `db:"name" json:"name"`
+	Username string `db:"username" json:"username"`
+	Password string `db:"password" json:"password"`
+}
+
+func (launcher *Launcher) GetToolById(id string) (*models.Record, error) {
+	record, err := launcher.App.Dao().FindRecordById("_tools", id)
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
+}
+
+func (launcher *Launcher) SetToolData(id, host, state string) (*models.Record, error) {
+	record, err := launcher.App.Dao().FindRecordById("_tools", id)
+	if err != nil {
+		return nil, err
+	}
+	record.Set("host", host)
+	record.Set("state", state)
+	if err := launcher.App.Dao().SaveRecord(record); err != nil {
+		return nil, err
+	}
+	return record, nil
+}
+
+func (launcher *Launcher) NewTool(data map[string]any) ([]*models.Record, error) {
+	collection, err := launcher.App.Dao().FindCollectionByNameOrId("_tools")
+	if err != nil {
+		return nil, err
+	}
+
+	record := models.NewRecord(collection)
+	record.Load(data)
+
+	if err := launcher.App.Dao().SaveRecord(record); err != nil {
+		return nil, err
+	}
+
+	return []*models.Record{record}, nil
 }
 
 func (launcher *Launcher) ToolsServer(e *core.ServeEvent) error {
@@ -29,13 +67,68 @@ func (launcher *Launcher) ToolsServer(e *core.ServeEvent) error {
 		Method: "GET",
 		Path:   "/api/tool/server",
 		Handler: func(c echo.Context) error {
-			path := launcher.Config.ConfigDirectory
-			hostAddress, err := utils.CheckAndFindAvailablePort("127.0.0.1:8090")
-			name := xid.New().String()
+
+			var path string
+			var hostAddress string
+			var name string
+			var active bool = false
+
+			var err error
+
+			var toolId string = ""
+			var body = make(map[string]any)
+			if c.QueryParam("id") != "" {
+				body["id"] = c.QueryParam("id")
+			} else if err := c.Bind(&body); err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+			}
+
+			if id_val, ok := body["id"]; ok {
+				toolId = id_val.(string)
+			}
+
+			if toolId != "" {
+				tool, err := launcher.GetToolById(toolId)
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+				}
+
+				path = tool.Get("path").(string)
+				state := tool.Get("state").(string)
+				name = tool.Get("name").(string)
+
+				if state == "active" {
+					active = true
+					hostAddress = tool.Get("host").(string)
+				} else {
+					active = false
+					hostAddress, err = utils.CheckAndFindAvailablePort("127.0.0.1:9000")
+					if err != nil {
+						return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+					}
+				}
+			} else {
+				path = launcher.Config.ConfigDirectory
+				hostAddress, err = utils.CheckAndFindAvailablePort("127.0.0.1:9000")
+				name = xid.New().String()
+				tool, err := launcher.NewTool(map[string]any{
+					"name": name,
+					"path": path,
+					"host": hostAddress,
+					"creds": map[string]any{
+						"username": "new@example.com",
+						"password": "1234567890",
+					},
+				})
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": "Fail to start new tool"})
+				}
+				toolId = tool[0].Id
+			}
 
 			fmt.Println("name", name)
 			fmt.Println("path", path)
-			fmt.Println("hostAddress", hostAddress)
+			fmt.Println("host", hostAddress)
 			fmt.Println("err", err)
 
 			if err != nil {
@@ -43,20 +136,38 @@ func (launcher *Launcher) ToolsServer(e *core.ServeEvent) error {
 			}
 
 			_c := "grroxy-tool -path " + path + " -host " + hostAddress + " -name " + name
-			id := launcher.RegisterProcessInDB(_c, nil,
-				"grroxy-tool", "tool-server", schemas.ProcessState.Inqueue)
+			launcher.RegisterProcessInDB(
+				_c,
+				map[string]any{
+					"path":     path,
+					"host":     hostAddress,
+					"name":     name,
+					"username": "new@example.com",
+					"password": "1234567890",
+				},
+				"grroxy-tool",
+				"tool-server",
+				schemas.ProcessState.Inqueue,
+			)
 
-			go launcher.toolsServerStart(hostAddress, path, name, func() {
-				fmt.Println("toolsServerStart closed")
-			})
+			if !active {
+				go launcher.toolsServerStart(hostAddress, path, name, func() {
+					fmt.Println("toolsServerStart closed")
+
+					launcher.SetToolData(toolId, "", "closed")
+
+				})
+			}
+
+			launcher.SetToolData(toolId, hostAddress, "active")
 
 			return c.JSON(http.StatusOK, ToolsServerResponse{
-				Path:        path,
-				HostAddress: hostAddress,
-				ID:          id,
-				Name:        name,
-				Username:    "new@example.com",
-				Password:    "1234567890",
+				Path:     path,
+				Host:     hostAddress,
+				ID:       toolId,
+				Name:     name,
+				Username: "new@example.com",
+				Password: "1234567890",
 			})
 		},
 	})

@@ -105,8 +105,20 @@ func (backend *Backend) ToolsServer(e *core.ServeEvent) error {
 			}
 
 			_c := "grroxy-tool -path " + path + " -host " + hostAddress + " -name " + name
-			id := backend.RegisterProcessInDB(_c, nil,
-				"grroxy-tool", "tool-server", schemas.ProcessState.Inqueue)
+
+			id := backend.RegisterProcessInDB(
+				_c,
+				map[string]any{
+					"path":        path,
+					"hostAddress": hostAddress,
+					"name":        name,
+					"username":    "new@example.com",
+					"password":    "1234567890",
+				},
+				"grroxy-tool",
+				"tool-server",
+				schemas.ProcessState.Inqueue,
+			)
 
 			go backend.toolsServerStart(hostAddress, path, name, func() {
 				fmt.Println("toolsServerStart closed")

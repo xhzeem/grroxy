@@ -179,7 +179,7 @@ func (launcher *Launcher) CreateNewProject(projectName string) (ProjectData, err
 		return ProjectData{}, err
 	}
 
-	ProjectIP, err := utils.CheckAndFindAvailablePort("127.0.0.1:8091")
+	ProjectIP, err := utils.CheckAndFindAvailablePort("127.0.0.1:8500")
 	if err != nil {
 		fmt.Println("Error fetching project IP:", err)
 		return ProjectData{}, err
@@ -392,6 +392,30 @@ func StartProject(projectPath string, host string, proxy string, onClose func())
 	}
 
 	onClose()
+}
+
+func (launcher *Launcher) ResetToolsStates(e *core.ServeEvent) error {
+
+	records, err := launcher.App.Dao().FindRecordsByExpr("_tools")
+	if err != nil {
+		fmt.Println("Error fetching tools:", err)
+		return err
+	}
+
+	for _, record := range records {
+
+		record.Set("host", "")
+		record.Set("state", "")
+
+		err = launcher.App.Dao().SaveRecord(record)
+		if err != nil {
+			fmt.Println("Error saving tool state:", err)
+			return err
+		}
+	}
+
+	fmt.Println("Tools states reset successfully")
+	return nil
 }
 
 func (launcher *Launcher) ResetProjectStates(e *core.ServeEvent) error {

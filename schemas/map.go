@@ -29,6 +29,12 @@ var Main = []DB{
 		"",
 	},
 	{
+		"_tools",
+		ToolsSchema,
+		false,
+		"",
+	},
+	{
 		"_labels",
 		Labels,
 		false,

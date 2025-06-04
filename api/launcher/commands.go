@@ -35,6 +35,10 @@ func (launcher *Launcher) SetProcess(id, state string) {
 	process.SetState(launcher.App, id, state)
 }
 
+func (launcher *Launcher) GetProcess(id string) (*models.Record, error) {
+	return process.GetProcess(launcher.App, id)
+}
+
 func (launcher *Launcher) RegisterProcessInDB(input, data any, name, typz, state string) string {
 	return process.RegisterInDB(launcher.App, input, data, name, typz, state)
 }

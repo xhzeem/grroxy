@@ -11,8 +11,8 @@ import (
 	// "github.com/pocketbase/dbx"
 
 	"github.com/glitchedgitz/cook/v2/pkg/cook"
-	"github.com/glitchedgitz/grroxy-db/config"
 	"github.com/glitchedgitz/grroxy-db/api/launcher"
+	"github.com/glitchedgitz/grroxy-db/config"
 	"github.com/glitchedgitz/grroxy-db/process"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/pocketbase/pocketbase"
@@ -227,6 +227,7 @@ func startCore() {
 
 	// Reset project states when the app is terminated
 	launch.App.OnBeforeServe().Add(launch.ResetProjectStates)
+	launch.App.OnBeforeServe().Add(launch.ResetToolsStates)
 
 	// Adding custom endpoints
 	launch.App.OnBeforeServe().Add(launch.API_ListProjects)
