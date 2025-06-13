@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/glitchedgitz/grroxy-db/api/app"
 	"github.com/glitchedgitz/grroxy-db/schemas"
 	"github.com/glitchedgitz/grroxy-db/sdk"
+	"github.com/glitchedgitz/grroxy-db/types"
 	pbTypes "github.com/pocketbase/pocketbase/tools/types"
 
 	"github.com/pocketbase/pocketbase/models"
@@ -15,7 +15,7 @@ import (
 func testPlaygroundAdd(grroxydb *sdk.Client, id string, playgroundAddData string) {
 	fmt.Println("PlaygroundAddData: ", playgroundAddData)
 
-	var playgroundAdd api.PlaygroundAdd
+	var playgroundAdd types.PlaygroundAdd
 	err := json.Unmarshal([]byte(playgroundAddData), &playgroundAdd)
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -52,7 +52,7 @@ func main() {
 		"expanded":   true
 	}`
 
-	var playgroundNew api.PlaygroundNew
+	var playgroundNew types.PlaygroundNew
 	json.Unmarshal([]byte(playgroundNewData), &playgroundNew)
 	pgData, err := grroxydb.PlaygroundNew(playgroundNew)
 	fmt.Println("Returned data: ", pgData)

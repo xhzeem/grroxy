@@ -3,6 +3,10 @@
 ## All endpoints
 
 ```http
+# Proxy
+POST /api/proxy/start
+POST /api/proxy/stop
+
 # Playground
 POST      /api/playground/new
 POST      /api/playground/add

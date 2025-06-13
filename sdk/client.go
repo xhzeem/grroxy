@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/duke-git/lancet/v2/convertor"
-	api "github.com/glitchedgitz/grroxy-db/api/app"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/go-resty/resty/v2"
 )
@@ -155,7 +154,7 @@ func (c *Client) CreateCollection(body any) (any, error) {
 	return v, nil
 }
 
-func (c *Client) PlaygroundNew(body api.PlaygroundNew) (any, error) {
+func (c *Client) PlaygroundNew(body types.PlaygroundNew) (any, error) {
 	var response any
 
 	if err := c.Authorize(); err != nil {
@@ -188,7 +187,7 @@ func (c *Client) PlaygroundNew(body api.PlaygroundNew) (any, error) {
 	return v, nil
 }
 
-func (c *Client) PlaygroundAddChild(body api.PlaygroundAdd) (any, error) {
+func (c *Client) PlaygroundAddChild(body types.PlaygroundAdd) (any, error) {
 	var response any
 
 	if err := c.Authorize(); err != nil {
