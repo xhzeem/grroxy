@@ -18,6 +18,7 @@ grroxy_db/
 builds*/
 build/
 
-frontend/node_modules/
+node_modules/
+*/electron/dist/
 
 cmd/grroxy/builds*
