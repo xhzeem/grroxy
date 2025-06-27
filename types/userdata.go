@@ -39,7 +39,8 @@ type ResponseData struct {
 type UserData struct {
 	ID           string       `db:"id,omitempty" json:"id,omitempty"`
 	Host         string       `db:"host,omitempty" json:"host,omitempty"`
-	Index        int          `db:"index,omitempty" json:"index,omitempty"`
+	Index        float64      `db:"index,omitempty" json:"index,omitempty"`
+	IndexMinor   float64      `db:"index_minor,omitempty" json:"index_minor,omitempty"`
 	Port         string       `db:"port,omitempty" json:"port,omitempty"`
 	HasResp      bool         `db:"has_resp,omitempty" json:"has_resp,omitempty"`
 	IsReqEdited  bool         `db:"is_req_edited,omitempty" json:"is_req_edited,omitempty"`

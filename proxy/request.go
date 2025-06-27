@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/elazarl/goproxy"
+	"github.com/glitchedgitz/grroxy-db/grrhttp"
 	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/glitchedgitz/grroxy-db/utils"
@@ -49,15 +50,7 @@ type attach = struct {
 	Note   string   `db:"note" json:"note"`
 }
 
-func getHeaders(h http.Header) map[string]string {
-	headers := map[string]string{}
-	for header, value := range h {
-		// header = strings.ReplaceAll(header, "-", "_")
-		// header = strings.ToLower(header)
-		headers[header] = strings.Join(value, " ///// ")
-	}
-	return headers
-}
+
 
 func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
 	// rateLimit <- ""
@@ -83,7 +76,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 	// Initiate variables
 	var (
 		index   = <-generateIndex
-		id      = utils.FormatNumericID(index, 15)
+		id      = utils.FormatNumericID(float64(index), 15)
 		method  = http.MethodGet
 		host    = req.URL.Host
 		port    = ""
@@ -133,7 +126,7 @@ func (p *Proxy) OnRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Reque
 			HasCookies: len(req.Cookies()) > 0,
 			HasParams:  len(req.URL.Query()) > 0,
 			Length:     req.ContentLength,
-			Headers:    getHeaders(req.Header),
+			Headers:    grrhttp.GetHeaders(req.Header),
 			IsHTTPS:    isHttps,
 			Url:        req.URL.RequestURI(),
 			Path:       req.URL.Path,
@@ -342,8 +335,4 @@ func (p *Proxy) runReqTemplates(userdata *types.UserData) {
 			log.Println("[_requestAddToDB] Unknown Action")
 		}
 	}
-}
-
-func (p *Proxy) SearchAndReplaceRequest() {
-
 }

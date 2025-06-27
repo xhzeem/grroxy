@@ -86,6 +86,7 @@ func serve(projectPath string) {
 	API.App.OnBeforeServe().Add(API.PlaygroundAddChild)
 	API.App.OnBeforeServe().Add(API.StartProxy)
 	API.App.OnBeforeServe().Add(API.StopProxy)
+	API.App.OnBeforeServe().Add(API.AddRequest)
 
 	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		API.App.Dao().DB().NewQuery(`

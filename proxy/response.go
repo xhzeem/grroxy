@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/elazarl/goproxy"
+	"github.com/glitchedgitz/grroxy-db/grrhttp"
 	"github.com/glitchedgitz/grroxy-db/templates/actions"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/glitchedgitz/grroxy-db/utils"
@@ -63,7 +64,7 @@ func (p *Proxy) OnResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Res
 		HasCookies: len(resp.Cookies()) > 0,
 		Title:      "",
 		Mime:       resp.Header.Get("content-type"),
-		Headers:    getHeaders(resp.Header),
+		Headers:    grrhttp.GetHeaders(resp.Header),
 		Status:     resp.StatusCode,
 		Length:     resp.ContentLength,
 		Date:       resp.Header.Get("Date"),
