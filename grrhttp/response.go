@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/andybalholm/brotli"
@@ -15,10 +14,19 @@ import (
 
 func DecompressResponse(reader io.Reader, contentEncoding string) (io.Reader, error) {
 	switch strings.ToLower(contentEncoding) {
-	case "gzip":
-		return gzip.NewReader(reader)
-	case "br":
+	case "gzip", "x-gzip":
+		gzReader, err := gzip.NewReader(reader)
+		if err != nil {
+			// If decompression fails, return the original reader
+			return reader, nil
+		}
+		return gzReader, nil
+	case "br", "brotli":
 		return brotli.NewReader(reader), nil
+	case "deflate":
+		// Note: deflate is not implemented here, would need zlib
+		// For now, return original reader
+		return reader, nil
 	default:
 		return reader, nil
 	}
@@ -26,55 +34,46 @@ func DecompressResponse(reader io.Reader, contentEncoding string) (io.Reader, er
 
 func DumpResponse(resp *http.Response) string {
 
-	var size = 0
 	var err error
 	var bodyReader io.Reader
 
-	contentLength := resp.Header.Get("Content-Length")
+	// Always check for compression and decompress if needed
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	bodyReader, err = DecompressResponse(resp.Body, contentEncoding)
+	utils.CheckErr("[DumpResponse] Decompression error: ", err)
 
-	// Check if we should download the resource or not
-	if contentLength != "" {
-		size, err = strconv.Atoi(contentLength)
-		utils.CheckErr("[DumpResponse]", err)
-	}
-
-	if size > 0 {
-		resp.ContentLength = int64(size)
-
-		bodyReader, err = DecompressResponse(resp.Body, resp.Header.Get("Content-Encoding"))
-		utils.CheckErr("", err)
-	} else {
-		bodyReader = resp.Body
-	}
-
-	// defer bodyReader.Close()
-
-	// var bodyReader io.ReadCloser
-	// if resp.Header.Get("Content-Encoding") == "gzip" {
-	// 	bodyReader, err = gzip.NewReader(resp.Body)
-	// 	if err != nil {
-	// 		// fallback to raw data
-	// 		bodyReader = resp.Body
-	// 	}
-	// } else {
-	// 	bodyReader = resp.Body
-	// }
-
+	// Read the decompressed body
 	bf := bufio.NewReader(bodyReader)
-	var cl int64
 	respbody, err := io.ReadAll(bf)
-	utils.CheckErr("", err)
-	cl = int64(len(respbody))
+	utils.CheckErr("[DumpResponse] Read body error: ", err)
+
+	// Update content length to reflect decompressed size
+	cl := int64(len(respbody))
 
 	finalResp := fmt.Sprintf("%s %s\n", resp.Proto, resp.Status)
 
+	// Build headers, but remove Content-Encoding since we've decompressed
+	hasContentLength := false
 	for header, value := range resp.Header {
-		if strings.Contains(strings.ToLower(header), "Content-Encoding") {
-			value = []string{fmt.Sprintf("%d", cl)}
+		// Skip Content-Encoding header since we've already decompressed
+		if strings.EqualFold(header, "Content-Encoding") {
+			continue
 		}
-		for _, val := range value {
-			finalResp += fmt.Sprintf("%s: %s\n", header, val)
+
+		// Update Content-Length to reflect decompressed size
+		if strings.EqualFold(header, "Content-Length") {
+			finalResp += fmt.Sprintf("%s: %d\n", header, cl)
+			hasContentLength = true
+		} else {
+			for _, val := range value {
+				finalResp += fmt.Sprintf("%s: %s\n", header, val)
+			}
 		}
+	}
+
+	// Add Content-Length if it didn't exist in the original response
+	if !hasContentLength {
+		finalResp += fmt.Sprintf("Content-Length: %d\n", cl)
 	}
 
 	finalResp += "\n" + string(respbody)

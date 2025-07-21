@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/jpillora/go-tld"
 	"golang.org/x/net/html"
 )
@@ -134,11 +136,41 @@ func ParseDataFromFrontend[T interface{}](results []interface{}) T {
 
 func ResponseToByte(resp *http.Response) ([]byte, error) {
 
-	body, err := io.ReadAll(resp.Body)
-	// resp.Body.Close()
-
+	// Read the body once first
+	originalBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []byte(""), fmt.Errorf("failed to read the response body: %w", err)
+	}
+
+	// Check for compression and decompress if needed
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	var bodyReader io.Reader
+	var decompressed bool
+
+	switch strings.ToLower(contentEncoding) {
+	case "gzip", "x-gzip":
+		gzReader, err := gzip.NewReader(bytes.NewReader(originalBody))
+		if err != nil {
+			// If decompression fails, use original body
+			bodyReader = bytes.NewReader(originalBody)
+			decompressed = false
+		} else {
+			bodyReader = gzReader
+			decompressed = true
+		}
+	case "br", "brotli":
+		bodyReader = brotli.NewReader(bytes.NewReader(originalBody))
+		decompressed = true
+	default:
+		bodyReader = bytes.NewReader(originalBody)
+		decompressed = false
+	}
+
+	body, err := io.ReadAll(bodyReader)
+	if err != nil {
+		// If reading decompressed data fails, fall back to original
+		body = originalBody
+		decompressed = false
 	}
 
 	// Create a new response without the chunked encoding information
@@ -152,6 +184,11 @@ func ResponseToByte(resp *http.Response) ([]byte, error) {
 		ContentLength: int64(len(body)),
 		Body:          io.NopCloser(bytes.NewReader(body)),
 		Request:       resp.Request,
+	}
+
+	// Remove Content-Encoding header only if we successfully decompressed
+	if decompressed {
+		newResp.Header.Del("Content-Encoding")
 	}
 
 	respBytes, err := httputil.DumpResponse(newResp, true)
