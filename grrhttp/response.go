@@ -2,7 +2,9 @@ package grrhttp
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
+	"compress/zlib"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,20 +34,26 @@ func DecompressResponse(reader io.Reader, contentEncoding string) (io.Reader, er
 	}
 }
 
+// DumpResponse dumps an HTTP response to a string format.
+// It uses "magic" detection to automatically decompress content regardless of headers,
+// trying multiple compression formats (gzip, brotli, zlib) to see if any work.
 func DumpResponse(resp *http.Response) string {
 
 	var err error
 	var bodyReader io.Reader
 
-	// Always check for compression and decompress if needed
-	contentEncoding := resp.Header.Get("Content-Encoding")
-	bodyReader, err = DecompressResponse(resp.Body, contentEncoding)
-	utils.CheckErr("[DumpResponse] Decompression error: ", err)
+	// Read the body first so we can try multiple decompression attempts
+	originalBody, err := io.ReadAll(resp.Body)
+	utils.CheckErr("[DumpResponse] Read body error: ", err)
+
+	// Magic detection: try to decompress regardless of headers
+	bodyReader, err = MagicDecompress(bytes.NewReader(originalBody))
+	utils.CheckErr("[DumpResponse] Magic decompression error: ", err)
 
 	// Read the decompressed body
 	bf := bufio.NewReader(bodyReader)
 	respbody, err := io.ReadAll(bf)
-	utils.CheckErr("[DumpResponse] Read body error: ", err)
+	utils.CheckErr("[DumpResponse] Read decompressed body error: ", err)
 
 	// Update content length to reflect decompressed size
 	cl := int64(len(respbody))
@@ -81,22 +89,47 @@ func DumpResponse(resp *http.Response) string {
 	return finalResp
 }
 
-// 	bf := bufio.NewReader(bodyReader)
+// MagicDecompress attempts to decompress content using multiple compression formats
+// regardless of headers. It tries each format and returns the first successful one.
+func MagicDecompress(reader io.Reader) (io.Reader, error) {
+	// Read all data first so we can try multiple decompression attempts
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return reader, err
+	}
 
-// 	finalResp := fmt.Sprintf("%s %s\n", resp.Proto, resp.Status)
+	// Try gzip first (most common)
+	if gzReader, err := gzip.NewReader(bytes.NewReader(data)); err == nil {
+		// Test if it's actually valid gzip by trying to read a small amount
+		testBuf := make([]byte, 1)
+		if _, readErr := gzReader.Read(testBuf); readErr == nil {
+			// Success! Return a new reader with the data
+			gzReader2, _ := gzip.NewReader(bytes.NewReader(data))
+			return gzReader2, nil
+		}
+	}
 
-// 	for header, value := range resp.Header {
-// 		finalResp += fmt.Sprintf("%s: %s\n", header, value)
-// 	}
+	// Try brotli
+	if brReader := brotli.NewReader(bytes.NewReader(data)); brReader != nil {
+		// Test if it's actually valid brotli by trying to read a small amount
+		testBuf := make([]byte, 1)
+		if _, readErr := brReader.Read(testBuf); readErr == nil {
+			// Success! Return a new reader with the data
+			return brotli.NewReader(bytes.NewReader(data)), nil
+		}
+	}
 
-// 	if respbody, err := io.ReadAll(bf); err == nil {
-// 		resp.ContentLength = int64(len(respbody))
-// 		resp.Body = io.NopCloser(bytes.NewReader(respbody))
-// 		finalResp, err := httputils.DumpResponse(resp, true)
-// 		utils.CheckErr("[DumpResponse]", err)
-// 		return string(finalResp)
-// 	} else {
-// 		log.Println("Error reading response body:", err)
-// 		return ""
-// 	}
-// }
+	// Try zlib/deflate
+	if zlibReader, err := zlib.NewReader(bytes.NewReader(data)); err == nil {
+		// Test if it's actually valid zlib by trying to read a small amount
+		testBuf := make([]byte, 1)
+		if _, readErr := zlibReader.Read(testBuf); readErr == nil {
+			// Success! Return a new reader with the data
+			zlibReader2, _ := zlib.NewReader(bytes.NewReader(data))
+			return zlibReader2, nil
+		}
+	}
+
+	// If no compression worked, return the original data
+	return bytes.NewReader(data), nil
+}
