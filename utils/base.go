@@ -209,7 +209,11 @@ func ResponseToString(resp *http.Response) (string, error) {
 }
 
 func SmartSort(s string) string {
-	u, _ := tld.Parse(s)
+	u, err := tld.Parse(s)
+	if err != nil {
+		log.Println(err)
+		return strings.TrimPrefix(strings.TrimPrefix(s, "https://"), "http://")
+	}
 	arr := strings.Split(u.Subdomain, ".")
 	arr = append(arr, u.TLD)
 	arr = append(arr, u.Domain)

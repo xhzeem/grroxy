@@ -83,10 +83,16 @@ func (backend *Backend) handleSitemapNew(data *types.SitemapGet) error {
 			}
 			log.Println("Checked: wappalyzer for: ", SitemapCollectionName)
 
+			var parsedDomain string
+			var parsedTLD string
+
 			// Insert row in _hosts
 			u, err := tld.Parse(data.Host)
 			if err != nil {
 				log.Println(err)
+			} else {
+				parsedDomain = u.Domain
+				parsedTLD = u.TLD
 			}
 
 			// title, _ := "", ""
@@ -119,7 +125,7 @@ func (backend *Backend) handleSitemapNew(data *types.SitemapGet) error {
 			backend.SaveRecordToCollection("_hosts", map[string]interface{}{
 				"host":      data.Host,
 				"smartsort": utils.SmartSort(data.Host),
-				"domain":    u.Domain + "." + u.TLD,
+				"domain":    parsedDomain + "." + parsedTLD,
 				"status":    status,
 				"title":     title,
 				"tech":      recordIDs,
