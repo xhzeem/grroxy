@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"path/filepath"
+	"strings"
 
 	"github.com/glitchedgitz/grroxy-db/save"
 	"github.com/labstack/echo/v5"
@@ -33,19 +33,28 @@ func (backend *Backend) TemplatesList(e *core.ServeEvent) error {
 
 			list := []Path{}
 
-			err := filepath.Walk(backend.Config.TemplateDirectory, func(path string, info os.FileInfo, err error) error {
-
-				list = append(list, Path{
-					Name:  info.Name(),
-					Path:  path,
-					IsDir: info.IsDir(),
-				})
-
-				return nil
-			})
+			entries, err := os.ReadDir(backend.Config.TemplateDirectory)
 			if err != nil {
 				fmt.Println("Error:", err)
 				return err
+			}
+			for _, entry := range entries {
+				name := entry.Name()
+				if strings.HasPrefix(name, ".") {
+					continue
+				}
+				if entry.IsDir() {
+					continue
+				}
+				lower := strings.ToLower(name)
+				if !(strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml")) {
+					continue
+				}
+				list = append(list, Path{
+					Name:  name,
+					Path:  path.Join(backend.Config.TemplateDirectory, name),
+					IsDir: false,
+				})
 			}
 
 			jsonData := make(map[string]any)

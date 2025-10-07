@@ -80,7 +80,7 @@ func (t *Templates) Setup() {
 
 	for _, file := range files {
 		fileName := file.Name()
-		if strings.HasSuffix(fileName, ".yaml") || strings.HasPrefix(fileName, ".yml") {
+		if strings.HasSuffix(fileName, ".yaml") || strings.HasSuffix(fileName, ".yml") {
 			l := Read(path.Join(t.TempalteDir, fileName))
 			log.Printf("Template:%v Scan:%v\n", fileName, len(l.Tasks))
 			log.Printf("Template:%v Mode:%v\n", fileName, l.Config.Mode)
