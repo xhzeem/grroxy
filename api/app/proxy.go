@@ -6,7 +6,6 @@ import (
 	"path"
 
 	"github.com/glitchedgitz/grroxy-db/browser"
-	"github.com/glitchedgitz/grroxy-db/proxy"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
@@ -14,7 +13,7 @@ import (
 	"github.com/pocketbase/pocketbase/models"
 )
 
-var PROXY *proxy.Proxy
+var PROXY *RawProxyWrapper
 
 type ProxyBody struct {
 	HTTP    string `json:"http,omitempty"`
@@ -55,49 +54,32 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 				return c.JSON(http.StatusOK, map[string]interface{}{"error": "port not available", "availableHost": availableHost})
 			}
 
-			options := &proxy.Options{
-				Silent:                      false,
-				Directory:                   path.Join(backend.Config.HomeDirectory, ".config", "grroxy"),
-				CertCacheSize:               256,
-				Verbosity:                   false,
-				AppAddress:                  backend.Config.HostAddr,
-				ListenAddrHTTP:              body.HTTP,
-				ListenAddrSocks5:            "127.0.0.1:10080",
-				OutputDirectory:             "grroxy_test",
-				RequestDSL:                  "",
-				ResponseDSL:                 "",
-				UpstreamHTTPProxies:         []string{},
-				UpstreamSock5Proxies:        []string{},
-				ListenDNSAddr:               "",
-				DNSMapping:                  "",
-				DNSFallbackResolver:         "",
-				RequestMatchReplaceDSL:      "",
-				ResponseMatchReplaceDSL:     "",
-				DumpRequest:                 false,
-				DumpResponse:                false,
-				UpstreamProxyRequestsNumber: 1,
-				// Elastic:                     &Elastic,
-				// Kafka:                       &Kafka,
-				Allow:     []string{},
-				Deny:      []string{},
-				Intercept: true,
-				Waiting:   true,
-			}
-
+			// Stop existing proxy if running
 			if PROXY != nil {
 				PROXY.Stop()
 			}
 
-			PROXY, err = proxy.NewProxy(options)
+			// Create new rawproxy wrapper
+			configDir := path.Join(backend.Config.HomeDirectory, ".config", "grroxy")
 
+			// Disable file captures by passing empty string (we save to database instead)
+			// To enable file captures for testing, uncomment the line below:
+			// outputDir := path.Join(backend.Config.HomeDirectory, ".config", "grroxy", "captures")
+			outputDir := "" // Empty = disabled
+
+			PROXY, err = NewRawProxyWrapper(body.HTTP, configDir, outputDir, backend)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
-			go PROXY.RunProxy()
+			// Start the proxy
+			if err := PROXY.RunProxy(); err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
+			}
 
 			if body.Browser != "" {
-				certPath := path.Join(backend.Config.ConfigDirectory, "cacert.crt")
+				// Use the certificate path from the rawproxy
+				certPath := PROXY.GetCertPath()
 				go func() {
 					err := browser.LaunchBrowser(body.Browser, body.HTTP, certPath)
 					if err != nil {
@@ -141,7 +123,11 @@ func (backend *Backend) StopProxy(e *core.ServeEvent) error {
 				return c.String(http.StatusForbidden, "")
 			}
 
-			PROXY.Stop()
+			if PROXY != nil {
+				if err := PROXY.Stop(); err != nil {
+					log.Printf("[WARN] Error stopping proxy: %v", err)
+				}
+			}
 
 			record, err := backend.App.Dao().FindRecordById("_settings", "PROXY__________")
 			if err != nil {

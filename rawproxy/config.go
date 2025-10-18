@@ -6,9 +6,15 @@ import (
 	"time"
 )
 
+// RequestData holds data that can be passed from request handler to response handler
+type RequestData struct {
+	RequestID string      // Unique request ID
+	Data      interface{} // Custom data (e.g., UserData, metadata, etc.)
+}
+
 // Handler function types for request and response processing
-type OnRequestHandler func(requestID string, req *http.Request) (*http.Request, error)
-type OnResponseHandler func(requestID string, resp *http.Response, req *http.Request) (*http.Response, error)
+type OnRequestHandler func(reqData *RequestData, req *http.Request) (*http.Request, error)
+type OnResponseHandler func(reqData *RequestData, resp *http.Response, req *http.Request) (*http.Response, error)
 
 // Config holds the proxy configuration
 type Config struct {

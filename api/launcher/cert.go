@@ -12,7 +12,7 @@ import (
 func (launcher *Launcher) DownloadCert(e *core.ServeEvent) error {
 	filePath, err := browser.GenerateCert(launcher.Config.ConfigDirectory)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	e.Router.AddRoute(echo.Route{

@@ -212,13 +212,19 @@ func (h *mitmHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	h.reqCount++
 	subRequestID := fmt.Sprintf("%s-sub-%d", h.baseReqID, h.reqCount)
 
+	// Create RequestData to pass custom data between request and response handlers
+	reqData := &RequestData{
+		RequestID: subRequestID,
+		Data:      nil, // Will be populated by OnRequestHandler
+	}
+
 	// Check if this is a WebSocket upgrade request
 	upgradeHeader := strings.ToLower(req.Header.Get("Upgrade"))
 	connectionHeader := strings.ToLower(req.Header.Get("Connection"))
 
 	if upgradeHeader == "websocket" && strings.Contains(connectionHeader, "upgrade") {
 		log.Printf("[WEBSOCKET-MITM] requestID=%s WebSocket upgrade request to %s", subRequestID, req.URL.String())
-		h.handleWebSocketUpgrade(w, req, subRequestID)
+		h.handleWebSocketUpgrade(w, req, reqData)
 		return
 	}
 
@@ -231,7 +237,7 @@ func (h *mitmHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var processedRequest = req
 	if h.config.OnRequestHandler != nil {
 		var err error
-		processedRequest, err = h.config.OnRequestHandler(subRequestID, req)
+		processedRequest, err = h.config.OnRequestHandler(reqData, req)
 		if err != nil {
 			log.Printf("[ERROR] requestID=%s MITM onRequest handler failed for %s: %v", subRequestID, req.URL.String(), err)
 			http.Error(w, fmt.Sprintf("Request processing error: %v", err), http.StatusBadRequest)
@@ -284,7 +290,7 @@ func (h *mitmHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if h.config.OnResponseHandler != nil {
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		var err error
-		processedResponse, err = h.config.OnResponseHandler(subRequestID, resp, req)
+		processedResponse, err = h.config.OnResponseHandler(reqData, resp, req)
 		if err != nil {
 			log.Printf("[ERROR] requestID=%s MITM onResponse handler failed for %s: %v", subRequestID, req.URL.String(), err)
 			http.Error(w, fmt.Sprintf("Response processing error: %v", err), http.StatusInternalServerError)
@@ -313,19 +319,19 @@ func (h *mitmHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.Write(respBody)
 }
 
-func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Request, requestID string) {
+func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Request, reqData *RequestData) {
 	// Apply onRequest handler if configured
 	var processedRequest = req
 	if h.config.OnRequestHandler != nil {
 		var err error
-		processedRequest, err = h.config.OnRequestHandler(requestID, req)
+		processedRequest, err = h.config.OnRequestHandler(reqData, req)
 		if err != nil {
-			log.Printf("[ERROR] requestID=%s MITM WebSocket onRequest handler failed for %s: %v", requestID, req.URL.String(), err)
+			log.Printf("[ERROR] requestID=%s MITM WebSocket onRequest handler failed for %s: %v", reqData.RequestID, req.URL.String(), err)
 			http.Error(w, fmt.Sprintf("WebSocket request processing error: %v", err), http.StatusBadRequest)
 			return
 		}
 		if processedRequest == nil {
-			log.Printf("[ERROR] requestID=%s MITM WebSocket onRequest handler returned nil request for %s", requestID, req.URL.String())
+			log.Printf("[ERROR] requestID=%s MITM WebSocket onRequest handler returned nil request for %s", reqData.RequestID, req.URL.String())
 			http.Error(w, "WebSocket request processing returned nil", http.StatusBadRequest)
 			return
 		}
@@ -334,7 +340,7 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 	// Capture the WebSocket upgrade request
 	reqDump, err := httputil.DumpRequest(processedRequest, false)
 	if err != nil {
-		log.Printf("[ERROR] requestID=%s Failed to dump MITM WebSocket request: %v", requestID, err)
+		log.Printf("[ERROR] requestID=%s Failed to dump MITM WebSocket request: %v", reqData.RequestID, err)
 		reqDump = []byte(fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\n\r\n", processedRequest.URL.Path, processedRequest.Host))
 	}
 
@@ -342,15 +348,15 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		http.Error(w, "WebSocket upgrade not supported", http.StatusInternalServerError)
-		asyncWebSocketCapture(reqDump, []byte("HTTP/1.1 500 Internal Server Error\r\n\r\nWebSocket upgrade not supported\n"), req, requestID, h.config)
-		log.Printf("[ERROR] requestID=%s MITM WebSocket hijacking not supported for %s", requestID, req.URL.String())
+		asyncWebSocketCapture(reqDump, []byte("HTTP/1.1 500 Internal Server Error\r\n\r\nWebSocket upgrade not supported\n"), req, reqData.RequestID, h.config)
+		log.Printf("[ERROR] requestID=%s MITM WebSocket hijacking not supported for %s", reqData.RequestID, req.URL.String())
 		return
 	}
 
 	clientConn, clientBuf, err := hj.Hijack()
 	if err != nil {
-		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 500 Internal Server Error\r\n\r\n%v\n", err)), req, requestID, h.config)
-		log.Printf("[ERROR] requestID=%s MITM WebSocket hijack failed for %s: %v", requestID, req.URL.String(), err)
+		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 500 Internal Server Error\r\n\r\n%v\n", err)), req, reqData.RequestID, h.config)
+		log.Printf("[ERROR] requestID=%s MITM WebSocket hijack failed for %s: %v", reqData.RequestID, req.URL.String(), err)
 		return
 	}
 	defer clientConn.Close()
@@ -366,7 +372,7 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 		target += ":443"
 	}
 
-	log.Printf("[WEBSOCKET-MITM] requestID=%s Connecting to %s (wss)", requestID, target)
+	log.Printf("[WEBSOCKET-MITM] requestID=%s Connecting to %s (wss)", reqData.RequestID, target)
 
 	// Establish TLS connection to upstream server
 	tlsConfig := &tls.Config{
@@ -384,19 +390,19 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 	)
 	if err != nil {
 		errorMsg := fmt.Sprintf("Failed to establish TLS connection to WebSocket server: %v", err)
-		log.Printf("[ERROR] requestID=%s %s", requestID, errorMsg)
-		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, requestID, h.config)
+		log.Printf("[ERROR] requestID=%s %s", reqData.RequestID, errorMsg)
+		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, reqData.RequestID, h.config)
 		return
 	}
 	defer upstreamConn.Close()
 
-	log.Printf("[WEBSOCKET-MITM] requestID=%s TLS handshake successful with %s", requestID, target)
+	log.Printf("[WEBSOCKET-MITM] requestID=%s TLS handshake successful with %s", reqData.RequestID, target)
 
 	// Forward the WebSocket upgrade request to upstream server
 	if err := processedRequest.Write(upstreamConn); err != nil {
 		errorMsg := fmt.Sprintf("Failed to send WebSocket upgrade request: %v", err)
-		log.Printf("[ERROR] requestID=%s %s", requestID, errorMsg)
-		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, requestID, h.config)
+		log.Printf("[ERROR] requestID=%s %s", reqData.RequestID, errorMsg)
+		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, reqData.RequestID, h.config)
 		return
 	}
 
@@ -405,36 +411,36 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 	resp, err := http.ReadResponse(upstreamReader, processedRequest)
 	if err != nil {
 		errorMsg := fmt.Sprintf("Failed to read WebSocket upgrade response: %v", err)
-		log.Printf("[ERROR] requestID=%s %s", requestID, errorMsg)
-		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, requestID, h.config)
+		log.Printf("[ERROR] requestID=%s %s", reqData.RequestID, errorMsg)
+		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, reqData.RequestID, h.config)
 		return
 	}
 
 	// Check if upgrade was successful
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		errorMsg := fmt.Sprintf("WebSocket upgrade failed: %s", resp.Status)
-		log.Printf("[ERROR] requestID=%s %s", requestID, errorMsg)
+		log.Printf("[ERROR] requestID=%s %s", reqData.RequestID, errorMsg)
 
 		// Forward the error response to client
 		respDump, _ := httputil.DumpResponse(resp, true)
-		asyncWebSocketCapture(reqDump, respDump, req, requestID, h.config)
+		asyncWebSocketCapture(reqDump, respDump, req, reqData.RequestID, h.config)
 
 		// Write response to client
 		resp.Write(clientConn)
 		return
 	}
 
-	log.Printf("[WEBSOCKET-MITM] requestID=%s WebSocket upgrade successful: %s", requestID, resp.Status)
+	log.Printf("[WEBSOCKET-MITM] requestID=%s WebSocket upgrade successful: %s", reqData.RequestID, resp.Status)
 
 	// Capture successful WebSocket upgrade
 	respDump, _ := httputil.DumpResponse(resp, false)
-	asyncWebSocketCapture(reqDump, respDump, req, requestID, h.config)
+	asyncWebSocketCapture(reqDump, respDump, req, reqData.RequestID, h.config)
 
 	// Apply onResponse handler if configured
 	if h.config.OnResponseHandler != nil {
-		processedResponse, err := h.config.OnResponseHandler(requestID, resp, processedRequest)
+		processedResponse, err := h.config.OnResponseHandler(reqData, resp, processedRequest)
 		if err != nil {
-			log.Printf("[ERROR] requestID=%s MITM WebSocket onResponse handler failed for %s: %v", requestID, req.URL.String(), err)
+			log.Printf("[ERROR] requestID=%s MITM WebSocket onResponse handler failed for %s: %v", reqData.RequestID, req.URL.String(), err)
 			return
 		}
 		if processedResponse != nil {
@@ -444,14 +450,14 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 
 	// Forward the successful upgrade response to client
 	if err := resp.Write(clientConn); err != nil {
-		log.Printf("[ERROR] requestID=%s Failed to send WebSocket upgrade response to client: %v", requestID, err)
+		log.Printf("[ERROR] requestID=%s Failed to send WebSocket upgrade response to client: %v", reqData.RequestID, err)
 		return
 	}
 
-	log.Printf("[WEBSOCKET-MITM] requestID=%s Established WebSocket tunnel to %s", requestID, targetURL.String())
+	log.Printf("[WEBSOCKET-MITM] requestID=%s Established WebSocket tunnel to %s", reqData.RequestID, targetURL.String())
 
 	// Start bidirectional copying with WebSocket frame logging
-	StartWebSocketTunnel(clientConn, upstreamConn, requestID, clientBuf, h.config)
+	StartWebSocketTunnel(clientConn, upstreamConn, reqData.RequestID, clientBuf, h.config)
 }
 
 // singleConnListener is a net.Listener that returns a single connection then closes

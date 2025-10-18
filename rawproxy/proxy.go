@@ -41,11 +41,17 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request, config *Config) {
 		return
 	}
 
+	// Create RequestData to pass custom data between request and response handlers
+	reqData := &RequestData{
+		RequestID: requestID,
+		Data:      nil, // Will be populated by OnRequestHandler
+	}
+
 	// Apply onRequest handler if configured
 	var processedRequest = r
 	if config.OnRequestHandler != nil {
 		var err error
-		processedRequest, err = config.OnRequestHandler(requestID, r)
+		processedRequest, err = config.OnRequestHandler(reqData, r)
 		if err != nil {
 			log.Printf("[ERROR] requestID=%s onRequest handler failed for %s: %v", requestID, r.URL.String(), err)
 			http.Error(w, fmt.Sprintf("request processing error: %v", err), http.StatusBadRequest)
@@ -158,11 +164,11 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request, config *Config) {
 	}
 	defer resp.Body.Close()
 
-	// Apply onResponse handler if configured
+	// Apply onResponse handler if configured (use same reqData from onRequest)
 	var processedResponse = resp
 	if config.OnResponseHandler != nil {
 		var err error
-		processedResponse, err = config.OnResponseHandler(requestID, resp, r)
+		processedResponse, err = config.OnResponseHandler(reqData, resp, r)
 		if err != nil {
 			log.Printf("[ERROR] requestID=%s onResponse handler failed for %s: %v", requestID, r.URL.String(), err)
 			http.Error(w, fmt.Sprintf("response processing error: %v", err), http.StatusInternalServerError)

@@ -260,11 +260,17 @@ func isValidWebSocketOpcode(opcode byte) bool {
 }
 
 func HandleWebSocketUpgrade(w http.ResponseWriter, r *http.Request, requestID string, config *Config) {
+	// Create RequestData to pass custom data between request and response handlers
+	reqData := &RequestData{
+		RequestID: requestID,
+		Data:      nil, // Will be populated by OnRequestHandler
+	}
+
 	// Apply onRequest handler if configured
 	var processedRequest = r
 	if config.OnRequestHandler != nil {
 		var err error
-		processedRequest, err = config.OnRequestHandler(requestID, r)
+		processedRequest, err = config.OnRequestHandler(reqData, r)
 		if err != nil {
 			log.Printf("[ERROR] requestID=%s WebSocket onRequest handler failed for %s: %v", requestID, r.URL.String(), err)
 			http.Error(w, fmt.Sprintf("WebSocket request processing error: %v", err), http.StatusBadRequest)
@@ -404,9 +410,9 @@ func HandleWebSocketUpgrade(w http.ResponseWriter, r *http.Request, requestID st
 	respDump, _ := httputil.DumpResponse(resp, false)
 	asyncWebSocketCapture(reqDump, respDump, r, requestID, config)
 
-	// Apply onResponse handler if configured
+	// Apply onResponse handler if configured (use same reqData from onRequest)
 	if config.OnResponseHandler != nil {
-		processedResponse, err := config.OnResponseHandler(requestID, resp, processedRequest)
+		processedResponse, err := config.OnResponseHandler(reqData, resp, processedRequest)
 		if err != nil {
 			log.Printf("[ERROR] requestID=%s WebSocket onResponse handler failed for %s: %v", requestID, r.URL.String(), err)
 			return
