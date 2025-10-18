@@ -7,53 +7,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"path"
-
-	"github.com/glitchedgitz/grroxy-db/rawproxy"
 )
 
-// GenerateCert generates or loads the CA certificate using rawproxy's cert system
-// This ensures we use a single unified certificate system (rawproxy)
-func GenerateCert(configPath string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	// Use the same directory as rawproxy for certificates
-	certDir := path.Join(homeDir, ".config", "grroxy")
-	if err := os.MkdirAll(certDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create certificate directory: %w", err)
-	}
-
-	// Ensure the config directory exists
-	if err := os.MkdirAll(configPath, 0755); err != nil {
-		return "", fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	// Check if rawproxy certificates already exist
-	caCrtPath := path.Join(certDir, "ca.crt")
-	caKeyPath := path.Join(certDir, "ca.key")
-
-	// If certificates don't exist, generate them using rawproxy
-	if !fileExists(caCrtPath) || !fileExists(caKeyPath) {
-		_, certPath, _, err := rawproxy.GenerateMITMCA(certDir)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate MITM CA: %w", err)
-		}
-		return certPath, nil
-	}
-
-	// Return existing certificate path
-	return caCrtPath, nil
-}
-
-// fileExists checks if a file exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
+// GetSPKIFingerprint calculates the SHA-256 SPKI fingerprint of a certificate
+// This is used by Chrome to ignore certificate errors for our CA
 func GetSPKIFingerprint(certPath string) (string, error) {
 	// Read the certificate file
 	certData, err := os.ReadFile(certPath)
