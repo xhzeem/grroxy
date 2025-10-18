@@ -321,6 +321,30 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 	// Save to database
 	go rp.saveRequestToDB(&userdata, requestInString)
 
+	// Create sitemap entry
+	go func() {
+		typ := "folder"
+		if userdata.Req.Ext != "" {
+			typ = "file"
+		}
+
+		sitemapData := types.SitemapGet{
+			Host:     userdata.Host,
+			Path:     userdata.Req.Path,
+			Query:    userdata.Req.Query,
+			Fragment: userdata.Req.Fragment,
+			Ext:      userdata.Req.Ext,
+			Type:     typ,
+			Data:     userdata.ID,
+		}
+
+		if err := rp.backend.handleSitemapNew(&sitemapData); err != nil {
+			log.Printf("[RawProxy][Sitemap][ERROR] Failed to create sitemap entry ID=%s: %v", userdata.ID, err)
+		} else {
+			log.Printf("[RawProxy][Sitemap][SUCCESS] Created sitemap entry ID=%s", userdata.ID)
+		}
+	}()
+
 	// Store request context in reqData.Data for response correlation (thread-safe!)
 	// rawproxy will pass this same reqData to onResponse
 	reqData.Data = &RequestContext{
