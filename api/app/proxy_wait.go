@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/pocketbase/pocketbase/models"
@@ -55,44 +54,21 @@ func (rp *RawProxyWrapper) interceptWait(userdata *types.UserData, field string,
 
 	log.Printf("[InterceptWait][%s] Intercept record created, waiting for action...\n", id)
 
-	// Poll for updates (check every 100ms)
-	// This replaces the realtime subscription approach
-	action := ""
-	isReqEdited := false
-	isRespEdited := false
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
+	// Create a channel for this intercept and register it
+	updateChan := make(chan InterceptUpdate, 1)
+	RegisterInterceptChannel(id, updateChan)
+	defer UnregisterInterceptChannel(id)
 
-	timeout := time.After(5 * time.Minute) // 5 minute timeout
+	// Wait for update notification from the hook
+	log.Printf("[InterceptWait][%s] Waiting for action from hook...\n", id)
+	update := <-updateChan
 
-	for {
-		select {
-		case <-timeout:
-			log.Printf("[InterceptWait][%s] Timeout waiting for action, forwarding by default\n", id)
-			action = "forward"
-			goto processAction
+	action := update.Action
+	isReqEdited := update.IsReqEdited
+	isRespEdited := update.IsRespEdited
+	log.Printf("[InterceptWait][%s] Action received via hook: %s (req_edited=%v, resp_edited=%v)\n",
+		id, action, isReqEdited, isRespEdited)
 
-		case <-ticker.C:
-			// Poll the database for updates
-			record, err := dao.FindRecordById("_intercept", id)
-			if err != nil {
-				log.Printf("[InterceptWait][%s][ERROR] Failed to find intercept record: %v", id, err)
-				continue
-			}
-
-			recordAction := record.GetString("action")
-			if recordAction == "forward" || recordAction == "drop" {
-				action = recordAction
-				isReqEdited = record.GetBool("is_req_edited")
-				isRespEdited = record.GetBool("is_resp_edited")
-				log.Printf("[InterceptWait][%s] Action received: %s (req_edited=%v, resp_edited=%v)\n",
-					id, action, isReqEdited, isRespEdited)
-				goto processAction
-			}
-		}
-	}
-
-processAction:
 	log.Printf("[InterceptWait][%s] Processing action: %s\n", id, action)
 
 	// Delete intercept record
