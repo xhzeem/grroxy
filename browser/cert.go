@@ -1,49 +1,16 @@
 package browser
 
 import (
-	"bufio"
-	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"os"
-	"path"
-
-	"github.com/glitchedgitz/grroxy-db/certs"
-	"github.com/glitchedgitz/grroxy-db/save"
 )
 
-func GenerateCert(configPath string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	certs, err := certs.New(&certs.Options{
-		CacheSize: 256,
-		Directory: path.Join(homeDir, ".config", "grroxy"),
-	})
-	if err != nil {
-		return "", err
-	}
-	_, ca := certs.GetCA()
-	reader := bytes.NewReader(ca)
-	bf := bufio.NewReader(reader)
-	respbody, err := io.ReadAll(bf)
-
-	filePath := path.Join(configPath, "cacert.crt")
-	save.WriteFile(filePath, respbody)
-
-	if err != nil {
-		return "", err
-	}
-
-	return filePath, nil
-}
-
+// GetSPKIFingerprint calculates the SHA-256 SPKI fingerprint of a certificate
+// This is used by Chrome to ignore certificate errors for our CA
 func GetSPKIFingerprint(certPath string) (string, error) {
 	// Read the certificate file
 	certData, err := os.ReadFile(certPath)

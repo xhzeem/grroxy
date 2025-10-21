@@ -37,6 +37,7 @@ func DecompressResponse(reader io.Reader, contentEncoding string) (io.Reader, er
 // DumpResponse dumps an HTTP response to a string format.
 // It uses "magic" detection to automatically decompress content regardless of headers,
 // trying multiple compression formats (gzip, brotli, zlib) to see if any work.
+// IMPORTANT: This function restores the response body so it can still be sent to the client.
 func DumpResponse(resp *http.Response) string {
 
 	var err error
@@ -45,6 +46,13 @@ func DumpResponse(resp *http.Response) string {
 	// Read the body first so we can try multiple decompression attempts
 	originalBody, err := io.ReadAll(resp.Body)
 	utils.CheckErr("[DumpResponse] Read body error: ", err)
+
+	// Close the original body to release resources
+	resp.Body.Close()
+
+	// CRITICAL: Restore the body so it can be sent to the client
+	// Create a new ReadCloser from the original body data
+	resp.Body = io.NopCloser(bytes.NewReader(originalBody))
 
 	// Magic detection: try to decompress regardless of headers
 	bodyReader, err = MagicDecompress(bytes.NewReader(originalBody))

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -13,6 +14,7 @@ import (
 	"github.com/glitchedgitz/grroxy-db/api/launcher"
 	"github.com/glitchedgitz/grroxy-db/config"
 	"github.com/glitchedgitz/grroxy-db/process"
+	"github.com/glitchedgitz/grroxy-db/rawproxy"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -59,9 +61,36 @@ func setConfig() {
 	os.MkdirAll(conf.ConfigDirectory, 0755)
 	utils.CheckErr("", err)
 
-	fmt.Println("Config directory:", conf.ConfigDirectory)
+	// Generate CA certificate on first launch
+	// This ensures users can download and install the cert before starting the proxy
+	certDir := path.Join(conf.HomeDirectory, ".config", "grroxy")
+	os.MkdirAll(certDir, 0755)
+
+	fmt.Println("Config directory:", certDir)
+	fmt.Println("Project directory:", conf.ConfigDirectory)
 	fmt.Println("Cache directory:", conf.CacheDirectory)
 	fmt.Println("Home directory:", conf.HomeDirectory)
+
+	caCrtPath := path.Join(certDir, "ca.crt")
+	caKeyPath := path.Join(certDir, "ca.key")
+
+	// If certificates don't exist, generate them using rawproxy
+	if !fileExists(caCrtPath) || !fileExists(caKeyPath) {
+		_, certPath, _, err := rawproxy.GenerateMITMCA(certDir)
+		if err != nil {
+			log.Printf("[Warning] Failed to generate CA certificate: %v", err)
+		} else {
+			log.Printf("[Certificate] CA certificate generated at: %s", certPath)
+		}
+	} else {
+		log.Printf("[Certificate] CA certificate already exists at: %s", caCrtPath)
+	}
+}
+
+// fileExists checks if a file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func initialize() {
