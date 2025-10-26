@@ -5,7 +5,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/pocketbase/pocketbase/models"
 )
 
@@ -28,8 +27,8 @@ type InterceptUpdate struct {
 //   - field: "req" or "resp" to indicate which is being intercepted
 //   - contentLength: Original Content-Length header value
 //   - rawData: The raw HTTP request/response string (already in memory - no DB fetch needed!)
-func (rp *RawProxyWrapper) interceptWait(userdata *types.UserData, field string, contentLength int64, rawData string) (string, bool) {
-	id := userdata.ID
+func (rp *RawProxyWrapper) interceptWait(userdata map[string]any, field string, contentLength int64, rawData string) (string, bool) {
+	id := userdata["id"].(string)
 
 	dao := rp.backend.App.Dao()
 
@@ -37,25 +36,7 @@ func (rp *RawProxyWrapper) interceptWait(userdata *types.UserData, field string,
 
 	// Create intercept record in database
 	interceptRecord := models.NewRecord(rp.interceptCollection)
-	interceptRecord.Set("id", userdata.ID)
-	interceptRecord.Set("index", userdata.Index)
-	interceptRecord.Set("host", userdata.Host)
-	interceptRecord.Set("port", userdata.Port)
-	interceptRecord.Set("has_params", userdata.ReqJson.HasParams)
-	interceptRecord.Set("has_resp", userdata.HasResp)
-	interceptRecord.Set("is_https", userdata.IsHTTPS)
-	interceptRecord.Set("is_req_edited", userdata.IsReqEdited)
-	interceptRecord.Set("is_resp_edited", userdata.IsRespEdited)
-	interceptRecord.Set("req", userdata.Req)
-	// Only set resp relation if response exists
-	if userdata.HasResp {
-		interceptRecord.Set("resp", userdata.Resp)
-	}
-	interceptRecord.Set("req_json", userdata.ReqJson)
-	interceptRecord.Set("resp_json", userdata.RespJson)
-	interceptRecord.Set("data", userdata.ID)
-	interceptRecord.Set("attached", userdata.ID)
-	interceptRecord.Set("action", "")
+	interceptRecord.Load(userdata)
 
 	if err := dao.SaveRecord(interceptRecord); err != nil {
 		log.Printf("[InterceptWait][%s][ERROR] Failed to save intercept record: %v", id, err)
@@ -65,9 +46,9 @@ func (rp *RawProxyWrapper) interceptWait(userdata *types.UserData, field string,
 	log.Printf("[InterceptWait][%s] Intercept record created, waiting for action...\n", id)
 	log.Printf("[InterceptWait][%s] ========== INTERCEPT CREATED ==========", id)
 	log.Printf("[InterceptWait][%s] Field: %s", id, field)
-	log.Printf("[InterceptWait][%s] has_resp: %v", id, userdata.HasResp)
-	log.Printf("[InterceptWait][%s] req_json: %+v", id, userdata.ReqJson)
-	log.Printf("[InterceptWait][%s] resp_json: %+v", id, userdata.RespJson)
+	log.Printf("[InterceptWait][%s] has_resp: %v", id, userdata["has_resp"].(bool))
+	log.Printf("[InterceptWait][%s] req_json: %+v", id, userdata["req_json"])
+	log.Printf("[InterceptWait][%s] resp_json: %+v", id, userdata["resp_json"])
 	log.Printf("[InterceptWait][%s] =======================================", id)
 
 	// Create a channel for this intercept and register it
@@ -105,7 +86,7 @@ func (rp *RawProxyWrapper) interceptWait(userdata *types.UserData, field string,
 	}()
 
 	if action == "drop" {
-		userdata.Action = "drop"
+		userdata["action"] = "drop"
 		log.Printf("[InterceptWait][%s] Dropping request/response\n", id)
 		return "", false
 	}
@@ -127,11 +108,11 @@ func (rp *RawProxyWrapper) interceptWait(userdata *types.UserData, field string,
 		// Get the raw edited strings directly from the channel update
 		if field == "req" && reqEditedRaw != "" {
 			updatedString = reqEditedRaw
-			userdata.IsReqEdited = true
+			userdata["is_req_edited"] = true
 			log.Printf("[InterceptWait][%s] Using edited request data from channel", id)
 		} else if field == "resp" && respEditedRaw != "" {
 			updatedString = respEditedRaw
-			userdata.IsRespEdited = true
+			userdata["is_resp_edited"] = true
 			log.Printf("[InterceptWait][%s] Using edited response data from channel", id)
 		} else {
 			log.Printf("[InterceptWait][%s][WARN] Marked as edited but no raw string received", id)
