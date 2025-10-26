@@ -74,7 +74,9 @@ type ProxyStats struct {
 type RequestContext struct {
 	UserData     map[string]any
 	RawRequest   string
+	RawResponse  string // Set in onResponse
 	RequestStart time.Time
+	DataRecord   *models.Record // Single record shared across all operations
 }
 
 // NewRawProxyWrapper creates a new rawproxy wrapper with the given configuration
@@ -442,8 +444,22 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 	// Track bytes
 	rp.stats.BytesRequest.Add(uint64(len(requestInString)))
 
+	// Create the dataRecord once and store it in RequestContext
+	// This single record will be reused throughout the request lifecycle
+	dataRecord := models.NewRecord(rp.dataCollection)
+	dataRecord.Load(userdata)
+	dataRecord.Set("attached", userdata["id"].(string))
+
+	// Create RequestContext to store all request-related data
+	reqCtx := &RequestContext{
+		UserData:     userdata,
+		RawRequest:   requestInString,
+		RequestStart: time.Now(),
+		DataRecord:   dataRecord,
+	}
+
 	// Save to database synchronously (not in goroutine) to ensure it completes
-	rp.saveRequestToDB(userdata, requestData, requestInString)
+	rp.saveRequestToDB(reqCtx, requestData)
 
 	// Create sitemap entry
 	go func() {
@@ -471,11 +487,7 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 
 	// Store request context in reqData.Data for response correlation (thread-safe!)
 	// rawproxy will pass this same reqData to onResponse
-	reqData.Data = &RequestContext{
-		UserData:     userdata,
-		RawRequest:   requestInString,
-		RequestStart: time.Now(),
-	}
+	reqData.Data = reqCtx
 
 	// requestJson := utils.StructToMap(&userdata, "json")
 
@@ -489,7 +501,7 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 			log.Printf("[RawProxy][Intercept][%s] Dropping request\n", userdata["host"].(string)+"/"+requestData["path"].(string))
 
 			// Save the drop action to database
-			go rp.saveRequestToDB(userdata, requestData, requestInString)
+			go rp.saveRequestToDB(reqCtx, requestData)
 
 			// Return error to signal the request should not proceed
 			return nil, fmt.Errorf("request dropped by intercept")
@@ -499,8 +511,11 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 			userdata["is_req_edited"] = true
 			log.Printf("[RawProxy][Intercept][%s] Request was edited\n", id)
 
+			// Update RawRequest in context with edited version
+			reqCtx.RawRequest = updatedString
+
 			// Save edited request to database
-			go rp.saveEditedRequest(userdata, requestData, updatedString)
+			go rp.saveEditedRequest(reqCtx, requestData, updatedString)
 
 			// Convert string back to request
 			req.Body.Close()
@@ -549,6 +564,7 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 
 	// Dump response to raw string
 	responseInString := grrhttp.DumpResponse(resp)
+	reqCtx.RawResponse = responseInString // Store in context for save functions
 
 	// Track bytes
 	rp.stats.BytesResponse.Add(uint64(len(responseInString)))
@@ -558,7 +574,7 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 	responseData["title"] = title
 
 	// Save response to database synchronously (not in goroutine) to ensure it completes
-	rp.saveResponseToDB(userdata, responseData, responseInString)
+	rp.saveResponseToDB(reqCtx, responseData)
 
 	// Check if response should be intercepted
 	// responseJson := utils.StructToMap(&userdata, "json")
@@ -575,7 +591,7 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 			log.Printf("[RawProxy][Intercept][%s] Dropping response\n", userdata["host"].(string)+"/"+reqJson["path"].(string))
 
 			// Save the drop action to database
-			go rp.saveResponseToDB(userdata, responseData, responseInString)
+			go rp.saveResponseToDB(reqCtx, responseData)
 
 			// Return error to signal the response should not proceed
 			return nil, fmt.Errorf("response dropped by intercept")
@@ -585,8 +601,11 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 			userdata["is_resp_edited"] = true
 			log.Printf("[RawProxy][Intercept][%s] Response was edited\n", userdata["id"].(string))
 
+			// Update RawResponse in context with edited version
+			reqCtx.RawResponse = updatedString
+
 			// Save edited response to database
-			go rp.saveEditedResponse(userdata, responseData, updatedString)
+			go rp.saveEditedResponse(reqCtx, responseData, updatedString)
 
 			// Parse the edited response string back to http.Response
 			resp.Body.Close()
@@ -612,7 +631,7 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 }
 
 // saveRequestToDB saves the request data to the database collections
-func (rp *RawProxyWrapper) saveRequestToDB(userdata map[string]any, requestData map[string]any, rawRequest string) {
+func (rp *RawProxyWrapper) saveRequestToDB(reqCtx *RequestContext, requestData map[string]any) {
 	if rp.backend == nil || rp.backend.App == nil {
 		log.Println("[RawProxy][DB][ERROR] Backend or App is nil")
 		return
@@ -620,6 +639,9 @@ func (rp *RawProxyWrapper) saveRequestToDB(userdata map[string]any, requestData 
 
 	startTime := time.Now()
 	dao := rp.backend.App.Dao()
+	userdata := reqCtx.UserData
+	rawRequest := reqCtx.RawRequest
+	dataRecord := reqCtx.DataRecord
 
 	log.Printf("[RawProxy][DB][REQUEST] Saving ID=%s Index=%d Method=%s Host=%s Path=%s",
 		userdata["id"].(string), int(userdata["index"].(float64)), requestData["method"].(string), userdata["host"].(string), requestData["path"].(string))
@@ -659,11 +681,7 @@ func (rp *RawProxyWrapper) saveRequestToDB(userdata map[string]any, requestData 
 	log.Printf("[RawProxy][DB][SUCCESS] Saved _req record ID=%s (raw size: %d bytes)",
 		userdata["id"].(string), len(rawRequest))
 
-	// Create _data record
-	dataRecord := models.NewRecord(rp.dataCollection)
-	dataRecord.Load(userdata)
-	dataRecord.Set("attached", userdata["id"].(string))
-
+	// Use the shared dataRecord passed in (already loaded with userdata and attached set)
 	if err := dao.SaveRecord(dataRecord); err != nil {
 		// Check if it's a unique constraint violation on index
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") && strings.Contains(err.Error(), "index") {
@@ -678,6 +696,8 @@ func (rp *RawProxyWrapper) saveRequestToDB(userdata map[string]any, requestData 
 		return
 	} else {
 		log.Printf("[RawProxy][DB][SUCCESS] Saved _data record ID=%s Index=%d", userdata["id"].(string), int(userdata["index"].(float64)))
+
+		dataRecord.MarkAsNotNew()
 	}
 
 	elapsed := time.Since(startTime)
@@ -689,7 +709,7 @@ func (rp *RawProxyWrapper) saveRequestToDB(userdata map[string]any, requestData 
 }
 
 // saveResponseToDB updates the database with response data
-func (rp *RawProxyWrapper) saveResponseToDB(userdata map[string]any, responseData map[string]any, rawResponse string) {
+func (rp *RawProxyWrapper) saveResponseToDB(reqCtx *RequestContext, responseData map[string]any) {
 	if rp.backend == nil || rp.backend.App == nil {
 		log.Println("[RawProxy][DB][ERROR] Backend or App is nil")
 		return
@@ -697,13 +717,16 @@ func (rp *RawProxyWrapper) saveResponseToDB(userdata map[string]any, responseDat
 
 	startTime := time.Now()
 	dao := rp.backend.App.Dao()
+	userdata := reqCtx.UserData
+	rawResponse := reqCtx.RawResponse
+	dataRecord := reqCtx.DataRecord
 
 	log.Printf("[RawProxy][DB][RESPONSE] Updating ID=%s Status=%d Mime=%s Title=%s Size=%d bytes",
 		userdata["id"].(string), responseData["status"].(int), responseData["mime"].(string), responseData["title"].(string), len(rawResponse))
 
 	// Create _resp record with raw response data
 	respRecord := models.NewRecord(rp.respCollection)
-	respRecord.Load(userdata)
+	respRecord.Load(responseData)
 	respRecord.Set("id", userdata["id"].(string))
 	respRecord.Set("raw", rawResponse)
 
@@ -721,13 +744,6 @@ func (rp *RawProxyWrapper) saveResponseToDB(userdata map[string]any, responseDat
 	}
 	log.Printf("[RawProxy][DB][SUCCESS] Saved _resp record ID=%s (raw size: %d bytes)",
 		userdata["id"].(string), len(rawResponse))
-
-	// Update _data record with response info
-	dataRecord, err := dao.FindRecordById("_data", userdata["id"].(string))
-	if err != nil {
-		log.Printf("[RawProxy][DB][ERROR] Failed to find _data record ID=%s for update: %v", userdata["id"].(string), err)
-		return
-	}
 
 	// Normalize MIME type
 	originalMime := responseData["mime"].(string)
@@ -798,13 +814,15 @@ func formatBytes(bytes uint64) string {
 }
 
 // saveEditedRequest saves the edited request to the database
-func (rp *RawProxyWrapper) saveEditedRequest(userdata map[string]any, requestData map[string]any, editedRequest string) {
+func (rp *RawProxyWrapper) saveEditedRequest(reqCtx *RequestContext, requestData map[string]any, editedRequest string) {
 	if rp.backend == nil || rp.backend.App == nil {
 		log.Println("[RawProxy][DB][ERROR] Backend or App is nil")
 		return
 	}
 
 	dao := rp.backend.App.Dao()
+	userdata := reqCtx.UserData
+	dataRecord := reqCtx.DataRecord
 	id := userdata["id"].(string)
 
 	log.Printf("[RawProxy][DB][EDIT] Saving edited request for ID=%s", id)
@@ -821,13 +839,7 @@ func (rp *RawProxyWrapper) saveEditedRequest(userdata map[string]any, requestDat
 	}
 	log.Printf("[RawProxy][DB][SUCCESS] Saved edited request to _req_edited ID=%s", id)
 
-	// Update _data record with is_req_edited flag and req_edited_json
-	dataRecord, err := dao.FindRecordById("_data", id)
-	if err != nil {
-		log.Printf("[RawProxy][DB][ERROR] Failed to find _data record ID=%s: %v", id, err)
-		return
-	}
-
+	// Use the shared dataRecord and mark as not new for update
 	dataRecord.Set("is_req_edited", true)
 	dataRecord.Set("req_edited", id)
 	dataRecord.Set("req_edited_json", requestData)
@@ -839,13 +851,15 @@ func (rp *RawProxyWrapper) saveEditedRequest(userdata map[string]any, requestDat
 }
 
 // saveEditedResponse saves the edited response to the database
-func (rp *RawProxyWrapper) saveEditedResponse(userdata map[string]any, responseData map[string]any, editedResponse string) {
+func (rp *RawProxyWrapper) saveEditedResponse(reqCtx *RequestContext, responseData map[string]any, editedResponse string) {
 	if rp.backend == nil || rp.backend.App == nil {
 		log.Println("[RawProxy][DB][ERROR] Backend or App is nil")
 		return
 	}
 
 	dao := rp.backend.App.Dao()
+	userdata := reqCtx.UserData
+	dataRecord := reqCtx.DataRecord
 	id := userdata["id"].(string)
 
 	log.Printf("[RawProxy][DB][EDIT] Saving edited response for ID=%s", id)
@@ -862,13 +876,8 @@ func (rp *RawProxyWrapper) saveEditedResponse(userdata map[string]any, responseD
 	}
 	log.Printf("[RawProxy][DB][SUCCESS] Saved edited response to _resp_edited ID=%s", id)
 
-	// Update _data record with is_resp_edited flag and resp_edited_json
-	dataRecord, err := dao.FindRecordById("_data", id)
-	if err != nil {
-		log.Printf("[RawProxy][DB][ERROR] Failed to find _data record ID=%s: %v", id, err)
-		return
-	}
-
+	// Use the shared dataRecord and mark as not new for update
+	dataRecord.MarkAsNotNew()
 	dataRecord.Set("is_resp_edited", true)
 	dataRecord.Set("resp_edited", id)
 	dataRecord.Set("resp_edited_json", responseData)
