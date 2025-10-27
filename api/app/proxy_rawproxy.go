@@ -31,6 +31,7 @@ import (
 	"github.com/glitchedgitz/grroxy-db/rawproxy"
 	"github.com/glitchedgitz/grroxy-db/types"
 	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/pocketbase/pocketbase/daos"
 	"github.com/pocketbase/pocketbase/models"
 )
 
@@ -658,38 +659,38 @@ func (rp *RawProxyWrapper) saveRequestToDB(reqCtx *RequestContext, requestData m
 	attachedRecord.Set("labels", []string{})
 	attachedRecord.Set("note", "")
 
-	if err := dao.SaveRecord(attachedRecord); err != nil {
-		log.Printf("[RawProxy][DB][ERROR] Failed to save _attached record ID=%s: %v", userdata["id"].(string), err)
-		rp.stats.RequestsFailed.Add(1)
-		return
-	}
-	log.Printf("[RawProxy][DB][SUCCESS] Saved _attached record ID=%s", userdata["id"].(string))
-
 	// Create _req record with raw request data
 	reqRecord := models.NewRecord(rp.reqCollection)
 	reqRecord.Load(requestData)
 	reqRecord.Set("id", userdata["id"].(string))
 	reqRecord.Set("raw", rawRequest)
 
-	if err := dao.SaveRecord(reqRecord); err != nil {
-		log.Printf("[RawProxy][DB][ERROR] ============================================")
-		log.Printf("[RawProxy][DB][ERROR] FAILED TO SAVE _req RECORD!")
-		log.Printf("[RawProxy][DB][ERROR] ID: %s", userdata["id"].(string))
-		log.Printf("[RawProxy][DB][ERROR] Error: %v", err)
-		log.Printf("[RawProxy][DB][ERROR] Error Type: %T", err)
-		log.Printf("[RawProxy][DB][ERROR] Raw request size: %d bytes", len(rawRequest))
-		log.Printf("[RawProxy][DB][ERROR] Method: %s", requestData["method"].(string))
-		log.Printf("[RawProxy][DB][ERROR] URL: %s", requestData["url"].(string))
-		log.Printf("[RawProxy][DB][ERROR] ============================================")
+	handleAttachRecordError := func(err error) error {
+		log.Printf("[RawProxy][DB][ERROR] Failed to save _attached record ID=%s: %v", userdata["id"].(string), err)
 		rp.stats.RequestsFailed.Add(1)
-		return
+		return err
 	}
-	log.Printf("[RawProxy][DB][SUCCESS] Saved _req record ID=%s (raw size: %d bytes)",
-		userdata["id"].(string), len(rawRequest))
 
-	// Use the shared dataRecord passed in (already loaded with userdata and attached set)
-	if err := dao.SaveRecord(dataRecord); err != nil {
-		// Check if it's a unique constraint violation on index
+	handleReqRecordError := func(err error) error {
+		log.Printf("[RawProxy][DB][ERROR] Failed to save _req record ID=%s: %v", userdata["id"].(string), err)
+		if err := dao.SaveRecord(reqRecord); err != nil {
+			log.Printf("[RawProxy][DB][ERROR] ============================================")
+			log.Printf("[RawProxy][DB][ERROR] FAILED TO SAVE _req RECORD!")
+			log.Printf("[RawProxy][DB][ERROR] ID: %s", userdata["id"].(string))
+			log.Printf("[RawProxy][DB][ERROR] Error: %v", err)
+			log.Printf("[RawProxy][DB][ERROR] Error Type: %T", err)
+			log.Printf("[RawProxy][DB][ERROR] Raw request size: %d bytes", len(rawRequest))
+			log.Printf("[RawProxy][DB][ERROR] Method: %s", requestData["method"].(string))
+			log.Printf("[RawProxy][DB][ERROR] URL: %s", requestData["url"].(string))
+			log.Printf("[RawProxy][DB][ERROR] ============================================")
+			rp.stats.RequestsFailed.Add(1)
+			return err
+		}
+		rp.stats.RequestsFailed.Add(1)
+		return err
+	}
+
+	handleDataRecordError := func(err error) error {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") && strings.Contains(err.Error(), "index") {
 			log.Printf("[RawProxy][DB][ERROR] DUPLICATE INDEX! Failed to save _data record ID=%s Index=%d: %v",
 				userdata["id"].(string), int(userdata["index"].(float64)), err)
@@ -699,10 +700,28 @@ func (rp *RawProxyWrapper) saveRequestToDB(reqCtx *RequestContext, requestData m
 				userdata["id"].(string), int(userdata["index"].(float64)), err)
 		}
 		rp.stats.RequestsFailed.Add(1)
+		return err
+	}
+
+	err := dao.RunInTransaction(func(txDao *daos.Dao) error {
+		if err := txDao.SaveRecord(attachedRecord); err != nil {
+			return handleAttachRecordError(err)
+		}
+		if err := txDao.SaveRecord(reqRecord); err != nil {
+			return handleReqRecordError(err)
+		}
+		if err := txDao.SaveRecord(dataRecord); err != nil {
+			return handleDataRecordError(err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Printf("[RawProxy][DB][ERROR] Failed to save _data record ID=%s Index=%d: %v",
+			userdata["id"].(string), int(userdata["index"].(float64)), err)
+		rp.stats.RequestsFailed.Add(1)
 		return
 	} else {
-		log.Printf("[RawProxy][DB][SUCCESS] Saved _data record ID=%s Index=%d", userdata["id"].(string), int(userdata["index"].(float64)))
-
 		dataRecord.MarkAsNotNew()
 	}
 
