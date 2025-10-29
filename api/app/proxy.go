@@ -111,6 +111,13 @@ func (pm *ProxyManager) AddProxy(id string, proxy *RawProxyWrapper) {
 	}
 }
 
+// AddProxyInstance adds a complete proxy instance to the manager
+func (pm *ProxyManager) AddProxyInstance(id string, instance *ProxyInstance) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	pm.instances[id] = instance
+}
+
 // RemoveProxy removes a proxy from the manager
 func (pm *ProxyManager) RemoveProxy(id string) {
 	pm.mu.Lock()
@@ -269,13 +276,10 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
-			// Add proxy to manager
-			ProxyMgr.AddProxy(proxyID, newProxy)
-
-			// Set label - generate one if not provided
+			// Generate label if not provided
 			label := body.Name
 			if label == "" {
-				// Generate label in format: {browser}+{instance_number}
+				// Generate label in format: {browser} {instance_number}
 				browserType := body.Browser
 				if browserType == "" {
 					browserType = "proxy"
@@ -294,11 +298,16 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 				label = fmt.Sprintf("%s %d", browserType, count)
 			}
 
-			ProxyMgr.mu.Lock()
-			if inst := ProxyMgr.instances[proxyID]; inst != nil {
-				inst.Label = label
+			// Create complete proxy instance with all fields
+			proxyInstance := &ProxyInstance{
+				Proxy:      newProxy,
+				Browser:    body.Browser,
+				BrowserCmd: nil, // Will be set later if browser is launched
+				Label:      label,
 			}
-			ProxyMgr.mu.Unlock()
+
+			// Add complete instance to manager
+			ProxyMgr.AddProxyInstance(proxyID, proxyInstance)
 
 			// Update PROXY for backward compatibility
 			updateProxyVar()
