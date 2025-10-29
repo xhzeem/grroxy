@@ -278,12 +278,11 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 
 			// Generate label if not provided
 			label := body.Name
-			if label == "" {
+			browserType := body.Browser
+			if browserType == "" {
+				label = body.HTTP
+			} else if label == "" {
 				// Generate label in format: {browser} {instance_number}
-				browserType := body.Browser
-				if browserType == "" {
-					browserType = "proxy"
-				}
 
 				// Count existing instances of this browser type
 				ProxyMgr.mu.RLock()
