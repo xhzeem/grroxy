@@ -248,7 +248,6 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 			// Proxy ID is the listen address
 			proxyID := body.HTTP
 
-
 			// Initialize global index from database if not already initialized
 			// This ensures all proxies use the same unique index counter
 			if ProxyMgr.index.Load() == 0 {
@@ -310,16 +309,6 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 					}
 					ProxyMgr.mu.Unlock()
 				}(proxyID, body.Browser, body.HTTP, certPath)
-			}
-
-			record, err := backend.App.Dao().FindRecordById("_settings", "PROXY__________")
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
-
-			record.Set("value", body.HTTP)
-			if err := backend.App.Dao().SaveRecord(record); err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
 			}
 
 			return c.JSON(http.StatusOK, map[string]any{"message": "Proxy started"})
@@ -388,21 +377,6 @@ func (backend *Backend) StopProxy(e *core.ServeEvent) error {
 
 			// Update PROXY for backward compatibility
 			updateProxyVar()
-
-			record, err := backend.App.Dao().FindRecordById("_settings", "PROXY__________")
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
-
-			// Clear the proxy value if no proxies are running
-			remainingProxies := ProxyMgr.GetAllProxies()
-			if len(remainingProxies) == 0 {
-				record.Set("value", "")
-			}
-
-			if err := backend.App.Dao().SaveRecord(record); err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
 
 			return c.JSON(http.StatusOK, map[string]any{"message": "Proxy stopped"})
 		},
