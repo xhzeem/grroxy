@@ -21,6 +21,8 @@ func LaunchBrowser(browserType string, proxyAddress string, customCertPath strin
 		return launchFirefox(proxyAddress, customCertPath)
 	case "safari":
 		return launchSafari(proxyAddress, customCertPath)
+	case "terminal":
+		return launchTerminal(proxyAddress, customCertPath)
 	default:
 		return nil, fmt.Errorf("unsupported browser: %s", browserType)
 	}
