@@ -17,22 +17,24 @@ import (
 	"github.com/pocketbase/pocketbase/models"
 )
 
+// ProxyInstance holds a proxy and its optional runtime attachments (browser, label, etc.)
+type ProxyInstance struct {
+	Proxy      *RawProxyWrapper
+	Browser    string    // Browser type (chrome, firefox, safari)
+	BrowserCmd *exec.Cmd // Browser process command
+	Label      string    // Optional label/name for the proxy
+}
+
 // ProxyManager manages multiple proxy instances
 type ProxyManager struct {
-	proxies      map[string]*RawProxyWrapper
-	browsers     map[string]*exec.Cmd
-	browserNames map[string]string
-	labels       map[string]string
-	mu           sync.RWMutex
-	index        atomic.Uint64 // Shared atomic counter for unique indices across all proxies
+	instances map[string]*ProxyInstance
+	mu        sync.RWMutex
+	index     atomic.Uint64 // Shared atomic counter for unique indices across all proxies
 }
 
 // Global proxy manager instance
 var ProxyMgr = &ProxyManager{
-	proxies:      make(map[string]*RawProxyWrapper),
-	browsers:     make(map[string]*exec.Cmd),
-	browserNames: make(map[string]string),
-	labels:       make(map[string]string),
+	instances: make(map[string]*ProxyInstance),
 }
 
 // init is intentionally empty - initialization happens on first proxy start
@@ -85,32 +87,43 @@ func (pm *ProxyManager) initializeIndexFromDB(backend *Backend) error {
 func (pm *ProxyManager) GetProxy(id string) *RawProxyWrapper {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	return pm.proxies[id]
+	if inst := pm.instances[id]; inst != nil {
+		return inst.Proxy
+	}
+	return nil
+}
+
+// GetInstance returns a proxy instance by ID
+func (pm *ProxyManager) GetInstance(id string) *ProxyInstance {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	return pm.instances[id]
 }
 
 // AddProxy adds a proxy to the manager
 func (pm *ProxyManager) AddProxy(id string, proxy *RawProxyWrapper) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	pm.proxies[id] = proxy
+	if inst := pm.instances[id]; inst != nil {
+		inst.Proxy = proxy
+	} else {
+		pm.instances[id] = &ProxyInstance{Proxy: proxy}
+	}
 }
 
 // RemoveProxy removes a proxy from the manager
 func (pm *ProxyManager) RemoveProxy(id string) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	delete(pm.proxies, id)
-	delete(pm.browsers, id)
-	delete(pm.browserNames, id)
-	delete(pm.labels, id)
+	delete(pm.instances, id)
 }
 
 // GetAllProxies returns all proxy IDs
 func (pm *ProxyManager) GetAllProxies() []string {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	ids := make([]string, 0, len(pm.proxies))
-	for id := range pm.proxies {
+	ids := make([]string, 0, len(pm.instances))
+	for id := range pm.instances {
 		ids = append(ids, id)
 	}
 	return ids
@@ -121,27 +134,25 @@ func (pm *ProxyManager) StopProxy(id string) error {
 	log.Printf("[ProxyManager] StopProxy called for ID: %s", id)
 
 	pm.mu.RLock()
-	proxy := pm.proxies[id]
+	inst := pm.instances[id]
 	pm.mu.RUnlock()
 
-	if proxy == nil {
+	if inst == nil || inst.Proxy == nil {
 		log.Printf("[ProxyManager] Proxy with ID '%s' not found", id)
 		return fmt.Errorf("proxy %s not found", id)
 	}
 
 	log.Printf("[ProxyManager] Proxy found, calling Stop()...")
-	err := proxy.Stop()
+	err := inst.Proxy.Stop()
 	// attempt to close tied browser if any
 	pm.mu.Lock()
-	if cmd, ok := pm.browsers[id]; ok && cmd != nil && cmd.Process != nil {
-		log.Printf("[ProxyManager] Attempting to terminate browser for proxy %s (pid=%d)", id, cmd.Process.Pid)
-		if killErr := cmd.Process.Kill(); killErr != nil {
+	if inst.BrowserCmd != nil && inst.BrowserCmd.Process != nil {
+		log.Printf("[ProxyManager] Attempting to terminate browser for proxy %s (pid=%d)", id, inst.BrowserCmd.Process.Pid)
+		if killErr := inst.BrowserCmd.Process.Kill(); killErr != nil {
 			log.Printf("[ProxyManager] Failed to kill browser process for %s: %v", id, killErr)
 		} else {
 			log.Printf("[ProxyManager] Browser process for %s terminated", id)
 		}
-		delete(pm.browsers, id)
-		delete(pm.browserNames, id)
 	}
 	pm.mu.Unlock()
 	return err
@@ -151,9 +162,11 @@ func (pm *ProxyManager) StopProxy(id string) error {
 func (pm *ProxyManager) StopAllProxies() {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	for id, proxy := range pm.proxies {
-		if err := proxy.Stop(); err != nil {
-			log.Printf("[ProxyManager] Error stopping proxy %s: %v", id, err)
+	for id, inst := range pm.instances {
+		if inst != nil && inst.Proxy != nil {
+			if err := inst.Proxy.Stop(); err != nil {
+				log.Printf("[ProxyManager] Error stopping proxy %s: %v", id, err)
+			}
 		}
 	}
 }
@@ -162,9 +175,9 @@ func (pm *ProxyManager) StopAllProxies() {
 func (pm *ProxyManager) ApplyToAllProxies(fn func(proxy *RawProxyWrapper, proxyID string)) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	for id, proxy := range pm.proxies {
-		if proxy != nil {
-			fn(proxy, id)
+	for id, inst := range pm.instances {
+		if inst != nil && inst.Proxy != nil {
+			fn(inst.Proxy, id)
 		}
 	}
 }
@@ -177,9 +190,11 @@ func updateProxyVar() {
 	defer ProxyMgr.mu.RUnlock()
 
 	// Set PROXY to first proxy for backward compatibility
-	for _, proxy := range ProxyMgr.proxies {
-		PROXY = proxy
-		return
+	for _, inst := range ProxyMgr.instances {
+		if inst != nil && inst.Proxy != nil {
+			PROXY = inst.Proxy
+			return
+		}
 	}
 	PROXY = nil
 }
@@ -233,10 +248,6 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 			// Proxy ID is the listen address
 			proxyID := body.HTTP
 
-			// Stop existing proxy if running
-			if proxy := ProxyMgr.GetProxy(proxyID); proxy != nil {
-				proxy.Stop()
-			}
 
 			// Initialize global index from database if not already initialized
 			// This ensures all proxies use the same unique index counter
@@ -261,10 +272,12 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 
 			// Add proxy to manager
 			ProxyMgr.AddProxy(proxyID, newProxy)
-			// Save label if provided
+			// Set label if provided
 			if body.Name != "" {
 				ProxyMgr.mu.Lock()
-				ProxyMgr.labels[proxyID] = body.Name
+				if inst := ProxyMgr.instances[proxyID]; inst != nil {
+					inst.Label = body.Name
+				}
 				ProxyMgr.mu.Unlock()
 			}
 
@@ -291,8 +304,10 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 						return
 					}
 					ProxyMgr.mu.Lock()
-					ProxyMgr.browsers[proxyID] = cmd
-					ProxyMgr.browserNames[proxyID] = browserType
+					if inst := ProxyMgr.instances[proxyID]; inst != nil {
+						inst.Browser = browserType
+						inst.BrowserCmd = cmd
+					}
 					ProxyMgr.mu.Unlock()
 				}(proxyID, body.Browser, body.HTTP, certPath)
 			}
@@ -409,34 +424,28 @@ func (backend *Backend) ListProxies(e *core.ServeEvent) error {
 				return c.String(http.StatusForbidden, "")
 			}
 
-			proxyIDs := ProxyMgr.GetAllProxies()
-
-			proxies := make([]map[string]interface{}, 0, len(proxyIDs))
-			for _, id := range proxyIDs {
-				proxy := ProxyMgr.GetProxy(id)
-				if proxy != nil {
-					ProxyMgr.mu.RLock()
-					browserName := ProxyMgr.browserNames[id]
-					label := ProxyMgr.labels[id]
+			ProxyMgr.mu.RLock()
+			instances := make([]map[string]interface{}, 0, len(ProxyMgr.instances))
+			for id, inst := range ProxyMgr.instances {
+				if inst != nil && inst.Proxy != nil {
 					var browserPid int
-					if cmd := ProxyMgr.browsers[id]; cmd != nil && cmd.Process != nil {
-						browserPid = cmd.Process.Pid
+					if inst.BrowserCmd != nil && inst.BrowserCmd.Process != nil {
+						browserPid = inst.BrowserCmd.Process.Pid
 					}
-					ProxyMgr.mu.RUnlock()
-
-					proxies = append(proxies, map[string]interface{}{
+					instances = append(instances, map[string]interface{}{
 						"id":         id,
 						"listenAddr": id,
-						"label":      label,
-						"browser":    browserName,
+						"label":      inst.Label,
+						"browser":    inst.Browser,
 						"browserPid": browserPid,
 					})
 				}
 			}
+			ProxyMgr.mu.RUnlock()
 
 			return c.JSON(http.StatusOK, map[string]interface{}{
-				"proxies": proxies,
-				"count":   len(proxies),
+				"proxies": instances,
+				"count":   len(instances),
 			})
 		},
 	})
