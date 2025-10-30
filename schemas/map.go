@@ -123,9 +123,17 @@ var Collections = []DB{
 	{
 		"_data",
 		Rows,
-		false,
+		true,
 		`
-		CREATE UNIQUE INDEX idx_data_index ON _data (index);
+		CREATE INDEX idx_data_generated_by ON _data (generated_by);
+		`,
+	},
+	{
+		"_proxies",
+		Proxies,
+		true,
+		`
+		CREATE UNIQUE INDEX idx_proxies_addr ON _proxies (addr);
 		`,
 	},
 	{
@@ -181,7 +189,7 @@ var Collections = []DB{
 	{
 		"_hosts",
 		Sites,
-		false,
+		true,
 		`
 		CREATE UNIQUE INDEX idx_hosts_name ON _hosts (host);
 		`,
@@ -192,6 +200,15 @@ var Collections = []DB{
 		false,
 		"",
 	},
+	{
+		"_configs",
+		ConfigSchema,
+		true,
+		`
+		CREATE UNIQUE INDEX idx_configs_key ON _configs (key)
+		`,
+	},
+
 	{
 		"_processes",
 		PROCESSES,

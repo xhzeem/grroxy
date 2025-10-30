@@ -31,6 +31,10 @@ var Rows = schema.NewSchema(
 		Type: schema.FieldTypeNumber,
 	},
 	&schema.SchemaField{
+		Name: "index_minor",
+		Type: schema.FieldTypeNumber,
+	},
+	&schema.SchemaField{
 		Name: "host",
 		Type: schema.FieldTypeText,
 	},
