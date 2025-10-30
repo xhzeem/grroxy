@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/glitchedgitz/dadql/dadql"
 	"github.com/pocketbase/pocketbase/core"
@@ -322,13 +323,21 @@ func (rp *RawProxyWrapper) checkFilters(data map[string]any) bool {
 		return true
 	}
 
-	check, err := dadql.Filter(data, rp.Filters)
+	filter := rp.Filters
+	filter = strings.ReplaceAll(filter, "req.", "req_json.")
+	filter = strings.ReplaceAll(filter, "req_edited.", "req_edited_json.")
+	filter = strings.ReplaceAll(filter, "resp.", "resp_json.")
+	filter = strings.ReplaceAll(filter, "resp_edited.", "resp_edited_json.")
+
+	log.Println("[Proxy.checkFilters] data: ", data)
+
+	check, err := dadql.Filter(data, filter)
 	if err != nil {
-		log.Println("[Proxy.checkFilters] Filter parsing: ", rp.Filters, "Error: ", err)
+		log.Println("[Proxy.checkFilters] Filter parsing: ", filter, "Error: ", err)
 		return false
 	}
 
-	log.Println("[Proxy.checkFilters] Filter parsing: ", rp.Filters, "\nResults: ", check)
+	log.Println("[Proxy.checkFilters] Filter parsing: ", filter, "\nResults: ", check)
 
 	return check
 }

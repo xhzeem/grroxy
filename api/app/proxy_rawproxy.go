@@ -529,8 +529,7 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 
 	// requestJson := utils.StructToMap(&userdata, "json")
 
-	// if rp.Intercept && rp.checkFilters(requestJson) {
-	if rp.Intercept {
+	if rp.Intercept && rp.checkFilters(userdata) {
 		log.Printf("[RawProxy][Intercept] Request intercepted: ID=%s", id)
 
 		updatedString, edited := rp.interceptWait(userdata, "req", req.ContentLength, requestInString)
@@ -611,8 +610,7 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 	// Check if response should be intercepted
 	// responseJson := utils.StructToMap(&userdata, "json")
 
-	// if rp.Intercept && rp.checkFilters(responseJson) {
-	if rp.Intercept {
+	if rp.Intercept && rp.checkFilters(userdata) {
 		log.Printf("[RawProxy][Intercept] Response intercepted: ID=%s", userdata["id"].(string))
 
 		updatedString, edited := rp.interceptWait(userdata, "resp", resp.ContentLength, responseInString)
