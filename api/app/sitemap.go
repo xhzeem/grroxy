@@ -215,20 +215,45 @@ func (backend *Backend) SitemapFetch(e *core.ServeEvent) error {
 			// Simplier for noeWHERE path LIKE '/s/%'
 			path := data.Path + `/%`
 
-			var result []types.SitemapGet
+			var result []*models.Record
 			// var tmpResult []map[string]interface{}
 			uniqueMap := make(map[string]map[string]interface{})
 			var titles []string
 			var err error
 
+			dao := backend.App.Dao()
+
+			fmt.Println("db: ", db)
+			fmt.Println("path: ", path)
+
 			if data.Path == "" {
-				err = backend.App.Dao().DB().Select("*").From(db).All(&result)
+				result, err = dao.FindRecordsByExpr(db)
+				if err != nil {
+					log.Println("Error fetching records: ", err)
+					return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+						"error":   "Failed to fetch records",
+						"message": err.Error(),
+						"data":    []interface{}{},
+					})
+				}
 			} else {
-				err = backend.App.Dao().DB().Select("*").From(db).Where(dbx.Like("path", path)).All(&result)
+				result, err = dao.FindRecordsByFilter(db, "path ~ {:path}", "path", 0, 0, dbx.Params{
+					"path": path,
+				})
+				if err != nil {
+					log.Println("Error fetching records: ", err)
+					return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+						"error":   "Failed to fetch records",
+						"message": err.Error(),
+						"data":    []interface{}{},
+					})
+				}
 			}
 
+			// return c.JSON(http.StatusOK, result)
+
 			for _, item := range result {
-				tmpPath := strings.TrimPrefix(item.Path, data.Path)
+				tmpPath := strings.TrimPrefix(item.GetString("path"), data.Path)
 				tmpPath = strings.TrimPrefix(tmpPath, "/")
 
 				var part string
@@ -244,10 +269,10 @@ func (backend *Backend) SitemapFetch(e *core.ServeEvent) error {
 					uniqueMap[title] = map[string]interface{}{
 						"host":  data.Host,
 						"path":  data.Path + "/" + title,
-						"type":  item.Type,
+						"type":  item.Get("type"),
 						"title": title,
-						"ext":   item.Ext,
-						"query": item.Query,
+						"ext":   item.Get("ext"),
+						"query": item.Get("query"),
 					}
 					titles = append(titles, title)
 				}
