@@ -226,8 +226,16 @@ func (backend *Backend) SitemapFetch(e *core.ServeEvent) error {
 			fmt.Println("db: ", db)
 			fmt.Println("path: ", path)
 
+			collection, err := dao.FindCollectionByNameOrId(db)
+			if err != nil {
+				log.Println("Error fetching collection: ", err)
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+					"error": "Host doesn't exist",
+				})
+			}
+
 			if data.Path == "" {
-				result, err = dao.FindRecordsByExpr(db)
+				result, err = dao.FindRecordsByExpr(collection.Id)
 				if err != nil {
 					log.Println("Error fetching records: ", err)
 					return c.JSON(http.StatusInternalServerError, map[string]interface{}{
@@ -237,7 +245,7 @@ func (backend *Backend) SitemapFetch(e *core.ServeEvent) error {
 					})
 				}
 			} else {
-				result, err = dao.FindRecordsByFilter(db, "path ~ {:path}", "path", 0, 0, dbx.Params{
+				result, err = dao.FindRecordsByFilter(collection.Id, "path ~ {:path}", "path", 0, 0, dbx.Params{
 					"path": path,
 				})
 				if err != nil {
@@ -279,7 +287,7 @@ func (backend *Backend) SitemapFetch(e *core.ServeEvent) error {
 			}
 
 			sort.Strings(titles)
-			var tmpResult2 []map[string]interface{}
+			tmpResult2 := make([]map[string]interface{}, 0)
 			for _, title := range titles {
 				tmpResult2 = append(tmpResult2, uniqueMap[title])
 			}

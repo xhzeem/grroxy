@@ -30,7 +30,11 @@ func generateUserData(data types.AddRequestBodyType) (types.UserData, error) {
 	// requestInString := string(requestInBytes)
 
 	log.Printf("[generateUserData] Reading Request: %s", data.Request)
-	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(fmt.Sprint(data.Request + "\n\n"))))
+	// Normalize HTTP/2 to HTTP/2.0 for compatibility with http.ReadRequest
+	// AI generated HTTP/2 instead HTTP/2.0
+	requestStr := strings.Replace(data.Request, " HTTP/2\r\n", " HTTP/2.0\r\n", 1)
+	requestStr = strings.Replace(requestStr, " HTTP/2\n", " HTTP/2.0\n", 1)
+	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(fmt.Sprint(requestStr + "\n\n"))))
 	if err != nil {
 		return userdata, err
 	}
@@ -143,7 +147,9 @@ func generateUserData(data types.AddRequestBodyType) (types.UserData, error) {
 
 func generateResponseForUserData(userdata *types.UserData, response string) {
 	log.Printf("[generateResponseForUserData] Called for user ID: %s", userdata.ID)
-	resp, err := http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(response)+"\n\n")), nil)
+	// Normalize HTTP/2 to HTTP/2.0 for compatibility with http.ReadResponse
+	responseStr := strings.Replace(response, "HTTP/2 ", "HTTP/2.0 ", 1)
+	resp, err := http.ReadResponse(bufio.NewReader(strings.NewReader(fmt.Sprint(responseStr)+"\n\n")), nil)
 	if err != nil {
 		log.Printf("[generateResponseForUserData] Error reading response: %v", err)
 		panic(err)

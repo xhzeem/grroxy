@@ -99,8 +99,8 @@ func SendHTTP2RawRequest(data rawhttp.RawRequest) (string, string, error) {
 		log.Printf("could not read request: %s", err)
 	}
 	parts := strings.Split(s, " ")
-	if len(parts) < 3 {
-		log.Printf("malformed request supplied")
+	if len(parts) != 3 {
+		return "", "", fmt.Errorf("first line of the request is malformed")
 	}
 	// Set the request Method
 	Method := parts[0]

@@ -59,34 +59,60 @@ func serve(projectPath string) {
 	})
 
 	// Adding custom endpoints
+
+	// Labels
 	API.App.OnBeforeServe().Add(API.LabelAttach)
 	API.App.OnBeforeServe().Add(API.LabelDelete)
 	API.App.OnBeforeServe().Add(API.LabelNew)
+
+	// Load the frontend
 	API.App.OnBeforeServe().Add(API.BindFrontend)
+
+	// Sitemap
 	API.App.OnBeforeServe().Add(API.SitemapNew)
 	API.App.OnBeforeServe().Add(API.SitemapFetch)
+
+	// Send Raw Request
 	API.App.OnBeforeServe().Add(API.SendRawRequest)
+
+	// Testing
 	API.App.OnBeforeServe().Add(API.TextSQL)
+
+	// File Operations
 	API.App.OnBeforeServe().Add(API.SaveFile)
 	API.App.OnBeforeServe().Add(API.ReadFile)
+
+	// System
 	API.App.OnBeforeServe().Add(API.DownloadCert)
 	API.App.OnBeforeServe().Add(API.SearchRegex)
 	API.App.OnBeforeServe().Add(API.FileWatcher)
+
+	// Template
 	API.App.OnBeforeServe().Add(API.TemplatesList)
 	API.App.OnBeforeServe().Add(API.TemplatesNew)
 	API.App.OnBeforeServe().Add(API.TemplatesDelete)
+
+	// Commands
 	API.App.OnBeforeServe().Add(API.RunCommand)
 	API.App.OnBeforeServe().Add(API.Tools)
+
+	// Cook
 	API.App.OnBeforeServe().Add(API.CookSearch)
 	API.App.OnBeforeServe().Add(API.CookApplyMethods)
 	API.App.OnBeforeServe().Add(API.CookGenerate)
+
+	// Playground
 	API.App.OnBeforeServe().Add(API.PlaygroundNew)
 	API.App.OnBeforeServe().Add(API.PlaygroundDelete)
 	API.App.OnBeforeServe().Add(API.PlaygroundAddChild)
+
+	// Proxies
 	API.App.OnBeforeServe().Add(API.StartProxy)
 	API.App.OnBeforeServe().Add(API.StopProxy)
 	API.App.OnBeforeServe().Add(API.RestartProxy)
 	API.App.OnBeforeServe().Add(API.ListProxies)
+
+	// Other
 	API.App.OnBeforeServe().Add(API.AddRequest)
 	API.App.OnBeforeServe().Add(API.InterceptEndpoints)
 
@@ -99,7 +125,6 @@ func serve(projectPath string) {
 	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		API.App.Dao().DB().NewQuery(`
 			DELETE FROM _intercept;
-			DELETE FROM tmp_intercept;
 		`).Execute()
 		return nil
 	})
