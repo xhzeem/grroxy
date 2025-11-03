@@ -6,6 +6,8 @@
 # Proxy
 POST /api/proxy/start
 POST /api/proxy/stop
+POST /api/proxy/restart
+GET  /api/proxy/list
 
 # Intercept
 POST      /api/intercept/action
@@ -49,6 +51,130 @@ GET       /api/tool
 
 # Certificates
 GET       /cacert.crt
+```
+
+---
+
+## Proxy
+
+### Start Proxy
+
+Starts a new proxy instance and creates a proxy record in the database. Each proxy has its own intercept setting stored in the `_proxies` collection and filter settings stored separately in the `_ui` collection.
+
+```http
+POST /api/proxy/start
+```
+
+_Request Body:_
+
+```json
+{
+  "http": "127.0.0.1:8080",
+  "browser": "chrome|firefox|safari|terminal|proxy",
+  "name": "My Proxy Instance"
+}
+```
+
+_Fields:_
+
+- `http` (string, optional): The listen address for the proxy (e.g., "127.0.0.1:8080"). If not provided with a browser, defaults to "127.0.0.1:9797". If the port is unavailable, an available port will be suggested.
+- `browser` (string, optional): Browser to launch with this proxy. Options: "chrome", "firefox", "safari", "terminal", "proxy" (no browser). Leave empty for proxy only.
+- `name` (string, optional): Custom name for the proxy instance. If not provided, a name will be auto-generated based on browser type and count (e.g., "chrome 1", "firefox 2").
+
+_Response:_
+
+```json
+{
+  "id": "______________1",
+  "listenAddr": "127.0.0.1:8080",
+  "label": "chrome 1",
+  "browser": "chrome"
+}
+```
+
+_Response Fields:_
+
+- `id` (string): The unique proxy ID (15 chars: underscores + index number, e.g., "**\*\***\_\_**\*\***1")
+- `listenAddr` (string): The address the proxy is listening on (e.g., "127.0.0.1:8080")
+- `label` (string): The display name/label for this proxy instance
+- `browser` (string): The browser type launched with this proxy
+
+_Error Response:_
+
+```json
+{
+  "error": "port not available",
+  "availableHost": "127.0.0.1:8081"
+}
+```
+
+---
+
+### Stop Proxy
+
+Stops a running proxy instance and removes it from the manager. Also terminates any associated browser or terminal process.
+
+```http
+POST /api/proxy/stop
+```
+
+_Request Body:_
+
+```json
+{
+  "id": "______________1"
+}
+```
+
+_Fields:_
+
+- `id` (string, optional): The unique proxy ID to stop (e.g., "**\*\***\_\_**\*\***1"). If not provided or empty, stops all running proxies.
+
+_Response:_
+
+```json
+{
+  "message": "Proxy stopped"
+}
+```
+
+_Notes:_
+
+- If no `id` field is provided or the request body is empty, all running proxies will be stopped
+- The proxy record in the `_proxies` collection is NOT deleted, only the runtime instance is stopped
+- When a proxy is stopped, its `state` field in the database is set to empty (`""`)
+
+---
+
+### Restart Proxy
+
+Restarts a previously stopped proxy using its existing configuration from the database. This is useful for resuming a proxy that was stopped without having to reconfigure it.
+
+```http
+POST /api/proxy/restart
+```
+
+_Request Body:_
+
+```json
+{
+  "id": "______________1"
+}
+```
+
+_Fields:_
+
+- `id` (string, required): The unique proxy ID to restart (e.g., "**\*\***\_\_**\*\***1")
+
+_Response:_
+
+```json
+{
+  "id": "______________1",
+  "listenAddr": "127.0.0.1:8080",
+  "label": "chrome 1",
+  "browser": "chrome"
+}
 ```
 
 ## Intercept
