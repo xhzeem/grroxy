@@ -33,7 +33,7 @@ func (backend *Backend) handleSitemapNew(data *types.SitemapGet) error {
 
 	// Checking error if it is collection already exists
 	// This is the error "constraint failed: UNIQUE constraint failed: collections.name (2067)"
-	if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+	if err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed") {
 		collectionExists = true
 	} else {
 		collectionExists = false
