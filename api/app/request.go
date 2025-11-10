@@ -55,7 +55,7 @@ func generateUserData(data types.AddRequestBodyType) (types.UserData, error) {
 		host = strings.Replace(host, "https://", "", 1)
 	} else {
 		// Fallback to Host header if provided
-		if h, ok := parsed.Headers["host"]; ok {
+		if h, ok := rawhttp.GetHeaderValue(parsed.Headers, "host"); ok {
 			host = h
 		}
 		// No scheme in request line; cannot infer reliably. Leave isHttps false unless URL hints
@@ -114,13 +114,15 @@ func generateUserData(data types.AddRequestBodyType) (types.UserData, error) {
 	log.Printf("[generateUserData] Setting userdata")
 	// Build http.Header from parsed headers for existing helpers
 	httpHdr := http.Header{}
-	for k, v := range parsed.Headers {
-		httpHdr.Set(k, v)
+	for _, header := range parsed.Headers {
+		if len(header) >= 2 {
+			httpHdr.Set(header[0], header[1])
+		}
 	}
 
 	// Determine content length
 	var contentLen int64 = 0
-	if clStr, ok := parsed.Headers["content-length"]; ok {
+	if clStr, ok := rawhttp.GetHeaderValue(parsed.Headers, "content-length"); ok {
 		if n, err := strconv.ParseInt(strings.TrimSpace(clStr), 10, 64); err == nil {
 			contentLen = n
 		}
@@ -128,7 +130,7 @@ func generateUserData(data types.AddRequestBodyType) (types.UserData, error) {
 
 	// Determine cookies and params
 	hasCookies := false
-	if c, ok := parsed.Headers["cookie"]; ok && strings.TrimSpace(c) != "" {
+	if c, ok := rawhttp.GetHeaderValue(parsed.Headers, "cookie"); ok && strings.TrimSpace(c) != "" {
 		hasCookies = true
 	}
 	hasParams := false
@@ -188,13 +190,15 @@ func generateResponseForUserData(userdata *types.UserData, response string) {
 
 	// Build http.Header from parsed headers for existing helpers
 	httpHdr := http.Header{}
-	for k, v := range parsed.Headers {
-		httpHdr.Set(k, v)
+	for _, header := range parsed.Headers {
+		if len(header) >= 2 {
+			httpHdr.Set(header[0], header[1])
+		}
 	}
 
 	// Determine content length
 	var contentLen int64 = 0
-	if clStr, ok := parsed.Headers["content-length"]; ok {
+	if clStr, ok := rawhttp.GetHeaderValue(parsed.Headers, "content-length"); ok {
 		if n, err := strconv.ParseInt(strings.TrimSpace(clStr), 10, 64); err == nil {
 			contentLen = n
 		}
@@ -202,7 +206,7 @@ func generateResponseForUserData(userdata *types.UserData, response string) {
 
 	// Cookies via Set-Cookie
 	hasCookies := false
-	if sc, ok := parsed.Headers["set-cookie"]; ok && strings.TrimSpace(sc) != "" {
+	if sc, ok := rawhttp.GetHeaderValue(parsed.Headers, "set-cookie"); ok && strings.TrimSpace(sc) != "" {
 		hasCookies = true
 	}
 

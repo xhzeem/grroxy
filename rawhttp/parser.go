@@ -14,7 +14,7 @@ type ParsedRequest struct {
 	Method      string
 	URL         string
 	HTTPVersion string
-	Headers     map[string]string
+	Headers     [][]string // Array of [key, value] pairs
 	Body        string
 	LineBreak   string
 }
@@ -24,16 +24,16 @@ type ParsedResponse struct {
 	Version    string
 	Status     int
 	StatusFull string
-	Headers    map[string]string
+	Headers    [][]string // Array of [key, value] pairs
 	Body       string
 	LineBreak  string
 }
 
 // ParseRequest performs a tolerant, minimal parse of a raw HTTP request.
-// It extracts method, URL, HTTP version, headers (collapsed by first key occurrence, case-insensitive), and body.
+// It extracts method, URL, HTTP version, headers (as array of [key, value] pairs), and body.
 func ParseRequest(raw []byte) ParsedRequest {
 	method, url, httpVersion := "", "", ""
-	headers := make(map[string]string)
+	headers := [][]string{}
 	body := ""
 	lineBreak := detectLineBreak(raw)
 
@@ -67,7 +67,7 @@ func ParseRequest(raw []byte) ParsedRequest {
 	}
 
 	// Parse request line: METHOD SP URL SP HTTP/X.Y
-	reqLine := strings.TrimSpace(lines[0])
+	reqLine := lines[0]
 	if reqLine != "" {
 		parts := strings.Fields(reqLine)
 		if len(parts) >= 1 {
@@ -84,26 +84,21 @@ func ParseRequest(raw []byte) ParsedRequest {
 	// Parse headers (lines after request line until empty)
 	for i := 1; i < len(lines); i++ {
 		line := lines[i]
-		if strings.TrimSpace(line) == "" {
+		if line == "" {
 			break
 		}
 		// Support simple header folding: if line starts with space or tab, append to previous header
 		if (len(line) > 0) && (line[0] == ' ' || line[0] == '\t') {
-			// Try to append to the last inserted header key
-			// Find last key; map has no order, so we cannot reliably append.
-			// Skip folding to keep parser minimal and deterministic.
+			// Append to the last header value if there is one
+			if len(headers) > 0 {
+				headers[len(headers)-1][1] += " " + line
+			}
 			continue
 		}
 		if idx := strings.IndexByte(line, ':'); idx >= 0 {
-			key := strings.TrimSpace(line[:idx])
-			val := strings.TrimSpace(line[idx+1:])
-			// Use case-insensitive keys by normalizing to lower case
-			lk := strings.ToLower(key)
-			if existing, ok := headers[lk]; ok && existing != "" {
-				headers[lk] = existing + ", " + val
-			} else {
-				headers[lk] = val
-			}
+			key := line[:idx]
+			val := line[idx+1:]
+			headers = append(headers, []string{key, val})
 		}
 	}
 
@@ -111,12 +106,12 @@ func ParseRequest(raw []byte) ParsedRequest {
 }
 
 // ParseResponse performs a tolerant, minimal parse of a raw HTTP response.
-// It extracts version, numeric status, full status line, headers (case-insensitive), and body.
+// It extracts version, numeric status, full status line, headers (as array of [key, value] pairs), and body.
 func ParseResponse(raw []byte) ParsedResponse {
 	version := ""
 	status := 0
 	statusFull := ""
-	headers := make(map[string]string)
+	headers := [][]string{}
 	body := ""
 	lineBreak := detectLineBreak(raw)
 
@@ -149,7 +144,7 @@ func ParseResponse(raw []byte) ParsedResponse {
 	}
 
 	// Parse status line: HTTP/X.Y SP 3DIGIT SP REASON
-	statusLine := strings.TrimSpace(lines[0])
+	statusLine := lines[0]
 	statusFull = statusLine
 	if statusLine != "" {
 		parts := strings.Fields(statusLine)
@@ -166,21 +161,20 @@ func ParseResponse(raw []byte) ParsedResponse {
 	// Headers
 	for i := 1; i < len(lines); i++ {
 		line := lines[i]
-		if strings.TrimSpace(line) == "" {
+		if line == "" {
 			break
 		}
 		if (len(line) > 0) && (line[0] == ' ' || line[0] == '\t') {
+			// Append to the last header value if there is one
+			if len(headers) > 0 {
+				headers[len(headers)-1][1] += " " + line
+			}
 			continue
 		}
 		if idx := strings.IndexByte(line, ':'); idx >= 0 {
-			key := strings.TrimSpace(line[:idx])
-			val := strings.TrimSpace(line[idx+1:])
-			lk := strings.ToLower(key)
-			if existing, ok := headers[lk]; ok && existing != "" {
-				headers[lk] = existing + ", " + val
-			} else {
-				headers[lk] = val
-			}
+			key := line[:idx]
+			val := line[idx+1:]
+			headers = append(headers, []string{key, val})
 		}
 	}
 
@@ -247,6 +241,17 @@ func splitLines(s string) []string {
 	return strings.Split(s, "\n")
 }
 
+// GetHeaderValue returns the first header value matching the key (case-insensitive)
+func GetHeaderValue(headers [][]string, key string) (string, bool) {
+	keyLower := strings.ToLower(key)
+	for _, header := range headers {
+		if len(header) >= 2 && strings.ToLower(header[0]) == keyLower {
+			return header[1], true
+		}
+	}
+	return "", false
+}
+
 // UnparseRequest converts a ParsedRequest back into raw HTTP request bytes.
 // It uses the LineBreak field to determine line endings.
 func UnparseRequest(pr ParsedRequest) []byte {
@@ -254,7 +259,7 @@ func UnparseRequest(pr ParsedRequest) []byte {
 	lineBreak := pr.LineBreak
 
 	// Write request line: METHOD SP URL SP HTTPVERSION
-	reqLine := strings.TrimSpace(pr.Method + " " + pr.URL)
+	reqLine := pr.Method + " " + pr.URL
 	if pr.HTTPVersion != "" {
 		reqLine += " " + pr.HTTPVersion
 	}
@@ -262,11 +267,11 @@ func UnparseRequest(pr ParsedRequest) []byte {
 	buf.WriteString(lineBreak)
 
 	// Write headers
-	for key, value := range pr.Headers {
-		// Format: Key: Value
-		// Note: keys are stored lowercase, but we output them as-is
-		buf.WriteString(key + ": " + value)
-		buf.WriteString(lineBreak)
+	for _, header := range pr.Headers {
+		if len(header) >= 2 {
+			buf.WriteString(header[0] + ":" + header[1])
+			buf.WriteString(lineBreak)
+		}
 	}
 
 	// Empty line separating headers and body
@@ -306,11 +311,11 @@ func UnparseResponse(pr ParsedResponse) []byte {
 	buf.WriteString(lineBreak)
 
 	// Write headers
-	for key, value := range pr.Headers {
-		// Format: Key: Value
-		// Note: keys are stored lowercase, but we output them as-is
-		buf.WriteString(key + ": " + value)
-		buf.WriteString(lineBreak)
+	for _, header := range pr.Headers {
+		if len(header) >= 2 {
+			buf.WriteString(header[0] + ":" + header[1])
+			buf.WriteString(lineBreak)
+		}
 	}
 
 	// Empty line separating headers and body
