@@ -77,6 +77,10 @@ func main() {
 
 	backend.App.OnBeforeServe().Add(backend.RunCommand)
 
+	// Fuzzer
+	backend.App.OnBeforeServe().Add(backend.StartFuzzer)
+	backend.App.OnBeforeServe().Add(backend.StopFuzzer)
+
 	backend.App.Bootstrap()
 	go backend.CommandManager()
 

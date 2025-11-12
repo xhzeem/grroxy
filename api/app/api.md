@@ -49,6 +49,11 @@ POST      /api/runcommand
 # Tools
 GET       /api/tool
 
+# Fuzzer
+POST      /api/fuzzer/start
+POST      /api/fuzzer/stop
+GET       /api/fuzzer/results/:id
+
 # Certificates
 GET       /cacert.crt
 ```
@@ -794,6 +799,147 @@ _Response:_
 
 - 200 OK with host address on success
 - 500 Internal Server Error on failure
+
+---
+
+## Fuzzer
+
+### Start Fuzzer
+
+Starts a new fuzzer instance with the specified configuration. The fuzzer will send requests with different payloads based on the markers and wordlists provided.
+
+```http
+POST /api/fuzzer/start
+```
+
+_Request Body:_
+
+```json
+{
+  "request": "GET /test?param=FUZZ HTTP/1.1\r\nHost: example.com\r\n\r\n",
+  "host": "example.com",
+  "port": "80",
+  "useTLS": false,
+  "markers": {
+    "FUZZ": "/path/to/wordlist.txt"
+  },
+  "mode": "cluster_bomb" | "pitch_fork",
+  "concurrency": 40,
+  "timeout": 10
+}
+```
+
+_Fields:_
+
+- `request` (string, required): The raw HTTP request template with markers (e.g., "FUZZ") that will be replaced with words from wordlists
+- `host` (string, required): The target hostname (http:// or https:// prefix will be stripped automatically)
+- `port` (string, optional): The target port. Defaults to 80 for HTTP or 443 for HTTPS
+- `useTLS` (boolean, optional): Whether to use TLS/HTTPS. Defaults to false
+- `markers` (object, required): Map of marker names to wordlist file paths. Each marker in the request will be replaced with words from its corresponding wordlist
+- `mode` (string, optional): Fuzzing mode. Options: "cluster_bomb" (all combinations) or "pitch_fork" (synchronized). Defaults to "cluster_bomb"
+- `concurrency` (integer, optional): Number of concurrent requests. Defaults to 40
+- `timeout` (float, optional): Request timeout in seconds. Defaults to 10
+
+_Response:_
+
+```json
+{
+  "id": "______________1"
+}
+```
+
+_Response Fields:_
+
+- `id` (string): The unique fuzzer ID used to track and stop the fuzzer
+
+_Error Responses:_
+
+- 400 Bad Request - Missing required fields or invalid configuration
+- 403 Forbidden - Unauthorized
+
+---
+
+### Stop Fuzzer
+
+Stops a running fuzzer instance.
+
+```http
+POST /api/fuzzer/stop
+```
+
+_Request Body:_
+
+```json
+{
+  "id": "______________1"
+}
+```
+
+_Fields:_
+
+- `id` (string, required): The unique fuzzer ID to stop
+
+_Response:_
+
+```json
+{
+  "status": "stopped"
+}
+```
+
+_Error Responses:_
+
+- 400 Bad Request - Missing ID
+- 403 Forbidden - Unauthorized
+- 404 Not Found - Fuzzer not found
+
+---
+
+### Get Fuzzer Results
+
+Streams fuzzer results in real-time using Server-Sent Events (SSE). Each result contains the request sent, response received, timing information, and the markers used.
+
+```http
+GET /api/fuzzer/results/:id
+```
+
+_Path Parameters:_
+
+- `id` (string, required): The unique fuzzer ID
+
+_Response:_
+
+Server-Sent Events stream with Content-Type: `text/event-stream`. Each event contains a JSON object:
+
+```json
+{
+  "request": "GET /test?param=value HTTP/1.1\r\nHost: example.com\r\n\r\n",
+  "response": "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html>...</html>",
+  "time": 1234567890,
+  "markers": {
+    "FUZZ": "value"
+  }
+}
+```
+
+_Response Fields:_
+
+- `request` (string): The actual HTTP request that was sent
+- `response` (string): The raw HTTP response received
+- `time` (integer): Response time in nanoseconds
+- `markers` (object): Map of marker names to the values that were used in this request
+
+_Error Responses:_
+
+- 400 Bad Request - Missing ID
+- 403 Forbidden - Unauthorized
+- 404 Not Found - Fuzzer not found
+
+_Notes:_
+
+- The connection will remain open until the fuzzer completes or is stopped
+- Results are streamed as they are generated
+- The stream will automatically close when the fuzzer finishes
 
 ---
 
