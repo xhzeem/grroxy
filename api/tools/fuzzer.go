@@ -226,6 +226,8 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 
 				log.Println("[StartFuzzer] results processing completed for ", id)
 
+				backend.SetProcess(id, schemas.ProcessState.Completed)
+
 				// Clean up after all results are processed
 				FuzzerMgr.mu.Lock()
 				delete(FuzzerMgr.instances, id)
