@@ -8,6 +8,7 @@ import (
 
 	api "github.com/glitchedgitz/grroxy-db/api/app"
 	"github.com/glitchedgitz/grroxy-db/config"
+	_ "github.com/glitchedgitz/grroxy-db/logflags"
 	"github.com/glitchedgitz/grroxy-db/utils"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
@@ -22,7 +23,6 @@ var ProjectPath string
 var ProxyAddress string // removed, we use api now
 var showLogs bool
 
-
 // func printBanner() {
 // 	if !noBanner {
 // 		fmt.Fprint(os.Stderr, banner)
@@ -30,7 +30,8 @@ var showLogs bool
 // }
 
 func init() {
-	// log.SetOutput(io.Discard)
+	// Ensure timestamps are included in standard log output.
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 }
 
 func initialize() {

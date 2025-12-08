@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	_ "github.com/glitchedgitz/grroxy-db/logflags"
 	"github.com/glitchedgitz/grroxy-db/rawhttp"
 )
 
