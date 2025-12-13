@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"path/filepath"
 
 	// "github.com/pocketbase/dbx"
 
@@ -22,6 +23,11 @@ func serve(projectPath string) {
 	if err != nil {
 		log.Println("Wappylyzer Error: ", err)
 	}
+
+	// Extract project ID from project path (the directory name)
+	projectID := filepath.Base(projectPath)
+	conf.ProjectID = projectID
+	log.Printf("Project ID: %s", projectID)
 
 	// Create an instance of the app structure
 	API = api.Backend{
