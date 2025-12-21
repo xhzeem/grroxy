@@ -15,5 +15,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
         const result = await ipcRenderer.invoke('check-fullscreen');
         console.log('[preload] check-fullscreen returned:', result);
         return result;
+    },
+    // Window control functions for custom titlebar (Windows)
+    windowMinimize: () => {
+        ipcRenderer.invoke('window-minimize');
+    },
+    windowMaximize: () => {
+        ipcRenderer.invoke('window-maximize');
+    },
+    windowClose: () => {
+        ipcRenderer.invoke('window-close');
+    },
+    windowIsMaximized: async () => {
+        return await ipcRenderer.invoke('window-is-maximized');
+    },
+    onWindowMaximized: (callback: (isMaximized: boolean) => void) => {
+        ipcRenderer.on('window-maximized', (event, isMaximized) => {
+            callback(isMaximized);
+        });
     }
 });

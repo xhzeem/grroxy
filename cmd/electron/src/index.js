@@ -8,25 +8,30 @@ let mainWindow = null
 function createWindow() {
     const iconPath = path.resolve(__dirname, "icons", "grroxy.png")
 
+    // Windows-specific: use frameless window for custom titlebar
+    const isWindows = process.platform === 'win32';
+
     mainWindow = new BrowserWindow({
         width: 1080,
         height: 720,
-        fullscreen: true,
+        // fullscreen: false,
+        frame: !isWindows,                    // frameless on Windows for custom titlebar
+        autoHideMenuBar: true,                // hide the menu bar
 
         icon: iconPath,
 
         /* ------------- title-bar flags ------------- */
-        titleBarStyle: 'hiddenInset',        // same “inset” look Wails uses
-        transparent: true,
+        titleBarStyle: isWindows ? undefined : 'hiddenInset',  // macOS only
+        // transparent: true,
         title: 'Grroxy',
 
         /* ------------- transparent overlay -------- */
-        titleBarOverlay: {                     // this draws the bar that slides in
+        titleBarOverlay: isWindows ? undefined : {  // macOS only
             color: '#00000000',                // fully transparent (ARGB = 0×00)
             symbolColor: '#FFFFFF',            // traffic-light glyph colour
         },
 
-        vibrancy: 'under-window',    // optional acrylic behind the whole win
+        vibrancy: isWindows ? undefined : 'under-window',  // macOS only
 
         webPreferences: {
             preload: path.join(__dirname, 'preload.ts'),
@@ -43,10 +48,13 @@ function createWindow() {
     } else {
         // Load vite dev server page 
         console.log('Development mode')
-        mainWindow.loadURL('http://localhost:5173/')
+        mainWindow.loadURL('http://127.0.0.1:8090/')
         // mainWindow.loadFile(`${__dirname}/frontend/dist/index.html`)
 
     }
+
+    // Maximize the window on startup
+    // mainWindow.maximize()
 
     // setTimeout(() => {
     //     mainWindow.webContents.openDevTools()
@@ -70,7 +78,21 @@ function createWindow() {
         mainWindow.webContents.send('fullscreen-changed', false);
     });
 
-    app.dock.setIcon(nativeImage.createFromPath(iconPath))
+    // Send window state changes to renderer (for Windows custom titlebar)
+    if (isWindows) {
+        mainWindow.on('maximize', () => {
+            mainWindow.webContents.send('window-maximized', true);
+        });
+
+        mainWindow.on('unmaximize', () => {
+            mainWindow.webContents.send('window-maximized', false);
+        });
+    }
+
+    // macOS dock icon
+    if (process.platform === 'darwin') {
+        app.dock.setIcon(nativeImage.createFromPath(iconPath))
+    }
 
 
 }
@@ -83,6 +105,36 @@ app.whenReady()
                 const isFs = mainWindow.isFullScreen();
                 console.log('[main] check-fullscreen →', isFs);
                 return isFs;
+            }
+            return false;
+        });
+
+        // Window control handlers for custom titlebar (Windows)
+        ipcMain.handle('window-minimize', (event) => {
+            if (mainWindow) {
+                mainWindow.minimize();
+            }
+        });
+
+        ipcMain.handle('window-maximize', (event) => {
+            if (mainWindow) {
+                if (mainWindow.isMaximized()) {
+                    mainWindow.unmaximize();
+                } else {
+                    mainWindow.maximize();
+                }
+            }
+        });
+
+        ipcMain.handle('window-close', (event) => {
+            if (mainWindow) {
+                mainWindow.close();
+            }
+        });
+
+        ipcMain.handle('window-is-maximized', (event) => {
+            if (mainWindow) {
+                return mainWindow.isMaximized();
             }
             return false;
         });
