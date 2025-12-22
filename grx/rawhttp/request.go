@@ -1,4 +1,4 @@
-package grrhttp
+package rawhttp
 
 import (
 	"bytes"

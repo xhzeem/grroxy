@@ -27,7 +27,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/glitchedgitz/grroxy-db/grx/grrhttp"
+	"github.com/glitchedgitz/grroxy-db/grx/rawhttp"
 	"github.com/glitchedgitz/grroxy-db/grx/rawproxy"
 	"github.com/glitchedgitz/grroxy-db/internal/types"
 	"github.com/glitchedgitz/grroxy-db/internal/utils"
@@ -348,7 +348,7 @@ func generateRequestData(req *http.Request) map[string]any {
 		"has_cookies": len(req.Cookies()) > 0,
 		"has_params":  len(req.URL.Query()) > 0,
 		"length":      req.ContentLength,
-		"headers":     grrhttp.GetHeaders(req.Header),
+		"headers":     rawhttp.GetHeaders(req.Header),
 		"url":         req.URL.RequestURI(),
 		"path":        req.URL.Path,
 		"query":       req.URL.RawQuery,
@@ -364,7 +364,7 @@ func generateResponseData(resp *http.Response) map[string]any {
 		"has_cookies": len(resp.Cookies()) > 0,
 		"title":       "",
 		"mime":        resp.Header.Get("Content-Type"),
-		"headers":     grrhttp.GetHeaders(resp.Header),
+		"headers":     rawhttp.GetHeaders(resp.Header),
 		"status":      resp.StatusCode,
 		"length":      resp.ContentLength,
 		"date":        resp.Header.Get("Date"),
@@ -476,7 +476,7 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 
 	// Dump request to raw string
 	normalizeHTTP := (scheme == "http")
-	requestInString := grrhttp.DumpRequest(req, normalizeHTTP)
+	requestInString := rawhttp.DumpRequest(req, normalizeHTTP)
 
 	// Track bytes
 	rp.stats.BytesRequest.Add(uint64(len(requestInString)))
@@ -593,7 +593,7 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 	userdata["resp_json"] = responseData
 
 	// Dump response to raw string
-	responseInString := grrhttp.DumpResponse(resp)
+	responseInString := rawhttp.DumpResponse(resp)
 	reqCtx.RawResponse = responseInString // Store in context for save functions
 
 	// Track bytes

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/glitchedgitz/grroxy-db/grx/grrhttp"
+	"github.com/glitchedgitz/grroxy-db/grx/rawhttp"
 	"github.com/glitchedgitz/grroxy-db/internal/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
@@ -88,7 +88,7 @@ func SendHTTPRawRequest(data RawRequest) (string, string, error) {
 	}
 	defer resp.Body.Close()
 
-	return grrhttp.DumpResponse(resp), timeTaken, nil
+	return rawhttp.DumpResponse(resp), timeTaken, nil
 }
 
 func SendHTTP2RawRequest(data RawRequest) (string, string, error) {
@@ -197,7 +197,7 @@ func SendHTTP2RawRequest(data RawRequest) (string, string, error) {
 	}
 	defer resp.Body.Close()
 
-	return grrhttp.DumpResponse(resp), timeTaken, nil
+	return rawhttp.DumpResponse(resp), timeTaken, nil
 }
 
 func (backend *Backend) SendRawRequest(e *core.ServeEvent) error {

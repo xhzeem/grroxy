@@ -5,8 +5,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-
-	"github.com/glitchedgitz/grroxy-db/grx/grrhttp"
 )
 
 // ParsedRequest is a minimal parsed shape for a raw HTTP request
@@ -293,7 +291,7 @@ func decompressBody(bodyBytes []byte) string {
 	}
 
 	// Try to decompress using MagicDecompress
-	decompressedReader, err := grrhttp.MagicDecompress(bytes.NewReader(bodyBytes))
+	decompressedReader, err := MagicDecompress(bytes.NewReader(bodyBytes))
 	if err != nil {
 		// If decompression fails, return original body
 		return string(bodyBytes)

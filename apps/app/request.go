@@ -11,7 +11,6 @@ import (
 
 	"log"
 
-	"github.com/glitchedgitz/grroxy-db/grx/grrhttp"
 	"github.com/glitchedgitz/grroxy-db/grx/rawhttp"
 	"github.com/glitchedgitz/grroxy-db/internal/types"
 	"github.com/glitchedgitz/grroxy-db/internal/utils"
@@ -160,7 +159,7 @@ func generateUserData(data types.AddRequestBodyType) (types.UserData, error) {
 			HasCookies: hasCookies,
 			HasParams:  hasParams,
 			Length:     contentLen,
-			Headers:    grrhttp.GetHeaders(httpHdr),
+			Headers:    rawhttp.GetHeaders(httpHdr),
 			Url:        parsed.URL,
 			Path:       urlPath,
 			Query:      urlQuery,
@@ -214,7 +213,7 @@ func generateResponseForUserData(userdata *types.UserData, response string) {
 		HasCookies: hasCookies,
 		Title:      "",
 		Mime:       httpHdr.Get("Content-Type"),
-		Headers:    grrhttp.GetHeaders(httpHdr),
+		Headers:    rawhttp.GetHeaders(httpHdr),
 		Status:     parsed.Status,
 		Length:     contentLen,
 		Date:       httpHdr.Get("Date"),
