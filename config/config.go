@@ -9,17 +9,16 @@ import (
 )
 
 type Config struct {
-	HostAddr  string
-	ProxyAddr string // Deprecated: Use the API to start the proxy instead
+	HostAddr string
 
-	HomeDirectory     string
-	CWDirectory       string
-	ConfigDirectory   string
-	ProjectsDirectory string
-	CacheDirectory    string
-	TemplateDirectory string
+	HomeDirectory     string // User's home directory
+	ConfigDirectory   string // Config directory
+	ProjectsDirectory string // Projects directory
+	CacheDirectory    string // Cache directory
+	TemplateDirectory string // Template directory
 
-	ProjectID string // Project ID extracted from project path
+	ProjectID   string //  Active Project's ID
+	CWDirectory string //  Projects Directory + ProjectID
 }
 
 func (c *Config) Initiate() {

@@ -33,7 +33,7 @@ Cert:               http://%s/cacert.crt
 
 Proxy Listening On: %s
 
-	`, launcher.Config.HostAddr, launcher.Config.HostAddr, launcher.Config.HostAddr, launcher.Config.HostAddr, launcher.Config.ProxyAddr)
+	`, launcher.Config.HostAddr, launcher.Config.HostAddr, launcher.Config.HostAddr, launcher.Config.HostAddr)
 
 	// var httpsAddr string
 

@@ -33,9 +33,7 @@ Database:           http://%s/_/
 API:                http://%s/api/
 Cert:               http://%s/cacert.crt
 
-Proxy Listening On: %s
-
-	`, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.ProxyAddr)
+	`, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.HostAddr, backend.Config.HostAddr)
 
 	go backend.CommandManager()
 

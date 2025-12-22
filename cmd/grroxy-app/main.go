@@ -52,7 +52,6 @@ func initialize() {
 			fmt.Println("\nInfo: Host address is already in use. Using ", conf.HostAddr)
 		}
 	}
-	conf.ProxyAddr = ProxyAddress
 
 	// Optional override: if GRROXY_TEMPLATE_DIR isn't set, keep the default config value.
 	if templateDir := strings.TrimSpace(os.Getenv("GRROXY_TEMPLATE_DIR")); templateDir != "" {
