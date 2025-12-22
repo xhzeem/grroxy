@@ -344,11 +344,11 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 			log.Printf("[StartProxy] Generated proxy ID: %s for address: %s", proxyID, body.HTTP)
 
 			// Create new rawproxy wrapper
-			configDir := path.Join(backend.Config.HomeDirectory, ".config", "grroxy")
+			configDir := path.Join(backend.Config.ConfigDirectory)
 
 			// Disable file captures by passing empty string (we save to database instead)
 			// To enable file captures for testing, uncomment the line below:
-			// outputDir := path.Join(backend.Config.HomeDirectory, ".config", "grroxy", "captures")
+			// outputDir := path.Join(backend.Config.ConfigDirectory, "captures")
 			outputDir := "" // Empty = disabled
 
 			newProxy, err := NewRawProxyWrapper(body.HTTP, configDir, outputDir, backend, proxyID)
@@ -409,13 +409,13 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 			if body.Browser != "" {
 				// Use the certificate path from the rawproxy
 				certPath := newProxy.GetCertPath()
-				
+
 				// Generate browser profile directory: [projectid]+[proxyid]
 				// This ensures each browser instance has its own isolated profile
 				profileID := backend.Config.ProjectID + proxyID
-				profileDir := path.Join(backend.Config.HomeDirectory, ".config", "grroxy", "profiles", profileID)
+				profileDir := path.Join(backend.Config.ConfigDirectory, "profiles", profileID)
 				log.Printf("[StartProxy] Browser profile directory: %s", profileDir)
-				
+
 				go func(proxyID, browserType, listenAddr, cert, profDir string) {
 					cmd, err := browser.LaunchBrowser(browserType, listenAddr, cert, profDir)
 					if err != nil {
@@ -632,7 +632,7 @@ func (backend *Backend) RestartProxy(e *core.ServeEvent) error {
 			}
 
 			// Create new rawproxy wrapper with existing ID
-			configDir := path.Join(backend.Config.HomeDirectory, ".config", "grroxy")
+			configDir := path.Join(backend.Config.ConfigDirectory)
 			outputDir := "" // Disabled
 
 			newProxy, err := NewRawProxyWrapper(listenAddr, configDir, outputDir, backend, proxyID)
@@ -673,12 +673,12 @@ func (backend *Backend) RestartProxy(e *core.ServeEvent) error {
 			// Launch browser if configured
 			if browserType != "" {
 				certPath := newProxy.GetCertPath()
-				
+
 				// Generate browser profile directory: [projectid]+[proxyid]
 				profileID := backend.Config.ProjectID + proxyID
-				profileDir := path.Join(backend.Config.HomeDirectory, ".config", "grroxy", "profiles", profileID)
+				profileDir := path.Join(backend.Config.ConfigDirectory, "profiles", profileID)
 				log.Printf("[RestartProxy] Browser profile directory: %s", profileDir)
-				
+
 				go func(proxyID, browserType, listenAddr, cert, profDir string) {
 					cmd, err := browser.LaunchBrowser(browserType, listenAddr, cert, profDir)
 					if err != nil {

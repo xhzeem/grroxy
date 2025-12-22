@@ -17,7 +17,7 @@ func (launcher *Launcher) DownloadCert(e *core.ServeEvent) error {
 		Path:   "/cacert.crt",
 		Handler: func(c echo.Context) error {
 			// Certificate is always at this fixed location (generated at startup)
-			certPath := filepath.Join(launcher.Config.HomeDirectory, ".config", "grroxy", "ca.crt")
+			certPath := filepath.Join(launcher.Config.ConfigDirectory, "ca.crt")
 
 			// Verify certificate exists
 			if _, err := os.Stat(certPath); os.IsNotExist(err) {
