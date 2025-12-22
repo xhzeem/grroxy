@@ -1,6 +1,6 @@
 // repeater.go
 
-package api
+package app
 
 import (
 	"log"

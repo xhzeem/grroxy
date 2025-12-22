@@ -1,4 +1,4 @@
-package api
+package app
 
 // RawProxy Wrapper - Integration layer between rawproxy and grroxy-db
 //

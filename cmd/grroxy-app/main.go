@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	api "github.com/glitchedgitz/grroxy-db/api/app"
+	"github.com/glitchedgitz/grroxy-db/apps/app"
 	"github.com/glitchedgitz/grroxy-db/config"
 	_ "github.com/glitchedgitz/grroxy-db/logflags"
 	"github.com/glitchedgitz/grroxy-db/utils"
@@ -17,7 +17,7 @@ import (
 )
 
 var conf config.Config
-var API api.Backend
+var API app.Backend
 
 var HostAddress string
 var ProjectPath string

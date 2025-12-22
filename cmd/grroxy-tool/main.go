@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	tools_api "github.com/glitchedgitz/grroxy-db/api/tools"
+	"github.com/glitchedgitz/grroxy-db/apps/tools"
 	"github.com/glitchedgitz/grroxy-db/config"
 	"github.com/glitchedgitz/grroxy-db/process"
 	"github.com/glitchedgitz/grroxy-db/utils"
@@ -48,7 +48,7 @@ func main() {
 
 	fmt.Println("Working directory changed to:", projectPath)
 
-	backend := tools_api.Tools{
+	backend := tools.Tools{
 		App: pocketbase.NewWithConfig(
 			pocketbase.Config{
 				ProjectDir:      projectPath,

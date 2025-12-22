@@ -1,4 +1,4 @@
-package tools_api
+package tools
 
 import (
 	"github.com/glitchedgitz/cook/v2/pkg/cook"
