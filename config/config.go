@@ -41,9 +41,8 @@ func (c *Config) Initiate() {
 	os.MkdirAll(c.ProjectsDirectory, 0755)
 	utils.CheckErr("", err)
 
-	c.ProjectFile = path.Join(c.ProjectsDirectory, "projects.json")
-
-	// c.LoadAppData()
+	c.ConfigDirectory = path.Join(c.HomeDirectory, ".config", "grroxy")
+	os.MkdirAll(c.ConfigDirectory, 0755)
 }
 
 func (c *Config) ShowConfig() {

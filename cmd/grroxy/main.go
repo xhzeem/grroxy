@@ -41,32 +41,8 @@ var launch *launcher.Launcher
 var conf config.Config
 
 func setConfig() {
-	var err error
-	// Probably not used
-	conf.HomeDirectory, err = os.UserHomeDir()
-	utils.CheckErr("", err)
 
-	conf.CacheDirectory, err = os.UserCacheDir()
-	conf.CacheDirectory = path.Join(conf.CacheDirectory, "grroxy")
-	os.MkdirAll(conf.CacheDirectory, 0755)
-	utils.CheckErr("", err)
-
-	conf.ProjectsDirectory, err = os.UserConfigDir()
-	conf.ProjectsDirectory = path.Join(conf.ProjectsDirectory, "grroxy")
-	os.MkdirAll(conf.ProjectsDirectory, 0755)
-	utils.CheckErr("", err)
-
-	// Generate CA certificate on first launch
-	// This ensures users can download and install the cert before starting the proxy
-	conf.ConfigDirectory = path.Join(conf.HomeDirectory, ".config", "grroxy")
-	os.MkdirAll(conf.ConfigDirectory, 0755)
-
-	fmt.Println("[Project Config]")
-	fmt.Println("Home directory:     ", conf.HomeDirectory)
-	fmt.Println("Config directory:   ", conf.ConfigDirectory)
-	fmt.Println("Projects directory: ", conf.ProjectsDirectory)
-	fmt.Println("Cache directory:    ", conf.CacheDirectory)
-	fmt.Println()
+	conf.Initiate()
 
 	caCrtPath := path.Join(conf.ConfigDirectory, "ca.crt")
 	caKeyPath := path.Join(conf.ConfigDirectory, "ca.key")

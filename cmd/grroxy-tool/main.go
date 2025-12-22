@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 
 	tools_api "github.com/glitchedgitz/grroxy-db/api/tools"
@@ -23,32 +22,7 @@ var conf config.Config
 
 func initialize() {
 
-	fmt.Println("Starting grroxyy")
-
-	// if !showLogs {
-	// 	log.SetOutput(io.Discard)
-	// }
-
-	var err error
-
-	// Probably not used
-	conf.HomeDirectory, err = os.UserHomeDir()
-	utils.CheckErr("", err)
-
-	conf.CacheDirectory, err = os.UserCacheDir()
-	conf.CacheDirectory = path.Join(conf.CacheDirectory, "grroxy")
-	os.MkdirAll(conf.CacheDirectory, 0755)
-	utils.CheckErr("", err)
-
-	conf.ProjectsDirectory, err = os.UserConfigDir()
-	conf.ProjectsDirectory = path.Join(conf.ProjectsDirectory, "grroxy")
-	os.MkdirAll(conf.ProjectsDirectory, 0755)
-	utils.CheckErr("", err)
-
-	fmt.Println("Config directory:", conf.ProjectsDirectory)
-	fmt.Println("Cache directory:", conf.CacheDirectory)
-	fmt.Println("Home directory:", conf.HomeDirectory)
-
+	conf.Initiate()
 }
 
 func main() {
