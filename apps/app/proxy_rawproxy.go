@@ -29,8 +29,8 @@ import (
 
 	"github.com/glitchedgitz/grroxy-db/grx/grrhttp"
 	"github.com/glitchedgitz/grroxy-db/grx/rawproxy"
-	"github.com/glitchedgitz/grroxy-db/types"
-	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/internal/types"
+	"github.com/glitchedgitz/grroxy-db/internal/utils"
 	"github.com/pocketbase/pocketbase/daos"
 	"github.com/pocketbase/pocketbase/models"
 )

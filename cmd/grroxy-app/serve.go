@@ -8,7 +8,7 @@ import (
 
 	"github.com/glitchedgitz/cook/v2/pkg/cook"
 	"github.com/glitchedgitz/grroxy-db/apps/app"
-	"github.com/glitchedgitz/grroxy-db/process"
+	"github.com/glitchedgitz/grroxy-db/internal/process"
 	wappalyzer "github.com/glitchedgitz/wappalyzergo"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"

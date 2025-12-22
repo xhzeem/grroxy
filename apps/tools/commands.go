@@ -9,9 +9,9 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/glitchedgitz/grroxy-db/process"
-	"github.com/glitchedgitz/grroxy-db/schemas"
-	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/internal/process"
+	"github.com/glitchedgitz/grroxy-db/internal/schemas"
+	"github.com/glitchedgitz/grroxy-db/internal/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"

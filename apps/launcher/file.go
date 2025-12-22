@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/glitchedgitz/grroxy-db/save"
+	"github.com/glitchedgitz/grroxy-db/internal/save"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"

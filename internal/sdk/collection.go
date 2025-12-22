@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/glitchedgitz/grroxy-db/types"
+	"github.com/glitchedgitz/grroxy-db/internal/types"
 )
 
 type Collection[T any] struct {

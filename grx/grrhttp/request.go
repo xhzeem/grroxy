@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/internal/utils"
 )
 
 // DumpRequest dumps an HTTP request to a string format.
@@ -26,7 +26,7 @@ func DumpRequest(req *http.Request, normalizeHTTP bool) string {
 
 	// Determine the URL to use in the request line
 	url := req.URL.RequestURI()
-	
+
 	// Normalize HTTP proxy requests if requested
 	// HTTP proxy format: "GET http://example.com/path HTTP/1.1"
 	// Normalized format:  "GET /path HTTP/1.1"

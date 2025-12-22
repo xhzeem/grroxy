@@ -1,11 +1,11 @@
 package actions
 
-import "github.com/glitchedgitz/grroxy-db/types"
+import "github.com/glitchedgitz/grroxy-db/internal/types"
 
 type ModifierReplace struct {
-	Search  string `yaml:"search"`
-	Value   string `yaml:"value"`
-	Regex   bool   `yaml:"regex"`
+	Search string `yaml:"search"`
+	Value  string `yaml:"value"`
+	Regex  bool   `yaml:"regex"`
 }
 
 type ModifierSet struct {

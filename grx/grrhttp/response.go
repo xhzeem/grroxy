@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/andybalholm/brotli"
-	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/internal/utils"
 )
 
 func DecompressResponse(reader io.Reader, contentEncoding string) (io.Reader, error) {

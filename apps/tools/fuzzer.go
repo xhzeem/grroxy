@@ -11,7 +11,7 @@ import (
 
 	"github.com/glitchedgitz/grroxy-db/grx/fuzzer"
 	"github.com/glitchedgitz/grroxy-db/grx/rawhttp"
-	"github.com/glitchedgitz/grroxy-db/schemas"
+	"github.com/glitchedgitz/grroxy-db/internal/schemas"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"

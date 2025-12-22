@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/glitchedgitz/grroxy-db/apps/app"
-	"github.com/glitchedgitz/grroxy-db/config"
-	_ "github.com/glitchedgitz/grroxy-db/logflags"
-	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/internal/config"
+	_ "github.com/glitchedgitz/grroxy-db/internal/logflags"
+	"github.com/glitchedgitz/grroxy-db/internal/utils"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/spf13/cobra"

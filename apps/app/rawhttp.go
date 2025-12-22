@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/glitchedgitz/grroxy-db/grx/rawhttp"
-	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/internal/utils"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"

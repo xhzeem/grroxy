@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/glitchedgitz/grroxy-db/utils"
+	"github.com/glitchedgitz/grroxy-db/internal/utils"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/models"
 )
@@ -61,4 +61,4 @@ func SetProcess(app *pocketbase.PocketBase, id, state string) {
 
 	err = app.Dao().SaveRecord(record)
 	utils.CheckErr("[RegisterProcessInDB][SaveRecord]", err)
-} 
+}

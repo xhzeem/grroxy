@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/glitchedgitz/grroxy-db/schemas"
-	"github.com/glitchedgitz/grroxy-db/types"
+	"github.com/glitchedgitz/grroxy-db/internal/schemas"
+	"github.com/glitchedgitz/grroxy-db/internal/types"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
