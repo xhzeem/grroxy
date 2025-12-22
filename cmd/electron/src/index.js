@@ -48,7 +48,7 @@ function createWindow() {
     } else {
         // Load vite dev server page 
         console.log('Development mode')
-        mainWindow.loadURL('localhost:5173')
+        mainWindow.loadURL('http://localhost:5173')
         // mainWindow.loadFile(`${__dirname}/frontend/dist/index.html`)
     }
 
