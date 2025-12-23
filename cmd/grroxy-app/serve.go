@@ -129,6 +129,42 @@ func serve(projectPath string) {
 	API.App.OnBeforeServe().Add(API.SendRepeater)
 
 	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		API.App.Dao().DB().NewQuery(`
+			DELETE FROM _intercept;
+		`).Execute()
+		return nil
+	})
+
+	// Reset all proxy states and intercept settings during boot up
+	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		log.Println("[Startup] Resetting all proxy states and intercept settings...")
+
+		dao := API.App.Dao()
+
+		// Fetch all proxy records
+		proxyRecords, err := dao.FindRecordsByExpr("_proxies")
+		if err != nil {
+			log.Printf("[Startup] Error fetching proxy records: %v", err)
+			return nil
+		}
+
+		// Reset intercept to false and state to "" for each proxy
+		for _, proxyRecord := range proxyRecords {
+			proxyRecord.Set("intercept", false)
+			proxyRecord.Set("state", "")
+
+			if err := dao.SaveRecord(proxyRecord); err != nil {
+				log.Printf("[Startup] Error updating proxy %s: %v", proxyRecord.Id, err)
+			} else {
+				log.Printf("[Startup] Reset proxy %s: intercept=false, state=''", proxyRecord.Id)
+			}
+		}
+
+		log.Printf("[Startup] Successfully reset %d proxy records", len(proxyRecords))
+		return nil
+	})
+
+	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		// Setup intercept hooks
 		err := API.SetupInterceptHooks()
 		if err != nil {
@@ -164,42 +200,6 @@ func serve(projectPath string) {
 			}
 		}()
 
-		return nil
-	})
-
-	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		API.App.Dao().DB().NewQuery(`
-			DELETE FROM _intercept;
-		`).Execute()
-		return nil
-	})
-
-	// Reset all proxy states and intercept settings during boot up
-	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		log.Println("[Startup] Resetting all proxy states and intercept settings...")
-
-		dao := API.App.Dao()
-
-		// Fetch all proxy records
-		proxyRecords, err := dao.FindRecordsByExpr("_proxies")
-		if err != nil {
-			log.Printf("[Startup] Error fetching proxy records: %v", err)
-			return nil
-		}
-
-		// Reset intercept to false and state to "" for each proxy
-		for _, proxyRecord := range proxyRecords {
-			proxyRecord.Set("intercept", false)
-			proxyRecord.Set("state", "")
-
-			if err := dao.SaveRecord(proxyRecord); err != nil {
-				log.Printf("[Startup] Error updating proxy %s: %v", proxyRecord.Id, err)
-			} else {
-				log.Printf("[Startup] Reset proxy %s: intercept=false, state=''", proxyRecord.Id)
-			}
-		}
-
-		log.Printf("[Startup] Successfully reset %d proxy records", len(proxyRecords))
 		return nil
 	})
 

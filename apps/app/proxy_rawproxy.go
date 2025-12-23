@@ -535,6 +535,23 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 	if rp.Intercept && rp.checkFilters(userdata) {
 		log.Printf("[RawProxy][Intercept] Request intercepted: ID=%s", id)
 
+		// Track intercept counters (total, per-proxy)
+		rp.backend.CounterManager.IncrementWithStartup("_intercept", "_intercept", "", true)
+
+		var proxyInterceptKey string
+		if generatedBy, ok := userdata["generated_by"].(string); ok {
+			proxyInterceptKey = generatedBy + "/intercept"
+			rp.backend.CounterManager.Increment(proxyInterceptKey, "_intercept", "")
+		}
+
+		// Ensure intercept counters are decremented after processing
+		defer func() {
+			rp.backend.CounterManager.Decrement("_intercept", "_intercept", "")
+			if proxyInterceptKey != "" {
+				rp.backend.CounterManager.Decrement(proxyInterceptKey, "_intercept", "")
+			}
+		}()
+
 		updatedString, edited := rp.interceptWait(userdata, "req", req.ContentLength, requestInString)
 
 		if userdata["action"] == "drop" {
@@ -615,6 +632,23 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 
 	if rp.Intercept && rp.checkFilters(userdata) {
 		log.Printf("[RawProxy][Intercept] Response intercepted: ID=%s", userdata["id"].(string))
+
+		// Track intercept counters (total, per-proxy, per-host)
+		rp.backend.CounterManager.IncrementWithStartup("_intercept", "_intercept", "", true)
+
+		var proxyInterceptKey string
+		if generatedBy, ok := userdata["generated_by"].(string); ok {
+			proxyInterceptKey = generatedBy + "/intercept"
+			rp.backend.CounterManager.Increment(proxyInterceptKey, "_intercept", "")
+		}
+
+		// Ensure intercept counters are decremented after processing
+		defer func() {
+			rp.backend.CounterManager.Decrement("_intercept", "_intercept", "")
+			if proxyInterceptKey != "" {
+				rp.backend.CounterManager.Decrement(proxyInterceptKey, "_intercept", "")
+			}
+		}()
 
 		updatedString, edited := rp.interceptWait(userdata, "resp", resp.ContentLength, responseInString)
 
