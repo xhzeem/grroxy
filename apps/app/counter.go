@@ -297,7 +297,7 @@ func (cm *CounterManager) SyncToDB() error {
 
 	collection, err := cm.app.Dao().FindCollectionByNameOrId("_counters")
 	if err != nil {
-		log.Printf("[CounterManager][SyncToDB] Error finding collection: %v\n", err)
+		// log.Printf("[CounterManager][SyncToDB] Error finding collection: %v\n", err)
 		return err
 	}
 
@@ -327,7 +327,7 @@ func (cm *CounterManager) SyncToDB() error {
 			record.Set("load_on_startup", counter.LoadOnStartup)
 
 			if err := cm.app.Dao().SaveRecord(record); err != nil {
-				log.Printf("[CounterManager][SyncToDB] Error creating counter: %v\n", err)
+				// log.Printf("[CounterManager][SyncToDB] Error creating counter: %v\n", err)
 				continue
 			}
 			counter.ID = record.Id
@@ -337,13 +337,13 @@ func (cm *CounterManager) SyncToDB() error {
 			// Existing counter - update in DB
 			record, err := cm.app.Dao().FindRecordById("_counters", counter.ID)
 			if err != nil {
-				log.Printf("[CounterManager][SyncToDB] Error finding counter %s: %v\n", counter.ID, err)
+				// log.Printf("[CounterManager][SyncToDB] Error finding counter %s: %v\n", counter.ID, err)
 				continue
 			}
 
 			record.Set("count", currentCount)
 			if err := cm.app.Dao().SaveRecord(record); err != nil {
-				log.Printf("[CounterManager][SyncToDB] Error updating counter %s: %v\n", counter.ID, err)
+				// log.Printf("[CounterManager][SyncToDB] Error updating counter %s: %v\n", counter.ID, err)
 				continue
 			}
 			counter.lastSyncedValue = currentCount
@@ -352,9 +352,9 @@ func (cm *CounterManager) SyncToDB() error {
 	}
 
 	if skippedCount > 0 {
-		log.Printf("[CounterManager][SyncToDB] Synced %d counters, skipped %d unchanged\n", syncCount, skippedCount)
+		// log.Printf("[CounterManager][SyncToDB] Synced %d counters, skipped %d unchanged\n", syncCount, skippedCount)
 	} else {
-		log.Printf("[CounterManager][SyncToDB] Synced %d load_on_startup counters to database\n", syncCount)
+		// log.Printf("[CounterManager][SyncToDB] Synced %d load_on_startup counters to database\n", syncCount)
 	}
 	return nil
 }
