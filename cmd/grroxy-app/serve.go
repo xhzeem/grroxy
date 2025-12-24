@@ -128,6 +128,9 @@ func serve(projectPath string) {
 	// Repeater
 	API.App.OnBeforeServe().Add(API.SendRepeater)
 
+	// Xterm (Terminal)
+	API.RegisterXtermRoutes()
+
 	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		API.App.Dao().DB().NewQuery(`
 			DELETE FROM _intercept;

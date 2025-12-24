@@ -60,6 +60,12 @@ GET       /api/fuzzer/results/:id
 # Repeater
 POST      /api/repeater/send
 
+# Xterm (Terminal)
+POST      /api/xterm/start
+GET       /api/xterm/sessions
+DELETE    /api/xterm/sessions/:id
+GET       /api/xterm/ws/:id
+
 # Certificates
 GET       /cacert.crt
 ```
@@ -1077,6 +1083,290 @@ _Notes:_
 - The connection will remain open until the fuzzer completes or is stopped
 - Results are streamed as they are generated
 - The stream will automatically close when the fuzzer finishes
+
+---
+
+## Xterm (Terminal)
+
+The Xterm API provides web-based terminal access using xterm.js on the frontend and PTY (Pseudo-Terminal) on the backend. It allows users to start interactive shell sessions, execute commands, and interact with terminal-based applications through WebSocket connections.
+
+### Start Terminal Session
+
+Creates a new terminal session with a shell process.
+
+```http
+POST /api/xterm/start
+```
+
+_Request Body:_
+
+```json
+{
+  "shell": "bash",
+  "workdir": "/home/user/projects",
+  "env": {
+    "MY_VAR": "value",
+    "CUSTOM_PATH": "/custom/bin"
+  }
+}
+```
+
+_Fields:_
+
+- `shell` (string, optional): Shell to use. Options:
+  - Linux/macOS: `"bash"`, `"zsh"`, `"sh"`, `"fish"`, etc.
+  - Windows: `"powershell.exe"`, `"cmd.exe"`
+  - Default: Auto-detected (`$SHELL` on Unix, PowerShell on Windows)
+- `workdir` (string, optional): Initial working directory. Defaults to user's home directory
+- `env` (object, optional): Additional environment variables to set
+
+_Response:_
+
+```json
+{
+  "session_id": "c4qrltqguf8s73f5ctog",
+  "shell": "bash",
+  "workdir": "/home/user/projects"
+}
+```
+
+_Fields:_
+
+- `session_id` (string): Unique identifier for the terminal session
+- `shell` (string): Shell that was started
+- `workdir` (string): Working directory where shell was started
+
+_Error Responses:_
+
+- 400 Bad Request - Invalid request or failed to create session
+
+_Example:_
+
+```bash
+curl -X POST http://localhost:8080/api/xterm/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shell": "bash",
+    "workdir": "/tmp"
+  }'
+```
+
+---
+
+### List Terminal Sessions
+
+Returns a list of all active terminal sessions.
+
+```http
+GET /api/xterm/sessions
+```
+
+_Response:_
+
+```json
+{
+  "sessions": [
+    {
+      "id": "c4qrltqguf8s73f5ctog",
+      "shell": "bash",
+      "workdir": "/home/user",
+      "created_at": "2024-12-23T10:30:00Z",
+      "running": true
+    },
+    {
+      "id": "c4qrm2qguf8s73f5ctp0",
+      "shell": "zsh",
+      "workdir": "/tmp",
+      "created_at": "2024-12-23T11:45:00Z",
+      "running": true
+    }
+  ]
+}
+```
+
+_Fields:_
+
+- `id` (string): Session identifier
+- `shell` (string): Shell program running in the session
+- `workdir` (string): Working directory
+- `created_at` (string): Timestamp when session was created
+- `running` (boolean): Whether the shell process is still running
+
+---
+
+### Close Terminal Session
+
+Closes and cleans up a terminal session.
+
+```http
+DELETE /api/xterm/sessions/:id
+```
+
+_URL Parameters:_
+
+- `id` (string, required): Session ID to close
+
+_Response:_
+
+```json
+{
+  "message": "Session closed successfully"
+}
+```
+
+_Error Responses:_
+
+- 400 Bad Request - Session ID required
+- 404 Not Found - Session not found
+
+_Example:_
+
+```bash
+curl -X DELETE http://localhost:8080/api/xterm/sessions/c4qrltqguf8s73f5ctog
+```
+
+---
+
+### WebSocket Terminal I/O
+
+Establishes a WebSocket connection for bidirectional terminal communication. This endpoint handles all terminal input/output, resizing, and control signals.
+
+```http
+GET /api/xterm/ws/:id
+```
+
+_URL Parameters:_
+
+- `id` (string, required): Session ID for the terminal
+
+_Protocol:_
+
+The WebSocket connection uses JSON messages with the following format:
+
+**Client → Server Messages:**
+
+1. **Input (keyboard/commands):**
+
+```json
+{
+  "type": "input",
+  "data": "ls -la\n"
+}
+```
+
+2. **Resize terminal:**
+
+```json
+{
+  "type": "resize",
+  "data": {
+    "cols": 120,
+    "rows": 40
+  }
+}
+```
+
+3. **Ping (keep-alive):**
+
+```json
+{
+  "type": "ping",
+  "data": "timestamp"
+}
+```
+
+**Server → Client Messages:**
+
+1. **Output (terminal output):**
+
+```json
+{
+  "type": "output",
+  "data": "total 48\ndrwxr-xr-x  12 user  staff  384 Dec 23 10:00 .\n"
+}
+```
+
+2. **Pong (ping response):**
+
+```json
+{
+  "type": "pong",
+  "data": "timestamp"
+}
+```
+
+3. **Error:**
+
+```json
+{
+  "type": "error",
+  "data": "Session not found: c4qrltqguf8s73f5ctog"
+}
+```
+
+_WebSocket Lifecycle:_
+
+1. Client connects to `/api/xterm/ws/:id`
+2. Server verifies session exists
+3. Connection upgraded to WebSocket
+4. Bidirectional communication begins
+5. Server streams PTY output to client
+6. Client sends keyboard input to server
+7. Connection closes when:
+   - Client disconnects
+   - Session is terminated
+   - Shell process exits
+
+_Frontend Integration (xterm.js):_
+
+```javascript
+// Create xterm.js instance
+const term = new Terminal();
+term.open(document.getElementById("terminal"));
+
+// Connect to WebSocket
+const ws = new WebSocket("ws://localhost:8080/api/xterm/ws/SESSION_ID");
+
+// Receive output from server
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === "output") {
+    term.write(msg.data);
+  }
+};
+
+// Send input to server
+term.onData((data) => {
+  ws.send(
+    JSON.stringify({
+      type: "input",
+      data: data,
+    })
+  );
+});
+
+// Handle terminal resize
+term.onResize(({ cols, rows }) => {
+  ws.send(
+    JSON.stringify({
+      type: "resize",
+      data: { cols, rows },
+    })
+  );
+});
+```
+
+_Error Responses:_
+
+- 400 Bad Request - Session ID required
+- 404 Not Found - Session not found
+
+_Notes:_
+
+- The WebSocket connection must be established after creating a session via `/api/xterm/start`
+- Terminal sessions automatically clean up when the shell process exits
+- All terminal features work: colors, cursor positioning, full-screen apps (vim, htop, etc.)
+- PTY provides full terminal emulation including job control, signals, and line editing
 
 ---
 

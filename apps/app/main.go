@@ -23,6 +23,7 @@ type Backend struct {
 	Wappalyzer     *wappalyzer.Wappalyze
 	CmdChannel     chan process.RunCommandData
 	CounterManager *CounterManager
+	XtermManager   *XtermManager
 }
 
 func (backend *Backend) Serve() {
