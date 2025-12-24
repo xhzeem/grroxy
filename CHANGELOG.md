@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2025-DEC] - v0.20.0 - Xterm Terminal Integration
+
+### Added
+
+- Web-based terminal support using xterm.js frontend and PTY backend
+- `/api/xterm/start` - Create new terminal sessions with custom shell, working directory, and environment variables
+- `/api/xterm/sessions` - List all active terminal sessions
+- `/api/xterm/sessions/:id` - Close terminal sessions via DELETE endpoint
+- `/api/xterm/ws/:id` - WebSocket endpoint for bidirectional terminal I/O (input, output, resize, ping/pong)
+- Cross-platform terminal support (Linux, macOS, Windows)
+- PTY (Pseudo-Terminal) integration for full terminal emulation
+- Terminal session management with automatic cleanup on process exit
+- Support for interactive terminal applications (vim, htop, etc.)
+- Terminal resize functionality
+- Comprehensive xterm API documentation
+
+### Changed
+
+- Updated API documentation with xterm endpoints and WebSocket protocol details
+
+---
+
 ## [2025-DEC] - v0.19.0 - Counter Table & Refactoring #27
 
 ### Added
