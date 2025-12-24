@@ -2,8 +2,94 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## Versioning
+
+This project uses a hybrid versioning approach:
+
+- **Semantic Versioning** (SemVer): Used for major releases and API stability
+
+  - Format: `v0.MAJOR.MINOR` (e.g., `v0.19.0`, `v0.18.0`)
+  - Used for: Core releases, breaking changes, major feature additions
+  - Examples: `v0.19.0`, `v0.18.0`
+
+- **Calendar Versioning** (CalVer): Used for frontend and feature releases
+
+  - Format: `vYYYY.MM.MINOR` (e.g., `v2025.12.0`)
+  - Used for: Frontend updates, monthly feature releases, non-breaking changes
+  - Examples: `v2025.12.0`
+
+- **Date-based entries**: Used for organizing changelog entries by month
+  - Format: `[YYYY-MON]` (e.g., `[2025-DEC]`, `[2025-OCT]`)
+  - Used for: Grouping related changes and pull requests by time period
+
+## [2025-DEC] - v0.19.0 - Counter Table & Refactoring #27
+
+### Added
+
+- Counter table for different hook points and intercept operations
+- `/api/filter/check` - New API endpoint for filter validation using dadql
+- `/api/repeater/send` - New API endpoint for request replay functionality with automatic database storage
+- Counter support for intercept operations
+- New columns in `_data` collection: `http` and `proxyid` for better request tracking
+- Database unique index logging for better debugging
+- Time logging with all log entries
+- Comprehensive API documentation (`api_docs.md`) for all three apps (app, launcher, tools)
+
+### Changed
+
+- Merged `grrhttp` package into `rawhttp` for better organization
+- Moved packages to `internal` directory for better encapsulation
+- Moved packages to `grx` directory for modular organization
+- Renamed `api` directory to `apps` for clarity
+- Refactored certificate and profile path handling to use `ConfigDirectory`
+- Renamed `ProjectDirectory` to `ProjectsDirectory` for consistency
+- Updated configuration handling to use `ConfigDirectory` for certificate paths
+- Commented out verbose logs for cleaner output
+
+### Fixed
+
+- Fixed rawhttp HTTP/2 error handling
+- Fixed config-related issues and path handling
+- Fixed Electron preload issues
+- Fixed Electron build for Windows
+- Fixed macOS error on reopen from dock
+
+### Removed
+
+- Deleted duplicate markdown files
+- Removed unused files and `project.go`
+- Cleaned up codebase
+
+---
+
+## [2025-DEC] - v0.18.0 - v2025.12.0 Release
+
+### Added
+
+- HTTP/2 support for fuzzer
+- Isolated browser profile support
+- Dump request functionality
+- `/api/request/add` - New parameter `generated_by` added to endpoint
+- Enhanced fuzzer with better error handling and logging
+- Sitemap depth parameter and children node support
+
+### Changed
+
+- Frontend updated to version 2025.12.0
+- Frontend fetch improvements
+- Changed `grroxy-tool` current working directory handling
+- Parser improvements: no trimming or lowercase conversion of headers
+- Rawhttp parser enhancements
+
+### Fixed
+
+- Fixed panic when environment variable is missing
+- Fixed rawhttp when response is chunked and encoded
+- Fixed rawhttp decompression after send
+- Fixed sitemap fetch with path parameter
+- Unparse request/response improvements
 
 ## [2025-OCT] - Multi Proxy Support #24
 
