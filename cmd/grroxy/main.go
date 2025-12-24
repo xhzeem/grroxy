@@ -87,7 +87,14 @@ func completionCommand() *cobra.Command {
 
 var rootCmd = &cobra.Command{
 	Use:   "grroxy",
-	Short: "grroxy is center of your web hacking operations",
+	Short: "Center of your web hacking operations",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		printBanner()
+	},
+	// When running just `grroxy`, show the command structure (help)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
 }
 
 func init() {
@@ -120,6 +127,12 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func printBanner() {
+	fmt.Printf(`
+G R R R . . . O X Y
+`)
 }
 
 func startCore() {

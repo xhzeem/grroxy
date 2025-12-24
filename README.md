@@ -2,21 +2,23 @@
 
 ### Project Structure
 
-`/apps`      main apps (launcher, app, tool runner)  
-`/cmd`       go binaries  
-`/grx`       grroxy engine (core packages)  
-`/internal`  database schemas, database types, save fn, etc.  
-`/docs`      documentation
+`/apps` main apps (launcher, app, tool runner)  
+`/cmd` go binaries  
+`/grx` grroxy engine (core packages)  
+`/internal` database schemas, database types, save fn, etc.  
+`/docs` documentation
 
 ### Latest Versions
-```bash
-# Released App
-App:       v2025.12.0  
-Backend:   v0.18.0  
-Frontend:  v0.18.0  
 
-# Latest Repo Versions
-Backend:   v0.19.0  
-Frontend:  v0.19.0
+```bash
+# Current Version (see VERSION file)
+Backend:   v0.20.0
+Frontend:   v0.20.0
+
+# Released App
+App:       v2025.12.0
+Backend:   v0.18.0
+Frontend:  v0.18.0
 ```
 
+The version is maintained in the `VERSION` file at the project root. Use `internal/version` package to access version programmatically in Go code.
