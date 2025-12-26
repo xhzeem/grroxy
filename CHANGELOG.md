@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Next Release - v0.20.1
+
+- Disabling label collection, previously we were create seperate label collection for each label
+
 ## [2025-DEC] - v0.20.0 - Xterm Terminal Integration
 
 ### Added
