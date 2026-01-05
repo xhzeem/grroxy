@@ -25,8 +25,44 @@ This is the main Grroxy application API that provides comprehensive HTTP proxy, 
 - [Tools](#tools)
 - [Raw HTTP](#raw-http)
 - [Certificates](#certificates)
+- [Extractor](#extractor)
 
 ---
+
+## INFO
+
+Returns information about the running Grroxy App instance and important paths.
+
+### Get Info
+
+```http
+GET /api/info
+```
+
+**Request:**
+
+- No request body.
+- Requires authentication (admin or authenticated user).
+
+**Response:**
+
+```json
+{
+  "version": "v1.0.0",
+  "cwd": "/path/to/projects",
+  "cache": "/path/to/cache",
+  "config": "/path/to/config",
+  "template": "/path/to/templates"
+}
+```
+
+**Fields:**
+
+- `version` (string): Current backend version (`version.CURRENT_BACKEND_VERSION`).
+- `cwd` (string): Projects directory path (where project data is stored).
+- `cache` (string): Cache directory path (used for temporary/output files).
+- `config` (string): Config directory path.
+- `template` (string): Template directory path.
 
 ## Proxy Management
 
@@ -480,6 +516,138 @@ POST /api/filter/check
   "error": "parse or evaluation error message"
 }
 ```
+
+---
+
+## Extractor
+
+The Extractor lets you export request/response data for a specific host into a JSONL file, using the same field structure as filters and `_data` records.
+
+### Extract Data
+
+Extracts records for a host and writes selected fields to a file, one JSON object per line.
+
+```http
+POST /api/extract
+```
+
+**Request Body:**
+
+```json
+{
+  "host": "http://detectportal.firefox.com",
+  "fields": [
+    "created",
+    "host",
+    "id",
+    "index",
+    "index_minor",
+    "port",
+    "is_req_edited",
+    "is_resp_edited",
+    "is_https",
+    "has_params",
+    "has_resp",
+    "req.method",
+    "req.url",
+    "req.path",
+    "req.query",
+    "req.headers",
+    "resp.status",
+    "resp.mime",
+    "resp.title",
+    "resp.headers",
+    "req_edited.method",
+    "req_edited.url",
+    "resp_edited.status",
+    "resp_edited.mime",
+    "req.raw",
+    "resp.raw",
+    "req_edited.raw",
+    "resp_edited.raw"
+  ],
+  "outputFile": "/path/to/output.jsonl"
+}
+```
+
+**Fields:**
+
+- `host` (string, required): Host to match records on. Can be with or without scheme (e.g. `detectportal.firefox.com`, `http://detectportal.firefox.com`).
+- `fields` (array|string, optional):
+  - Array of field names or a comma-separated string.
+  - Supports:
+    - Top-level: `created`, `host`, `id`, `index`, `index_minor`, `port`, `is_req_edited`, `is_resp_edited`, `is_https`, `has_params`, `has_resp`, `http`, `proxy_id`, `generated_by`
+    - Request JSON: `req.method`, `req.url`, `req.path`, `req.query`, `req.params`, `req.fragment`, `req.ext`, `req.headers`, `req.has_cookies`, `req.has_params`, `req.length`
+    - Response JSON: `resp.status`, `resp.mime`, `resp.title`, `resp.headers`, `resp.length`, `resp.has_cookies`, `resp.date`, `resp.time`
+    - Edited request JSON: `req_edited.*` (same structure as `req.*`)
+    - Edited response JSON: `resp_edited.*` (same structure as `resp.*`)
+    - Raw bodies from related collections: `req.raw`, `resp.raw`, `req_edited.raw`, `resp_edited.raw`
+- `outputFile` (string, optional): Absolute or relative path for the output file.
+  - If omitted, a file is created under the cache directory:  
+    `cache/extract_{host}_{timestamp}.jsonl`
+
+If `fields` is omitted, the default is:
+
+```json
+["host", "req.method", "req.url", "req.path", "req.params"]
+```
+
+**Response (Success):**
+
+```json
+{
+  "success": true,
+  "filePath": "/path/to/output.jsonl",
+  "host": "detectportal.firefox.com",
+  "fields": ["host", "req.method", "req.url", "req.path", "req.params"],
+  "extractedAt": "2025-06-25T20:25:44.136Z"
+}
+```
+
+Each line in the output file is a JSON object matching the filter-style structure, for example:
+
+```json
+{
+  "created": "2025-06-25 20:25:44.136Z",
+  "host": "http://detectportal.firefox.com",
+  "id": "____________1.9",
+  "index": 1,
+  "index_minor": 9,
+  "port": "",
+  "is_req_edited": false,
+  "is_resp_edited": false,
+  "is_https": false,
+  "has_params": true,
+  "has_resp": true,
+  "req": {
+    "has_cookies": false,
+    "method": "GET",
+    "url": "/success.txt?ipv4",
+    "length": 3059,
+    "query": "alias=getPortfolioProjects",
+    "path": "/api/graphql/v1",
+    "headers": {
+      "Host": "detectportal.firefox.com",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    }
+  },
+  "resp": {
+    "length": 8,
+    "mime": "text/plain",
+    "status": 200,
+    "title": "New Page",
+    "headers": {
+      "Content-Type": "text/plain"
+    }
+  }
+}
+```
+
+**Error Responses:**
+
+- 400 Bad Request - Missing `host` or invalid body.
+- 403 Forbidden - Unauthorized.
+- 500 Internal Server Error - Failed to query or write data.
 
 ---
 
