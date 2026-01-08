@@ -132,6 +132,9 @@ func serve(projectPath string) {
 	// Repeater
 	API.App.OnBeforeServe().Add(API.SendRepeater)
 
+	// Modify
+	API.App.OnBeforeServe().Add(API.ModifyRequest)
+
 	// Extractor
 	API.App.OnBeforeServe().Add(API.ExtractDataEndpoint)
 

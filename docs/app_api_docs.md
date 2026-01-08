@@ -13,6 +13,7 @@ This is the main Grroxy application API that provides comprehensive HTTP proxy, 
 - [Proxy Management](#proxy-management)
 - [Intercept](#intercept)
 - [Playground](#playground)
+- [Request Modification](#request-modification)
 - [Repeater](#repeater)
 - [Filters](#filters)
 - [Templates](#templates)
@@ -399,6 +400,162 @@ POST /api/playground/delete
 
 - Recursively deletes all child items
 - Automatically deletes associated collections for repeater/fuzzer items
+
+---
+
+## Request Modification
+
+### Modify Request
+
+Applies a series of transformation actions to an HTTP request without sending it. Useful for testing request modifications before sending.
+
+```http
+POST /api/request/modify
+```
+
+**Request Body:**
+
+```json
+{
+  "request": "GET /api/test HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0\r\n\r\n",
+  "url": "https://example.com/api/test",
+  "tasks": [
+    {
+      "action": "set",
+      "key": "req.method",
+      "value": "POST"
+    },
+    {
+      "action": "replace",
+      "search": "Mozilla",
+      "value": "CustomAgent",
+      "regex": false
+    },
+    {
+      "action": "delete",
+      "key": "req.headers.User-Agent"
+    }
+  ]
+}
+```
+
+**Fields:**
+
+- `request` (string, required): Raw HTTP request string
+- `url` (string, required): Full URL of the request
+- `tasks` (array, required): Array of action objects to apply
+
+**Action Types:**
+
+1. **Set Action** - Sets or updates a specific field:
+
+   ```json
+   {
+     "action": "set",
+     "key": "req.method|req.url|req.path|req.query.{param}|req.headers.{header}|req.body",
+     "value": "new value"
+   }
+   ```
+
+2. **Replace Action** - Replaces text in the entire request:
+
+   ```json
+   {
+     "action": "replace",
+     "search": "search string or regex pattern",
+     "value": "replacement value",
+     "regex": false
+   }
+   ```
+
+   - `search` (string, required): Text to search for (or regex pattern if `regex: true`)
+   - `value` (string, required): Replacement text
+   - `regex` (boolean, optional): Use regex matching (default: false)
+
+3. **Delete Action** - Removes a specific field:
+   ```json
+   {
+     "action": "delete",
+     "key": "req.method|req.url|req.path|req.query.{param}|req.headers.{header}|req.body"
+   }
+   ```
+
+**Supported Keys:**
+
+- `req.method` - HTTP method (GET, POST, etc.)
+- `req.url` - Full URL
+- `req.path` - URL path
+- `req.query.{paramName}` - Specific query parameter
+- `req.headers.{headerName}` - Specific header
+- `req.body` - Request body
+
+**Response:**
+
+```json
+{
+  "success": "true",
+  "request": "POST /api/test HTTP/1.1\r\nHost: example.com\r\n\r\n"
+}
+```
+
+**Response Fields:**
+
+- `success` (string): "true" on success
+- `request` (string): The modified raw HTTP request
+
+**Features:**
+
+- Actions are applied sequentially in the order provided
+- Request is automatically re-parsed after modifications to maintain consistency
+- Headers, query parameters, and body are properly updated
+- Supports both simple string replacement and regex-based replacement
+- All request fields (method, URL, headers, etc.) stay synchronized
+
+**Example Use Cases:**
+
+1. Change request method:
+
+   ```json
+   { "action": "set", "key": "req.method", "value": "POST" }
+   ```
+
+2. Add/update a header:
+
+   ```json
+   {
+     "action": "set",
+     "key": "req.headers.Authorization",
+     "value": "Bearer token123"
+   }
+   ```
+
+3. Replace session tokens:
+
+   ```json
+   {
+     "action": "replace",
+     "search": "session=[^;]+",
+     "value": "session=newsession",
+     "regex": true
+   }
+   ```
+
+4. Remove a query parameter:
+
+   ```json
+   { "action": "delete", "key": "req.query.debug" }
+   ```
+
+5. Update request body:
+   ```json
+   { "action": "set", "key": "req.body", "value": "{\"new\":\"data\"}" }
+   ```
+
+**Error Responses:**
+
+- 400 Bad Request - Invalid request body or malformed actions
+- 403 Forbidden - Unauthorized
+- 500 Internal Server Error - Error processing actions
 
 ---
 
