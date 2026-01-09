@@ -142,6 +142,10 @@ func serve(projectPath string) {
 	API.RegisterXtermRoutes()
 
 	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		return API.InitializeProxy()
+	})
+
+	API.App.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		API.App.Dao().DB().NewQuery(`
 			DELETE FROM _intercept;
 		`).Execute()

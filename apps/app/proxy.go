@@ -284,6 +284,18 @@ type ProxyBody struct {
 	Name    string `json:"name,omitempty"` // Optional name for the proxy instance
 }
 
+func (backend *Backend) InitializeProxy() error {
+	log.Println("[InitializeProxy] Initializing proxy index from database...")
+	if ProxyMgr.proxyIndex.Load() == 0 {
+		if err := ProxyMgr.initializeIndexFromDB(backend); err != nil {
+			log.Printf("[StartProxy] Warning: Failed to initialize proxy index from database: %v", err)
+			return err
+		}
+	}
+	log.Println("[InitializeProxy] Proxy index initialized from database:", ProxyMgr.index.Load())
+	return nil
+}
+
 func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 
 	e.Router.AddRoute(echo.Route{
@@ -322,14 +334,6 @@ func (backend *Backend) StartProxy(e *core.ServeEvent) error {
 				return c.JSON(http.StatusOK, map[string]interface{}{"error": "port not available", "availableHost": availableHost})
 			} else {
 				body.HTTP = availableHost
-			}
-
-			// Initialize global index from database if not already initialized
-			// This ensures all proxies use the same unique index counter
-			if ProxyMgr.index.Load() == 0 {
-				if err := ProxyMgr.initializeIndexFromDB(backend); err != nil {
-					log.Printf("[StartProxy] Warning: Failed to initialize global index from database: %v", err)
-				}
 			}
 
 			// Initialize proxy index from database if not already initialized

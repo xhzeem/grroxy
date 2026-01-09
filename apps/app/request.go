@@ -40,12 +40,18 @@ func generateUserData(data types.AddRequestBodyType, indexMinor float64) (types.
 	// Initiate variables
 	var (
 		index   = data.Index
-		id      = utils.FormatStringID(fmt.Sprintf("%v.%v", index, indexMinor), 15)
+		id      = ""
 		method  = http.MethodGet
 		host    = ""
 		port    = ""
 		isHttps = false
 	)
+
+	if indexMinor != -1 {
+		id = utils.FormatStringID(fmt.Sprintf("%v.%v", index, indexMinor), 15)
+	} else {
+		id = utils.FormatStringID(fmt.Sprintf("%v", index), 15)
+	}
 
 	if data.Url != "" {
 		host = data.Url
@@ -264,11 +270,19 @@ func (backend *Backend) AddRequest(e *core.ServeEvent) error {
 func (backend *Backend) SaveRequestToBackend(reqBody types.AddRequestBodyType) (types.UserData, error) {
 	log.Println("[SaveRequestToBackend] Called with index:", reqBody.Index)
 
-	// Calculate index_minor using counter system automatically
-	// Each index has its own counter for minor indexes
-	counterKey := fmt.Sprintf("row:%.0f", reqBody.Index)
-	indexMinor := float64(backend.CounterManager.Increment(counterKey, "", ""))
-	log.Printf("[SaveRequestToBackend] Auto-calculated index_minor: %.0f for index: %.0f", indexMinor, reqBody.Index)
+	var newindex = float64(reqBody.Index)
+	var indexMinor float64 = -1
+
+	if reqBody.Index == 0 {
+		newindex = float64(ProxyMgr.GetNextIndex())
+		reqBody.Index = newindex
+	} else {
+		// Calculate index_minor using counter system automatically
+		// Each index has its own counter for minor indexes
+		counterKey := fmt.Sprintf("row:%.0f", reqBody.Index)
+		indexMinor = float64(backend.CounterManager.Increment(counterKey, "", ""))
+		log.Printf("[SaveRequestToBackend] Auto-calculated index_minor: %.0f for index: %.0f", indexMinor, reqBody.Index)
+	}
 
 	// Generate user data from request
 	userdata, err := generateUserData(reqBody, indexMinor)
