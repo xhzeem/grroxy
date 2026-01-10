@@ -83,19 +83,36 @@ func (c *Client) dialUTLS(addr, serverName string) (net.Conn, error) {
 	}
 
 	// Create uTLS config
+	// Note: NextProtos here is just for the config, but browser fingerprints
+	// override this with their own ALPN extensions
 	config := &utls.Config{
 		ServerName:         serverName,
 		InsecureSkipVerify: c.config.InsecureSkipVerify,
 		MinVersion:         tls.VersionTLS12,
 		MaxVersion:         tls.VersionTLS13,
-		// For raw HTTP, we want HTTP/1.1 to preserve the raw request format
-		NextProtos: []string{"http/1.1"},
 	}
 
 	// Create uTLS connection with browser fingerprint
 	utlsConn := utls.UClient(tcpConn, config, c.getUTLSClientHelloID())
 
-	// Perform TLS handshake
+	// Build handshake state first so we can modify ALPN extension
+	// Browser fingerprints include their own ALPN (typically ["h2", "http/1.1"])
+	// which would cause server to negotiate HTTP/2. We must override to force HTTP/1.1.
+	if err := utlsConn.BuildHandshakeState(); err != nil {
+		tcpConn.Close()
+		return nil, fmt.Errorf("failed to build handshake state for %s: %w", serverName, err)
+	}
+
+	// Override ALPN extension to force HTTP/1.1 only
+	// This is critical: without this, servers negotiate HTTP/2 and send binary frames
+	for _, ext := range utlsConn.Extensions {
+		if alpnExt, ok := ext.(*utls.ALPNExtension); ok {
+			alpnExt.AlpnProtocols = []string{"http/1.1"}
+			break
+		}
+	}
+
+	// Perform TLS handshake with the modified ALPN
 	if err := utlsConn.HandshakeContext(ctx); err != nil {
 		tcpConn.Close()
 		return nil, fmt.Errorf("uTLS handshake failed for %s: %w", serverName, err)
