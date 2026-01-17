@@ -204,11 +204,23 @@ func generateResponseForUserData(userdata *types.UserData, response string) {
 
 	// Determine content length
 	var contentLen int64 = 0
-	if clStr, ok := rawhttp.GetHeaderValue(parsed.Headers, "content-length"); ok {
+	if clStr, ok := rawhttp.GetHeaderValue(parsed.Headers, "content-length:"); ok {
 		if n, err := strconv.ParseInt(strings.TrimSpace(clStr), 10, 64); err == nil {
 			contentLen = n
 		}
 	}
+
+	var contentType string
+	if ct, ok := rawhttp.GetHeaderValue(parsed.Headers, "content-type:"); ok {
+		contentType = ct
+	}
+
+	var date string
+	if d, ok := rawhttp.GetHeaderValue(parsed.Headers, "date:"); ok {
+		date = d
+	}
+
+	extractTitle, _ := utils.ExtractTitle([]byte(response))
 
 	// Cookies via Set-Cookie
 	hasCookies := false
@@ -218,16 +230,16 @@ func generateResponseForUserData(userdata *types.UserData, response string) {
 
 	userdata.RespJson = types.ResponseData{
 		HasCookies: hasCookies,
-		Title:      "",
-		Mime:       httpHdr.Get("Content-Type"),
+		Title:      extractTitle,
+		Mime:       contentType,
 		Headers:    rawhttp.GetHeaders(httpHdr),
 		Status:     parsed.Status,
 		Length:     contentLen,
-		Date:       httpHdr.Get("Date"),
+		Date:       date,
 		Time:       time.Now().Format(time.RFC3339),
 	}
 
-	log.Printf("[generateResponseForUserData] Parsed Response: %+v", parsed)
+	log.Printf("[generateResponseForUserData] Parsed Response: %+v", userdata.RespJson)
 }
 
 func (backend *Backend) AddRequest(e *core.ServeEvent) error {
