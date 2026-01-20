@@ -108,7 +108,7 @@ func (rt *UTLSRoundTripper) dialUTLS(ctx context.Context, network, addr string, 
 	// Create uTLS config with specified ALPN
 	config := &utls.Config{
 		ServerName:         serverName,
-		InsecureSkipVerify: false,
+		InsecureSkipVerify: true,
 		MinVersion:         tls.VersionTLS12,
 		MaxVersion:         tls.VersionTLS13,
 		NextProtos:         alpnProtos,
