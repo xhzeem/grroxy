@@ -622,10 +622,12 @@ func (backend *Backend) RestartProxy(e *core.ServeEvent) error {
 			}
 
 			if availableHost != listenAddr {
-				return c.JSON(http.StatusConflict, map[string]interface{}{
-					"error":         "port not available",
-					"availableHost": availableHost,
-				})
+				if browserType == "" {
+					return c.JSON(http.StatusConflict, map[string]interface{}{
+						"error":         "port not available",
+						"availableHost": availableHost,
+					})
+				}
 			}
 
 			// Initialize global index from database if not already initialized
@@ -639,6 +641,8 @@ func (backend *Backend) RestartProxy(e *core.ServeEvent) error {
 			configDir := path.Join(backend.Config.ConfigDirectory)
 			outputDir := "" // Disabled
 
+			listenAddr = availableHost
+
 			newProxy, err := NewRawProxyWrapper(listenAddr, configDir, outputDir, backend, proxyID)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
@@ -646,6 +650,7 @@ func (backend *Backend) RestartProxy(e *core.ServeEvent) error {
 
 			// Update proxy record state to running
 			proxyRecord.Set("state", "running")
+			proxyRecord.Set("addr", listenAddr)
 			if err := dao.SaveRecord(proxyRecord); err != nil {
 				log.Printf("[RestartProxy][WARN] Failed to update proxy state: %v", err)
 			}
