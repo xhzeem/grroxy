@@ -222,6 +222,320 @@ GET /api/proxy/list
 
 ---
 
+### Take Screenshot
+
+Captures a screenshot using the Chrome browser attached to a proxy instance via Chrome DevTools Protocol.
+
+```http
+POST /api/proxy/screenshot
+```
+
+**Request Body:**
+
+```json
+{
+  "id": "______________1",
+  "url": "https://example.com",
+  "fullPage": true,
+  "saveFile": false
+}
+```
+
+**Fields:**
+
+- `id` (string, required): The proxy ID with Chrome browser attached
+- `url` (string, optional): URL to navigate to before capturing. If empty, captures the current active tab
+- `fullPage` (boolean, optional, default: false): If true, captures the entire page including scrollable content. If false, captures only the visible viewport
+- `saveFile` (boolean, optional, default: false): If true, saves the screenshot to disk in the cache directory and returns the file path
+
+**Response (Success):**
+
+```json
+{
+  "screenshot": "iVBORw0KGgoAAAANSUhEUgAAAAUA...",
+  "filePath": "/path/to/cache/screenshot-20260121-103045.png",
+  "size": 52480,
+  "timestamp": "2026-01-21T10:30:45Z"
+}
+```
+
+**Fields:**
+
+- `screenshot` (string): Base64-encoded PNG image data
+- `filePath` (string, optional): Full path to saved file (only present if `saveFile` was true)
+- `size` (number): Size of the screenshot in bytes
+- `timestamp` (string): ISO 8601 timestamp when screenshot was captured
+
+**Error Responses:**
+
+- 400 Bad Request - Missing or invalid request body
+- 403 Forbidden - Not authenticated
+- 404 Not Found - Proxy ID not found
+- 500 Internal Server Error - Failed to capture screenshot (see error message for details)
+
+**Error Examples:**
+
+```json
+{
+  "error": "Proxy ______________1 not found"
+}
+```
+
+```json
+{
+  "error": "proxy ______________1 does not have a Chrome browser attached (browser: firefox)"
+}
+```
+
+```json
+{
+  "error": "failed to get Chrome debug URL: open /path/to/profile/DevToolsActivePort: no such file or directory"
+}
+```
+
+**Notes:**
+
+- Only works with proxy instances that have Chrome browser attached (`"browser": "chrome"`)
+- Chrome must be launched with `--remote-debugging-port=0` flag (enabled by default)
+- If `url` is provided, the browser will navigate to that URL before capturing
+- Full page screenshots may take longer for pages with lots of content
+- Screenshot is always returned as PNG format
+- The Chrome DevTools Protocol connection uses a 30-second timeout
+
+**Requirements:**
+
+- Proxy must be running with Chrome browser
+- Chrome process must be alive and responsive
+- DevToolsActivePort file must exist in Chrome's profile directory
+
+---
+
+### Click Element
+
+Clicks an element on the page using the Chrome browser attached to a proxy instance via Chrome DevTools Protocol.
+
+```http
+POST /api/proxy/click
+```
+
+**Request Body:**
+
+```json
+{
+  "id": "______________1",
+  "url": "https://example.com",
+  "selector": "#submit-button",
+  "waitForNavigation": false
+}
+```
+
+**Fields:**
+
+- `id` (string, required): The proxy ID with Chrome browser attached
+- `url` (string, optional): URL to navigate to before clicking. If empty, operates on the current active page
+- `selector` (string, required): CSS selector for the element to click (e.g., "#button-id", ".class-name", "button[type='submit']")
+- `waitForNavigation` (boolean, optional, default: false): If true, waits for page navigation after click (useful for form submissions or links)
+
+**Response (Success):**
+
+```json
+{
+  "success": true,
+  "message": "Element clicked successfully",
+  "selector": "#submit-button",
+  "timestamp": "2026-01-21T10:30:45Z"
+}
+```
+
+**Fields:**
+
+- `success` (boolean): Always true on success
+- `message` (string): Success message
+- `selector` (string): The CSS selector that was clicked
+- `timestamp` (string): ISO 8601 timestamp when element was clicked
+
+**Error Responses:**
+
+- 400 Bad Request - Missing or invalid request body
+- 403 Forbidden - Not authenticated
+- 404 Not Found - Proxy ID not found
+- 500 Internal Server Error - Failed to click element (see error message for details)
+
+**Error Examples:**
+
+```json
+{
+  "error": "Proxy ______________1 not found"
+}
+```
+
+```json
+{
+  "error": "Selector is required"
+}
+```
+
+```json
+{
+  "error": "failed to click element: context deadline exceeded"
+}
+```
+
+**CSS Selector Examples:**
+
+- `#login-button` - Element with ID "login-button"
+- `.submit-btn` - Element with class "submit-btn"
+- `button[type='submit']` - Submit button by attribute
+- `a[href='/logout']` - Link with specific href
+- `input[name='username']` - Input field by name
+- `div.container > button:first-child` - Complex selector
+
+**Notes:**
+
+- Only works with proxy instances that have Chrome browser attached (`"browser": "chrome"`)
+- Chrome must be launched with `--remote-debugging-port=0` flag (enabled by default)
+- Element must be visible on the page before clicking
+- If `url` is provided, the browser will navigate to that URL before clicking
+- Use `waitForNavigation: true` for elements that trigger page navigation (form submits, links)
+- The Chrome DevTools Protocol connection uses a 30-second timeout
+- Supports all standard CSS selectors
+
+**Requirements:**
+
+- Proxy must be running with Chrome browser
+- Chrome process must be alive and responsive
+- DevToolsActivePort file must exist in Chrome's profile directory
+- Target element must be visible and clickable
+
+---
+
+### Get Clickable Elements
+
+Extracts information about all clickable elements on the page (buttons, links, inputs) to help identify what can be clicked.
+
+```http
+POST /api/proxy/elements
+```
+
+**Request Body:**
+
+```json
+{
+  "id": "______________1",
+  "url": "https://example.com"
+}
+```
+
+**Fields:**
+
+- `id` (string, required): The proxy ID with Chrome browser attached
+- `url` (string, optional): URL to navigate to before extracting elements. If empty, analyzes the current active page
+
+**Response (Success):**
+
+```json
+{
+  "elements": [
+    {
+      "selector": "#login-button",
+      "tagName": "button",
+      "id": "login-button",
+      "class": "btn btn-primary",
+      "text": "Sign In",
+      "type": "submit",
+      "href": "",
+      "name": "",
+      "aria": "Login button",
+      "placeholder": ""
+    },
+    {
+      "selector": "a.nav-link[href='/about']",
+      "tagName": "a",
+      "id": "",
+      "class": "nav-link",
+      "text": "About Us",
+      "type": "",
+      "href": "https://example.com/about",
+      "name": "",
+      "aria": "",
+      "placeholder": ""
+    },
+    {
+      "selector": "input.search[type='text']",
+      "tagName": "input",
+      "id": "",
+      "class": "search",
+      "text": "",
+      "type": "text",
+      "href": "",
+      "name": "q",
+      "aria": "Search",
+      "placeholder": "Enter search term..."
+    }
+  ],
+  "count": 3,
+  "timestamp": "2026-01-21T10:30:45Z"
+}
+```
+
+**Element Fields:**
+
+- `selector` (string): CSS selector that can be used with `/api/proxy/click` endpoint
+- `tagName` (string): HTML tag name (button, a, input, etc.)
+- `id` (string): Element ID attribute (empty if not present)
+- `class` (string): Element class attribute (empty if not present)
+- `text` (string): Visible text content or input value (truncated to 100 chars)
+- `type` (string): Input/button type (submit, button, text, etc.)
+- `href` (string): Link destination (for anchor tags)
+- `name` (string): Name attribute
+- `aria` (string): ARIA label for accessibility
+- `placeholder` (string): Placeholder text (for input fields)
+
+**Error Responses:**
+
+- 400 Bad Request - Missing proxy ID
+- 403 Forbidden - Not authenticated
+- 404 Not Found - Proxy ID not found
+- 500 Internal Server Error - Failed to extract elements
+
+**Notes:**
+
+- Only works with proxy instances that have Chrome browser attached
+- Extracts buttons, links, submit inputs, and elements with onclick handlers
+- Hidden elements (width/height = 0) are automatically filtered out
+- Selectors are auto-generated: prioritizes ID, then class+tag, then tag+attribute
+- Text content is truncated to 100 characters for readability
+- Use the returned `selector` field directly with `/api/proxy/click`
+
+**Use Case - AI-Assisted Clicking:**
+
+1. Call `/api/proxy/elements` to get list of clickable elements
+2. AI/User reviews the elements and their text/descriptions
+3. AI/User identifies the target element by its text or purpose
+4. Use the `selector` from that element with `/api/proxy/click`
+
+**Example Workflow:**
+
+```javascript
+// Step 1: Get elements
+POST /api/proxy/elements
+{ "id": "______________1", "url": "https://example.com" }
+
+// Response shows: { "selector": "#login-button", "text": "Sign In", ... }
+
+// Step 2: Click the identified element
+POST /api/proxy/click
+{ "id": "______________1", "selector": "#login-button" }
+```
+
+**Requirements:**
+
+- Proxy must be running with Chrome browser
+- Chrome process must be alive and responsive
+- DevToolsActivePort file must exist in Chrome's profile directory
+
+---
+
 ## Intercept
 
 ### Handle Intercept Action

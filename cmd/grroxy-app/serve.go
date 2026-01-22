@@ -123,6 +123,9 @@ func serve(projectPath string) {
 	API.App.OnBeforeServe().Add(API.StopProxy)
 	API.App.OnBeforeServe().Add(API.RestartProxy)
 	API.App.OnBeforeServe().Add(API.ListProxies)
+	API.App.OnBeforeServe().Add(API.ScreenshotProxy)
+	API.App.OnBeforeServe().Add(API.ClickProxy)
+	API.App.OnBeforeServe().Add(API.GetElementsProxy)
 
 	// Other
 	API.App.OnBeforeServe().Add(API.AddRequest)
