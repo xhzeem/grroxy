@@ -138,7 +138,7 @@ require (
 )
 
 replace (
-	github.com/glitchedgitz/cook/v2 v2.2.0 => /Users/shreysharma/Documents/GitHub/cook/v2
+	github.com/glitchedgitz/cook/v2 v2.2.0 => ../cook/v2
 	github.com/glitchedgitz/dadql v0.0.0 => ../dadql
 	github.com/pocketbase/pocketbase v0.22.7 => ../grroxy-base
 )
