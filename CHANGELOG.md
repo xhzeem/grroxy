@@ -4,26 +4,63 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [2026-JAN] - v0.21.0 - Browser Automation & GRX Tools
+## [2026-JAN] - v0.21.0 - Browser Automation & Data Extraction
 
 ### Added
 
-- Order Misc Changees
-- **Browser Automation**:
-  - Added support for capturing screenshots (`TakeChromeScreenshot`)
-  - Added programmatic clicking capability (`ClickChromeElement`)
-  - Added element extraction for clickable items (`GetChromeElements`)
-- `grxp`:
-  - Enhanced to support `-a/--alive` flag for probing URLs
-  - `dadql` filter support added for advanced filtering
-- Labels and Notes for hosts
-- Tech counter
-- Disabling label collection
+- **Browser Automation via Chrome DevTools Protocol**
+  - `/api/proxy/screenshot` - Capture screenshots from Chrome browser attached to proxy instances
+    - Support for full-page or viewport screenshots
+    - Optional file saving to cache directory
+    - Base64-encoded response for direct embedding
+  - `/api/proxy/click` - Click elements on pages using CSS selectors
+    - Optional navigation waiting after click
+    - Works with active Chrome browser instances
+  - `/api/proxy/elements` - Retrieve clickable elements information from current page
+    - Returns element details (tag, text, selector, attributes)
+    - Useful for automated interaction discovery
+
+- **Data Extraction System**
+  - `/api/extract` - Extract specific fields from database records by host
+    - Support for extracting from `req.*`, `resp.*`, `req_edited.*`, `resp_edited.*` fields
+    - Flexible field selection (method, url, path, query, headers, body, etc.)
+    - Automatic file generation with extracted data
+    - JSONL output format for easy processing
+
+- **Request Modification API**
+  - `/api/request/modify` - Programmatically modify HTTP requests
+    - Template-based modification system
+    - Support for set, delete, and replace operations
+    - Modify method, URL, path, query parameters, headers, and body
+    - Wildcard header deletion (e.g., `req.headers.Sec-*`)
+    - Regex-based find and replace
+
+- **System Information Endpoint**
+  - `/api/info` - Get system and project information
+    - Returns version, working directory, project ID, cache/config/template paths
+    - Useful for tooling and automation
+
+### Changed
+
+- Enhanced proxy instances with Chrome browser integration
+- Improved request parsing and rebuilding for modifications
+- Better error handling and logging across all new endpoints
 
 ### Fixed
 
-- `Content-Length` header calculation in proxy response handling
-- Enabled `InsecureSkipVerify` in `UTLS` transport for handling self-signed certificates
+- Content-Length header handling in request modifications
+- HTTP/1.1 protocol handling improvements
+- TLS browser connection issues
+- InsecureSkipVerify set to true for testing environments
+- Zstd decoder support for compressed responses
+
+---
+
+## [2026-JAN] - v0.20.1 - Labels Update
+
+- Labels and Notes for hosts
+- Tech counter
+- Disabling label collection
 
 ## [2025-DEC] - v0.20.0 - Xterm Terminal Integration
 
