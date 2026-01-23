@@ -4,11 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [2026-JAN] - v0.20.1 - Labels Update
+## [2026-JAN] - v0.21.0 - Browser Automation & GRX Tools
 
+### Added
+
+- Order Misc Changees
+- **Browser Automation**:
+  - Added support for capturing screenshots (`TakeChromeScreenshot`)
+  - Added programmatic clicking capability (`ClickChromeElement`)
+  - Added element extraction for clickable items (`GetChromeElements`)
+- `grxp`:
+  - Enhanced to support `-a/--alive` flag for probing URLs
+  - `dadql` filter support added for advanced filtering
 - Labels and Notes for hosts
 - Tech counter
 - Disabling label collection
+
+### Fixed
+
+- `Content-Length` header calculation in proxy response handling
+- Enabled `InsecureSkipVerify` in `UTLS` transport for handling self-signed certificates
 
 ## [2025-DEC] - v0.20.0 - Xterm Terminal Integration
 

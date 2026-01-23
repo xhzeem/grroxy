@@ -12,8 +12,8 @@
 
 ```bash
 # Current Version (see VERSION file)
-Backend:   v0.20.0
-Frontend:   v0.20.0
+Backend:   v0.21.0
+Frontend:   v0.21.0
 
 # Released App
 App:       v2025.12.0
