@@ -226,4 +226,12 @@ var Collections = []DB{
 		false,
 		"",
 	},
+	// {
+	// 	"_websockets",
+	// 	Websockets,
+	// 	true,
+	// 	`
+	// 	CREATE INDEX idx_websockets_reqid ON _websockets (request_id);
+	// 	`,
+	// },
 }

@@ -36,6 +36,21 @@ type wsFrame struct {
 	raw     []byte
 }
 
+// WebSocketContext tracks metadata for a WebSocket connection
+type WebSocketContext struct {
+	RequestID string // Proxy request ID
+	Host      string // WebSocket server host
+	Path      string // WebSocket endpoint path
+	URL       string // Full URL
+	msgIndex  int    // Message counter for this connection
+}
+
+// NextIndex increments and returns the next message index
+func (ctx *WebSocketContext) NextIndex() int {
+	ctx.msgIndex++
+	return ctx.msgIndex
+}
+
 // parseWebSocketFrame parses a single WebSocket frame from the given data
 func parseWebSocketFrame(data []byte) (*wsFrame, int, error) {
 	if len(data) < 2 {
@@ -121,10 +136,32 @@ func getFrameTypeName(opcode byte) string {
 	}
 }
 
-func saveWebSocketMessage(requestID, direction, frameType string, payload []byte, timestamp time.Time, config *Config) {
+func saveWebSocketMessage(ctx *WebSocketContext, direction, frameType string, payload []byte, timestamp time.Time, config *Config) {
+	isBinary := frameType == "binary"
+	msgIndex := ctx.NextIndex()
+
+	// Call custom handler if configured
+	if config.OnWebSocketMessageHandler != nil {
+		msg := &WebSocketMessage{
+			RequestID: ctx.RequestID,
+			Index:     msgIndex,
+			Host:      ctx.Host,
+			Path:      ctx.Path,
+			URL:       ctx.URL,
+			Direction: direction,
+			Type:      frameType,
+			IsBinary:  isBinary,
+			Payload:   payload,
+			Timestamp: timestamp,
+		}
+		if err := config.OnWebSocketMessageHandler(msg); err != nil {
+			log.Printf("[ERROR] WebSocket message handler failed: %v", err)
+		}
+	}
+
 	// Create filename for WebSocket message
 	ts := timestamp.UTC().Format("20060102-150405.000000000")
-	fileName := fmt.Sprintf("%s-ws-%s-%s-%s.txt", ts, requestID, direction, frameType)
+	fileName := fmt.Sprintf("%s-ws-%s-%s-%s.txt", ts, ctx.RequestID, direction, frameType)
 	filePath := filepath.Join(config.WebSocketDir, fileName)
 
 	// Create the message file
@@ -138,7 +175,11 @@ func saveWebSocketMessage(requestID, direction, frameType string, payload []byte
 	// Write message content
 	fmt.Fprintf(file, "WebSocket Message\n")
 	fmt.Fprintf(file, "================\n")
-	fmt.Fprintf(file, "RequestID: %s\n", requestID)
+	fmt.Fprintf(file, "Index: %d\n", msgIndex)
+	fmt.Fprintf(file, "RequestID: %s\n", ctx.RequestID)
+	fmt.Fprintf(file, "Host: %s\n", ctx.Host)
+	fmt.Fprintf(file, "Path: %s\n", ctx.Path)
+	fmt.Fprintf(file, "URL: %s\n", ctx.URL)
 	fmt.Fprintf(file, "Direction: %s\n", direction)
 	fmt.Fprintf(file, "Frame Type: %s\n", frameType)
 	fmt.Fprintf(file, "Timestamp: %s\n", timestamp.Format(time.RFC3339Nano))
@@ -169,12 +210,12 @@ func saveWebSocketMessage(requestID, direction, frameType string, payload []byte
 		}
 	}
 
-	log.Printf("[WS-MSG] requestID=%s %s %s message (%d bytes) saved to %s",
-		requestID, direction, frameType, len(payload), fileName)
+	log.Printf("[WS-MSG] requestID=%s [%d] %s %s message (%d bytes) saved to %s",
+		ctx.RequestID, msgIndex, direction, frameType, len(payload), fileName)
 }
 
 // websocketCapturingCopy copies data between connections while capturing WebSocket frames
-func websocketCapturingCopy(dst io.Writer, src io.Reader, requestID, direction string, config *Config) error {
+func websocketCapturingCopy(dst io.Writer, src io.Reader, ctx *WebSocketContext, direction string, config *Config) error {
 	buffer := make([]byte, 4096)
 	frameBuffer := make([]byte, 0, 8192) // Buffer for partial frames
 	skipHTTPHeaders := true              // Skip HTTP upgrade handshake data
@@ -204,7 +245,7 @@ func websocketCapturingCopy(dst io.Writer, src io.Reader, requestID, direction s
 						// Remove HTTP headers from buffer
 						frameBuffer = frameBuffer[headerEnd+4:]
 						skipHTTPHeaders = false
-						log.Printf("[WS-DEBUG] requestID=%s %s skipped HTTP handshake data, starting WebSocket frame parsing", requestID, direction)
+						log.Printf("[WS-DEBUG] requestID=%s %s skipped HTTP handshake data, starting WebSocket frame parsing", ctx.RequestID, direction)
 					} else {
 						// Still in HTTP headers, skip parsing
 						continue
@@ -212,7 +253,7 @@ func websocketCapturingCopy(dst io.Writer, src io.Reader, requestID, direction s
 				} else {
 					// No HTTP markers found, assume we're in WebSocket mode
 					skipHTTPHeaders = false
-					log.Printf("[WS-DEBUG] requestID=%s %s no HTTP headers detected, starting WebSocket frame parsing", requestID, direction)
+					log.Printf("[WS-DEBUG] requestID=%s %s no HTTP headers detected, starting WebSocket frame parsing", ctx.RequestID, direction)
 				}
 			}
 
@@ -226,7 +267,7 @@ func websocketCapturingCopy(dst io.Writer, src io.Reader, requestID, direction s
 
 				// Validate opcode (should be 0-2 or 8-10 for valid WebSocket frames)
 				if !isValidWebSocketOpcode(frame.opcode) {
-					log.Printf("[WS-WARN] requestID=%s %s invalid opcode %d, skipping frame", requestID, direction, frame.opcode)
+					log.Printf("[WS-WARN] requestID=%s %s invalid opcode %d, skipping frame", ctx.RequestID, direction, frame.opcode)
 					frameBuffer = frameBuffer[1:] // Skip one byte and try again
 					continue
 				}
@@ -237,10 +278,10 @@ func websocketCapturingCopy(dst io.Writer, src io.Reader, requestID, direction s
 
 				// Only save meaningful frames (skip ping/pong for now)
 				if frame.opcode == wsOpcodeText || frame.opcode == wsOpcodeBinary || frame.opcode == wsOpcodeClose {
-					saveWebSocketMessage(requestID, direction, frameType, frame.payload, timestamp, config)
+					saveWebSocketMessage(ctx, direction, frameType, frame.payload, timestamp, config)
 				} else {
 					log.Printf("[WS-FRAME] requestID=%s %s %s frame (%d bytes)",
-						requestID, direction, frameType, len(frame.payload))
+						ctx.RequestID, direction, frameType, len(frame.payload))
 				}
 
 				// Remove processed frame from buffer
@@ -430,17 +471,25 @@ func HandleWebSocketUpgrade(w http.ResponseWriter, r *http.Request, requestID st
 
 	log.Printf("[WEBSOCKET] requestID=%s Established WebSocket tunnel to %s", requestID, targetURL.String())
 
+	// Create WebSocket context for message tracking
+	wsCtx := &WebSocketContext{
+		RequestID: requestID,
+		Host:      targetURL.Host,
+		Path:      targetURL.Path,
+		URL:       targetURL.String(),
+	}
+
 	// Start bidirectional copying with WebSocket frame logging
-	StartWebSocketTunnel(clientConn, upstreamConn, requestID, clientBuf, config)
+	StartWebSocketTunnel(clientConn, upstreamConn, wsCtx, clientBuf, config)
 }
 
-func StartWebSocketTunnel(clientConn, serverConn net.Conn, requestID string, clientBuf *bufio.ReadWriter, config *Config) {
+func StartWebSocketTunnel(clientConn, serverConn net.Conn, wsCtx *WebSocketContext, clientBuf *bufio.ReadWriter, config *Config) {
 	// Handle any buffered data from client (this is likely residual HTTP data, forward directly)
 	if clientBuf != nil && clientBuf.Reader.Buffered() > 0 {
 		bufferedBytes := clientBuf.Reader.Buffered()
-		log.Printf("[WS-DEBUG] requestID=%s Forwarding %d buffered bytes (likely HTTP handshake residue)", requestID, bufferedBytes)
+		log.Printf("[WS-DEBUG] requestID=%s Forwarding %d buffered bytes (likely HTTP handshake residue)", wsCtx.RequestID, bufferedBytes)
 		if _, err := io.CopyN(serverConn, clientBuf, int64(bufferedBytes)); err != nil {
-			log.Printf("[WARN] requestID=%s Error forwarding buffered WebSocket data: %v", requestID, err)
+			log.Printf("[WARN] requestID=%s Error forwarding buffered WebSocket data: %v", wsCtx.RequestID, err)
 		}
 	}
 
@@ -454,11 +503,11 @@ func StartWebSocketTunnel(clientConn, serverConn net.Conn, requestID string, cli
 				tcp.CloseWrite()
 			}
 		}()
-		err := websocketCapturingCopy(serverConn, clientConn, requestID, "client-to-server", config)
+		err := websocketCapturingCopy(serverConn, clientConn, wsCtx, "send", config)
 		if err != nil {
-			log.Printf("[WEBSOCKET] requestID=%s Client->Server copy ended: %v", requestID, err)
+			log.Printf("[WEBSOCKET] requestID=%s Client->Server copy ended: %v", wsCtx.RequestID, err)
 		} else {
-			log.Printf("[WEBSOCKET] requestID=%s Client->Server copy ended normally", requestID)
+			log.Printf("[WEBSOCKET] requestID=%s Client->Server copy ended normally", wsCtx.RequestID)
 		}
 		errc <- err
 	}()
@@ -470,18 +519,18 @@ func StartWebSocketTunnel(clientConn, serverConn net.Conn, requestID string, cli
 				tcp.CloseWrite()
 			}
 		}()
-		err := websocketCapturingCopy(clientConn, serverConn, requestID, "server-to-client", config)
+		err := websocketCapturingCopy(clientConn, serverConn, wsCtx, "recv", config)
 		if err != nil {
-			log.Printf("[WEBSOCKET] requestID=%s Server->Client copy ended: %v", requestID, err)
+			log.Printf("[WEBSOCKET] requestID=%s Server->Client copy ended: %v", wsCtx.RequestID, err)
 		} else {
-			log.Printf("[WEBSOCKET] requestID=%s Server->Client copy ended normally", requestID)
+			log.Printf("[WEBSOCKET] requestID=%s Server->Client copy ended normally", wsCtx.RequestID)
 		}
 		errc <- err
 	}()
 
 	// Wait for either direction to complete
 	<-errc
-	log.Printf("[WEBSOCKET] requestID=%s WebSocket tunnel closed", requestID)
+	log.Printf("[WEBSOCKET] requestID=%s WebSocket tunnel closed", wsCtx.RequestID)
 }
 
 func HandleWebSocketConnect(clientConn net.Conn, target string, reqDump []byte, requestID string, config *Config) {
@@ -508,8 +557,17 @@ func HandleWebSocketConnect(clientConn net.Conn, target string, reqDump []byte, 
 	established := "HTTP/1.1 200 Connection Established\r\nProxy-Agent: go-capture-proxy\r\n\r\n"
 	// Create a proper request object for capture
 	dummyReq, _ := http.NewRequest("CONNECT", "http://"+target, nil)
-	dummyReq.Host = strings.Split(target, ":")[0]
+	host := strings.Split(target, ":")[0]
+	dummyReq.Host = host
 	asyncWebSocketCapture(reqDump, []byte(established), dummyReq, requestID, config)
+
+	// Create WebSocket context for message tracking
+	wsCtx := &WebSocketContext{
+		RequestID: requestID,
+		Host:      host,
+		Path:      "/", // CONNECT doesn't have a path
+		URL:       "ws://" + target,
+	}
 
 	// Start bidirectional copying for WebSocket tunnel
 	errc := make(chan error, 2)
@@ -521,7 +579,7 @@ func HandleWebSocketConnect(clientConn net.Conn, target string, reqDump []byte, 
 				tcp.CloseWrite()
 			}
 		}()
-		err := websocketCapturingCopy(upstreamConn, clientConn, requestID, "client-to-server", config)
+		err := websocketCapturingCopy(upstreamConn, clientConn, wsCtx, "send", config)
 		if err != nil {
 			log.Printf("[WEBSOCKET-CONNECT] requestID=%s Client->Server copy ended: %v", requestID, err)
 		} else {
@@ -537,7 +595,7 @@ func HandleWebSocketConnect(clientConn net.Conn, target string, reqDump []byte, 
 				tcp.CloseWrite()
 			}
 		}()
-		err := websocketCapturingCopy(clientConn, upstreamConn, requestID, "server-to-client", config)
+		err := websocketCapturingCopy(clientConn, upstreamConn, wsCtx, "recv", config)
 		if err != nil {
 			log.Printf("[WEBSOCKET-CONNECT] requestID=%s Server->Client copy ended: %v", requestID, err)
 		} else {

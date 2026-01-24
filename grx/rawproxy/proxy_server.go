@@ -248,3 +248,8 @@ func (p *Proxy) SetRequestHandler(handler OnRequestHandler) {
 func (p *Proxy) SetResponseHandler(handler OnResponseHandler) {
 	p.config.OnResponseHandler = handler
 }
+
+// SetWebSocketMessageHandler sets the websocket message handler function
+func (p *Proxy) SetWebSocketMessageHandler(handler OnWebSocketMessageHandler) {
+	p.config.OnWebSocketMessageHandler = handler
+}

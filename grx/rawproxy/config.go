@@ -12,9 +12,24 @@ type RequestData struct {
 	Data      interface{} // Custom data (e.g., UserData, metadata, etc.)
 }
 
-// Handler function types for request and response processing
 type OnRequestHandler func(reqData *RequestData, req *http.Request) (*http.Request, error)
 type OnResponseHandler func(reqData *RequestData, resp *http.Response, req *http.Request) (*http.Response, error)
+
+// WebSocketMessage contains all context for a captured WebSocket message
+type WebSocketMessage struct {
+	RequestID string    // Proxy request ID (e.g., req-00000001)
+	Index     int       // Message sequence number within connection
+	Host      string    // WebSocket server host
+	Path      string    // WebSocket endpoint path
+	URL       string    // Full WebSocket URL
+	Direction string    // "send" (client→server) or "recv" (server→client)
+	Type      string    // Frame type: text, binary, close, ping, pong
+	IsBinary  bool      // Quick check for binary content
+	Payload   []byte    // Message content
+	Timestamp time.Time // When captured
+}
+
+type OnWebSocketMessageHandler func(msg *WebSocketMessage) error
 
 // Config holds the proxy configuration
 type Config struct {
@@ -37,8 +52,9 @@ type Config struct {
 	KeyPath  string  // Path to CA key (default: "<ConfigFolder>/ca.key" or "cert/ca.key")
 
 	// Handlers (optional)
-	OnRequestHandler  OnRequestHandler  // Custom request handler
-	OnResponseHandler OnResponseHandler // Custom response handler
+	OnRequestHandler          OnRequestHandler          // Custom request handler
+	OnResponseHandler         OnResponseHandler         // Custom response handler
+	OnWebSocketMessageHandler OnWebSocketMessageHandler // Custom websocket message handler
 
 	// Internal (optional - will be created if nil)
 	ReqCounter *atomic.Uint64 // Request counter for unique IDs
