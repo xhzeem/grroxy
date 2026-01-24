@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -60,6 +61,7 @@ type RawProxyWrapper struct {
 	dataCollection       *models.Collection
 	attachedCollection   *models.Collection
 	interceptCollection  *models.Collection
+	wsCollection         *models.Collection // WebSocket messages collection
 
 	Intercept bool
 	Filters   string
@@ -139,6 +141,7 @@ func NewRawProxyWrapper(listenAddr, configDir, outputDir string, backend *Backen
 	// Set up request and response handlers
 	proxy.SetRequestHandler(wrapper.onRequest)
 	proxy.SetResponseHandler(wrapper.onResponse)
+	proxy.SetWebSocketMessageHandler(wrapper.onWebSocketMessage)
 
 	return wrapper, nil
 }
@@ -185,6 +188,12 @@ func (rp *RawProxyWrapper) cacheCollections() error {
 	rp.interceptCollection, err = dao.FindCollectionByNameOrId("_intercept")
 	if err != nil {
 		return fmt.Errorf("failed to find _intercept collection: %w", err)
+	}
+
+	// WebSocket collection is optional - log warning if not found
+	rp.wsCollection, err = dao.FindCollectionByNameOrId("_websockets")
+	if err != nil {
+		return fmt.Errorf("failed to find _websockets collection: %w", err)
 	}
 
 	log.Println("[RawProxy] Successfully cached all collection references")
@@ -431,12 +440,22 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 		port = parts[1]
 	}
 
-	// Add scheme to host
+	// Infer scheme based on context:
+	// - If scheme is already set (e.g., custom scheme), preserve it
+	// - Otherwise, detect based on TLS and WebSocket upgrade header
 	scheme := req.URL.Scheme
 	if scheme == "" {
-		if req.TLS != nil {
+		isWebSocket := strings.EqualFold(req.Header.Get("Upgrade"), "websocket")
+		isTLS := req.TLS != nil
+
+		switch {
+		case isTLS && isWebSocket:
+			scheme = "wss"
+		case isTLS:
 			scheme = "https"
-		} else {
+		case isWebSocket:
+			scheme = "ws"
+		default:
 			scheme = "http"
 		}
 	}
@@ -487,7 +506,7 @@ func (rp *RawProxyWrapper) onRequest(reqData *rawproxy.RequestData, req *http.Re
 		"port":         port,
 		"has_resp":     false,
 		"has_params":   len(req.URL.Query()) > 0,
-		"is_https":     scheme == "https",
+		"is_https":     req.TLS != nil,                      // Secure if TLS is present (works with any scheme)
 		"http":         req.Proto,                           // HTTP version: HTTP/1.1, HTTP/2.0, etc.
 		"proxy_id":     reqData.RequestID,                   // Proxy request ID from rawproxy: req-00000001
 		"generated_by": fmt.Sprintf("proxy/%s", rp.proxyID), // Format: proxy/______________1
@@ -1015,4 +1034,65 @@ func (rp *RawProxyWrapper) saveEditedResponse(reqCtx *RequestContext, responseDa
 		return
 	}
 	log.Printf("[RawProxy][DB][SUCCESS] Updated is_resp_edited flag for ID=%s", id)
+}
+
+// onWebSocketMessage handles incoming WebSocket messages and saves them to the database
+func (rp *RawProxyWrapper) onWebSocketMessage(msg *rawproxy.WebSocketMessage) error {
+	// Start a goroutine to save to DB (non-blocking for the message flow)
+	go rp.saveWebSocketMessageToDB(msg)
+	return nil
+}
+
+// saveWebSocketMessageToDB saves a single WebSocket message to the database
+func (rp *RawProxyWrapper) saveWebSocketMessageToDB(msg *rawproxy.WebSocketMessage) {
+	if rp.backend == nil || rp.backend.App == nil {
+		return
+	}
+
+	if rp.wsCollection == nil {
+		return
+	}
+
+	dao := rp.backend.App.Dao()
+
+	// Handle payload - for binary data, encode as base64
+	var payloadStr string
+	if msg.IsBinary {
+		payloadStr = base64.StdEncoding.EncodeToString(msg.Payload)
+	} else {
+		payloadStr = string(msg.Payload)
+	}
+
+	var id = ""
+	var dataIndex = ""
+	var generatedBy = ""
+
+	// Find the parent _data record to get its user-friendly index
+	// The WebSocket RequestID corresponds to the proxy_id in the _data collection
+	if dataRecord, err := dao.FindFirstRecordByData(rp.dataCollection.Name, "proxy_id", msg.RequestID); err == nil {
+		dataIndex = dataRecord.GetString("index")
+		generatedBy = dataRecord.GetString("generated_by")
+	}
+
+	id = fmt.Sprintf("%s.%d", dataIndex, msg.Index)
+
+	record := models.NewRecord(rp.wsCollection)
+	record.Set("id", utils.AddUnderscore(id))
+	record.Set("index", msg.Index)
+	record.Set("host", msg.Host)
+	record.Set("path", msg.Path)
+	record.Set("url", msg.URL)
+	record.Set("direction", msg.Direction)
+	record.Set("type", msg.Type)
+	record.Set("is_binary", msg.IsBinary)
+	record.Set("payload", payloadStr)
+	record.Set("length", len(msg.Payload))
+	record.Set("timestamp", msg.Timestamp)
+	record.Set("proxy_id", msg.RequestID)
+	record.Set("data_index", dataIndex)
+	record.Set("generated_by", generatedBy)
+
+	if err := dao.SaveRecord(record); err != nil {
+		log.Printf("[RawProxy][DB][ERROR] Failed to save WebSocket message for %s: %v", msg.RequestID, err)
+	}
 }

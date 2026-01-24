@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-JAN] - v0.22.0 - WebSocket Proxying & Capture
+
+### Added
+
+- **WebSocket Proxying & Capture**
+  - Full WebSocket proxying support through `/rawproxy` with MITM capabilities
+  - `_websockets` collection for storing captured WebSocket messages
+  - WebSocket frame parsing and capture (text, binary, close, ping, pong frames)
+  - Bidirectional message tracking with direction indicators (send/recv)
+  - Message indexing and correlation with HTTP upgrade requests via `proxy_id`
+  - Support for both `ws://` (plain) and `wss://` (TLS) WebSocket connections
+  - WebSocket message handler callback (`OnWebSocketMessageHandler`)
+  - File-based WebSocket message logging with metadata
+  - Automatic HTTP/1.1 enforcement for WebSocket upgrades (prevents HTTP/2 conflicts)
+
+---
+
 ## [2026-JAN] - v0.21.0 - Browser Automation & Data Extraction
 
 ### Added

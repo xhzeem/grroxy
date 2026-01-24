@@ -388,27 +388,94 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 		target += ":443"
 	}
 
-	log.Printf("[WEBSOCKET-MITM] requestID=%s Connecting to %s (wss) with browser TLS fingerprint", reqData.RequestID, target)
+	log.Printf("[WEBSOCKET-MITM] requestID=%s Connecting to %s (wss) for WebSocket", reqData.RequestID, target)
 
-	// Establish TLS connection to upstream server using uTLS to mimic browser fingerprint
-	// This bypasses Cloudflare's JA3/JA4 TLS fingerprinting
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	upstreamConn, err := DialUTLS(ctx, target, h.host, FingerprintChrome)
+	// For WebSocket, use standard crypto/tls with strict HTTP/1.1 ALPN
+	// uTLS may not enforce ALPN strictly enough, causing servers to respond with HTTP/2
+	dialer := &net.Dialer{Timeout: 15 * time.Second}
+	tcpConn, err := dialer.Dial("tcp", target)
 	if err != nil {
-		errorMsg := fmt.Sprintf("Failed to establish TLS connection to WebSocket server: %v", err)
+		errorMsg := fmt.Sprintf("Failed to connect to WebSocket server: %v", err)
 		log.Printf("[ERROR] requestID=%s %s", reqData.RequestID, errorMsg)
+		responseErr := fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(errorMsg), errorMsg)
+		clientConn.Write([]byte(responseErr))
+		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, reqData.RequestID, h.config)
+		return
+	}
+
+	// TLS config that ONLY allows HTTP/1.1 - critical for WebSocket
+	tlsConfig := &tls.Config{
+		ServerName:         h.host,
+		InsecureSkipVerify: true,
+		MinVersion:         tls.VersionTLS12,
+		MaxVersion:         tls.VersionTLS13,
+		NextProtos:         []string{"http/1.1"}, // ONLY HTTP/1.1, no h2
+	}
+
+	upstreamConn := tls.Client(tcpConn, tlsConfig)
+	if err := upstreamConn.Handshake(); err != nil {
+		tcpConn.Close()
+		errorMsg := fmt.Sprintf("TLS handshake failed for WebSocket: %v", err)
+		log.Printf("[ERROR] requestID=%s %s", reqData.RequestID, errorMsg)
+		responseErr := fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(errorMsg), errorMsg)
+		clientConn.Write([]byte(responseErr))
 		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, reqData.RequestID, h.config)
 		return
 	}
 	defer upstreamConn.Close()
 
-	log.Printf("[WEBSOCKET-MITM] requestID=%s TLS handshake successful with %s", reqData.RequestID, target)
+	// Verify we got HTTP/1.1 and not HTTP/2
+	negotiatedProto := upstreamConn.ConnectionState().NegotiatedProtocol
+	if negotiatedProto == "h2" {
+		errorMsg := "Server requires HTTP/2 which is not supported for WebSocket proxying"
+		log.Printf("[ERROR] requestID=%s %s (negotiated: %s)", reqData.RequestID, errorMsg, negotiatedProto)
+		responseErr := fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(errorMsg), errorMsg)
+		clientConn.Write([]byte(responseErr))
+		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, reqData.RequestID, h.config)
+		return
+	}
+
+	log.Printf("[WEBSOCKET-MITM] requestID=%s TLS handshake successful with %s (proto: %s)", reqData.RequestID, target, negotiatedProto)
+
+	// Manually write request to upstream to preserve hop-by-hop headers (Upgrade, Connection)
+	// which http.Request.Write strips.
+	var reqBuf bytes.Buffer
+	path := processedRequest.URL.Path
+	if path == "" {
+		path = "/"
+	}
+	if processedRequest.URL.RawQuery != "" {
+		path += "?" + processedRequest.URL.RawQuery
+	}
+
+	fmt.Fprintf(&reqBuf, "%s %s HTTP/1.1\r\n", processedRequest.Method, path)
+
+	// Ensure Host header matches upstream
+	if processedRequest.Host != "" {
+		fmt.Fprintf(&reqBuf, "Host: %s\r\n", processedRequest.Host)
+	} else {
+		fmt.Fprintf(&reqBuf, "Host: %s\r\n", h.connectHost)
+	}
+
+	for k, vs := range processedRequest.Header {
+		if strings.EqualFold(k, "Host") {
+			continue
+		}
+		for _, v := range vs {
+			fmt.Fprintf(&reqBuf, "%s: %s\r\n", k, v)
+		}
+	}
+	fmt.Fprintf(&reqBuf, "\r\n")
 
 	// Forward the WebSocket upgrade request to upstream server
-	if err := processedRequest.Write(upstreamConn); err != nil {
+	if _, err := upstreamConn.Write(reqBuf.Bytes()); err != nil {
 		errorMsg := fmt.Sprintf("Failed to send WebSocket upgrade request: %v", err)
 		log.Printf("[ERROR] requestID=%s %s", reqData.RequestID, errorMsg)
+
+		// Send 502 Bad Gateway to client
+		responseErr := fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(errorMsg), errorMsg)
+		clientConn.Write([]byte(responseErr))
+
 		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, reqData.RequestID, h.config)
 		return
 	}
@@ -419,6 +486,11 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 	if err != nil {
 		errorMsg := fmt.Sprintf("Failed to read WebSocket upgrade response: %v", err)
 		log.Printf("[ERROR] requestID=%s %s", reqData.RequestID, errorMsg)
+
+		// Send 502 Bad Gateway to client
+		responseErr := fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(errorMsg), errorMsg)
+		clientConn.Write([]byte(responseErr))
+
 		asyncWebSocketCapture(reqDump, []byte(fmt.Sprintf("HTTP/1.1 502 Bad Gateway\r\n\r\n%s\n", errorMsg)), req, reqData.RequestID, h.config)
 		return
 	}
@@ -463,8 +535,16 @@ func (h *mitmHandler) handleWebSocketUpgrade(w http.ResponseWriter, req *http.Re
 
 	log.Printf("[WEBSOCKET-MITM] requestID=%s Established WebSocket tunnel to %s", reqData.RequestID, targetURL.String())
 
+	// Create WebSocket context for message tracking
+	wsCtx := &WebSocketContext{
+		RequestID: reqData.RequestID,
+		Host:      targetURL.Host,
+		Path:      targetURL.Path,
+		URL:       targetURL.String(),
+	}
+
 	// Start bidirectional copying with WebSocket frame logging
-	StartWebSocketTunnel(clientConn, upstreamConn, reqData.RequestID, clientBuf, h.config)
+	StartWebSocketTunnel(clientConn, upstreamConn, wsCtx, clientBuf, h.config)
 }
 
 // singleConnListener is a net.Listener that returns a single connection then closes
