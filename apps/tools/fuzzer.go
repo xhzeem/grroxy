@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/daos"
 	"github.com/pocketbase/pocketbase/models"
 	"github.com/pocketbase/pocketbase/models/schema"
 	pbTypes "github.com/pocketbase/pocketbase/tools/types"
@@ -198,33 +199,68 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 
 			// Start result processing in a goroutine
 			go func() {
-				for result := range f.Results {
-					fuzzerResult, ok := result.(fuzzer.FuzzerResult)
-					if !ok {
-						log.Printf("[StartFuzzer] Invalid result type: %T", result)
-						continue
+				const batchSize = 100
+				const flushInterval = 2 * time.Second
+				batch := make([]*models.Record, 0, batchSize)
+				ticker := time.NewTicker(flushInterval)
+				defer ticker.Stop()
+
+				flush := func() {
+					if len(batch) == 0 {
+						return
 					}
-
-					log.Println("[StartFuzzer] markers: ", fuzzerResult.Markers)
-
-					// Parse request and response
-					data := parseAndSaveResult(fuzzerResult.Request, fuzzerResult.Response)
-
-					// Add common fields
-					data["fuzzer_id"] = id
-					data["time"] = fuzzerResult.Time.Nanoseconds()
-					data["markers"] = fuzzerResult.Markers
-
-					// Create and save record
-					record := models.NewRecord(collection)
-					for key, value := range data {
-						record.Set(key, value)
-					}
-					err := backend.App.Dao().SaveRecord(record)
+					err := backend.App.Dao().RunInTransaction(func(txDao *daos.Dao) error {
+						for _, record := range batch {
+							if err := txDao.SaveRecord(record); err != nil {
+								return err
+							}
+						}
+						return nil
+					})
 					if err != nil {
-						log.Printf("[StartFuzzer] Failed to save record: %v", err)
+						log.Printf("[StartFuzzer] Failed to save batch for %s: %v", id, err)
+					}
+					batch = batch[:0]
+				}
+
+				for {
+					select {
+					case result, ok := <-f.Results:
+						if !ok {
+							flush()
+							goto resultsDone
+						}
+						fuzzerResult, ok := result.(fuzzer.FuzzerResult)
+						if !ok {
+							log.Printf("[StartFuzzer] Invalid result type: %T", result)
+							continue
+						}
+
+						// log.Println("[StartFuzzer] markers: ", fuzzerResult.Markers)
+
+						// Parse request and response
+						data := parseAndSaveResult(fuzzerResult.Request, fuzzerResult.Response)
+
+						// Add common fields
+						data["fuzzer_id"] = id
+						data["time"] = fuzzerResult.Time.Nanoseconds()
+						data["markers"] = fuzzerResult.Markers
+
+						// Create record
+						record := models.NewRecord(collection)
+						for key, value := range data {
+							record.Set(key, value)
+						}
+						batch = append(batch, record)
+
+						if len(batch) >= batchSize {
+							flush()
+						}
+					case <-ticker.C:
+						flush()
 					}
 				}
+			resultsDone:
 
 				log.Println("[StartFuzzer] results processing completed for ", id)
 
