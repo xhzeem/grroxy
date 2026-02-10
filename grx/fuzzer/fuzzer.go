@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/glitchedgitz/grroxy-db/grx/rawhttp"
@@ -47,6 +48,10 @@ type Fuzzer struct {
 	http        *rawhttp.Client
 	files       map[string]*bufio.Reader
 	fileHandles map[string]*os.File
+
+	// Progress tracking using atomic operations (no mutex needed)
+	totalRequests     int64
+	completedRequests int64
 }
 
 func NewFuzzer(config FuzzerConfig) *Fuzzer {
@@ -143,6 +148,11 @@ func (f *Fuzzer) Fuzz() error {
 	}
 
 	log.Printf("[fuzzer] initialized %d wordlists; starting fuzz loop", len(f.files))
+
+	// Calculate total requests for progress tracking
+	totalRequests := f.calculateTotalRequests()
+	f.SetTotalRequests(totalRequests)
+	log.Printf("[fuzzer] total requests to process: %d", totalRequests)
 
 outerLoop:
 	for {
@@ -276,4 +286,72 @@ func (f *Fuzzer) SendRequest(markers map[string]string) {
 	}
 
 	f.Results <- result
+
+	// Increment completed requests atomically
+	f.IncrementCompleted()
+}
+
+// IncrementCompleted increments the completed requests counter atomically
+func (f *Fuzzer) IncrementCompleted() {
+	atomic.AddInt64(&f.completedRequests, 1)
+}
+
+// GetProgress returns the current progress (completed, total)
+func (f *Fuzzer) GetProgress() (int, int) {
+	completed := atomic.LoadInt64(&f.completedRequests)
+	total := atomic.LoadInt64(&f.totalRequests)
+	return int(completed), int(total)
+}
+
+// SetTotalRequests sets the total number of requests atomically
+func (f *Fuzzer) SetTotalRequests(total int) {
+	atomic.StoreInt64(&f.totalRequests, int64(total))
+}
+
+// calculateTotalRequests calculates the total number of requests based on wordlist sizes and mode
+func (f *Fuzzer) calculateTotalRequests() int {
+	wordlistSizes := make(map[string]int)
+
+	// Count lines in each wordlist
+	for marker, wordlist := range f.Config.Markers {
+		file, err := os.Open(wordlist)
+		if err != nil {
+			log.Printf("[fuzzer] failed to open wordlist %s for counting: %v", wordlist, err)
+			continue
+		}
+
+		scanner := bufio.NewScanner(file)
+		count := 0
+		for scanner.Scan() {
+			count++
+		}
+		file.Close()
+
+		wordlistSizes[marker] = count
+		log.Printf("[fuzzer] wordlist %s has %d lines", marker, count)
+	}
+
+	// Calculate total based on mode
+	if f.Config.Mode == ModeClusterBomb {
+		// Cluster bomb: multiply all wordlist sizes
+		total := 1
+		for _, size := range wordlistSizes {
+			total *= size
+		}
+		return total
+	} else if f.Config.Mode == ModePitchFork {
+		// Pitchfork: use the size of the smallest wordlist
+		if len(wordlistSizes) == 0 {
+			return 0
+		}
+		min := -1
+		for _, size := range wordlistSizes {
+			if min == -1 || size < min {
+				min = size
+			}
+		}
+		return min
+	}
+
+	return 0
 }

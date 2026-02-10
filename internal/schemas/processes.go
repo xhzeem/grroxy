@@ -11,6 +11,9 @@ type Process struct {
 	Output      map[string]any `db:"output" json:"output"`
 	Data        map[string]any `db:"data" json:"data"`
 	State       string         `db:"state" json:"state"`
+	ParentID    string         `db:"parent_id" json:"parent_id"`
+	GeneratedBy string         `db:"generated_by" json:"generated_by"`
+	CreatedBy   string         `db:"created_by" json:"created_by"`
 }
 
 var ProcessState = struct {
@@ -18,11 +21,15 @@ var ProcessState = struct {
 	Running   string
 	Completed string
 	Killed    string
+	Failed    string
+	Paused    string
 }{
 	Inqueue:   "In Queue",
 	Running:   "Running",
 	Completed: "Completed",
 	Killed:    "Killed",
+	Failed:    "Failed",
+	Paused:    "Paused",
 }
 
 var PROCESSES = schema.NewSchema(
@@ -63,6 +70,18 @@ var PROCESSES = schema.NewSchema(
 	// running, queue, error, killed, completed
 	&schema.SchemaField{
 		Name: "state",
+		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name: "parent_id",
+		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name: "generated_by",
+		Type: schema.FieldTypeText,
+	},
+	&schema.SchemaField{
+		Name: "created_by",
 		Type: schema.FieldTypeText,
 	},
 )

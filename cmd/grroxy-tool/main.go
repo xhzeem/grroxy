@@ -62,6 +62,9 @@ func main() {
 
 	backend.App.OnBeforeServe().Add(backend.RunCommand)
 
+	// SDK Login
+	backend.App.OnBeforeServe().Add(backend.LoginSDKEndpoint)
+
 	// Fuzzer
 	backend.App.OnBeforeServe().Add(backend.StartFuzzer)
 	backend.App.OnBeforeServe().Add(backend.StopFuzzer)
