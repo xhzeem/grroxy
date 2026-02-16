@@ -4,6 +4,88 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-FEB] - v0.24.0 - Chrome Automation Refactor & Tab Management
+
+### Added
+
+- **Chrome Tab Management API**
+  - `GET /api/proxy/chrome/tabs` - List all open tabs in the attached Chrome instance
+  - `POST /api/proxy/chrome/tab/open` - Open a new tab with optional URL
+  - `POST /api/proxy/chrome/tab/navigate` - Navigate a specific tab with configurable wait conditions (`load`, `domcontentloaded`, `networkidle`)
+  - `POST /api/proxy/chrome/tab/activate` - Switch focus to a specific tab
+  - `POST /api/proxy/chrome/tab/close` - Close a specific tab
+  - `POST /api/proxy/chrome/tab/reload` - Reload a specific tab with optional cache bypass
+  - `POST /api/proxy/chrome/tab/back` - Navigate back in history for a specific tab
+  - `POST /api/proxy/chrome/tab/forward` - Navigate forward in history for a specific tab
+
+### Changed
+
+- **Chrome Automation Refactor**
+  - Refactored `grx/browser/chrome.go` to use `ChromeRemote` struct for better state management and persistence
+  - Improved connection handling and context management for Chrome DevTools Protocol
+  - Migrated standalone functions to `ChromeRemote` methods for multi-tab support
+
+### Deprecated
+
+- Standalone browser functions `TakeChromeScreenshot`, `ClickChromeElement`, etc. are now deprecated in favor of `ChromeRemote` methods
+
+## [2026-FEB] - v0.23.0 - Process Management & SDK Integration
+
+### Added
+
+- **Process Management System** (44a3971)
+  - Complete process management API for tracking long-running operations (fuzzers, scanners, etc.)
+  - `_processes` collection with real-time progress tracking
+  - Process states: `In Queue`, `Running`, `Completed`, `Killed`, `Failed`, `Paused`
+  - Automatic progress percentage calculation based on completed/total counts
+  - Process fields: `parent_id`, `generated_by`, `created_by` for better tracking
+  - Database migration for `_processes` collection schema updates
+
+- **SDK for External Tools** (44a3971)
+  - `internal/sdk/process.go` - SDK client for external tools to connect to main app
+  - SDK authentication via admin email/password
+  - Process management functions:
+    - `CreateProcess()` - Create new process with metadata
+    - `UpdateProcess()` - Update progress with atomic operations
+    - `CompleteProcess()` - Mark process as completed
+    - `FailProcess()` - Mark process as failed with error message
+    - `PauseProcess()` - Pause running process
+    - `KillProcess()` - Stop process by user request
+  - Environment variable support (`GRROXY_APP_URL`, `GRROXY_ADMIN_EMAIL`, `GRROXY_ADMIN_PASSWORD`)
+  - External tools can now update main app's `_processes` collection via HTTP API
+
+- **Fuzzer Improvements** (44a3971, 553f762)
+  - Batch database saving for improved performance
+  - Atomic progress counters using `atomic.AddInt64()` and `atomic.LoadInt64()` (no mutexes)
+  - SDK integration for process tracking in external `grroxy-tools`
+  - Periodic progress updates (1-second ticker) instead of per-request updates
+  - Process creation with fuzzer configuration and request metadata
+  - Automatic process state management (In Queue → Running → Completed/Failed/Killed)
+
+- **Documentation** (44a3971)
+  - `docs/PROCESS_MANAGEMENT.md` - Comprehensive guide for process management and SDK integration
+  - `examples/sdk_process_example.go` - Working examples for SDK usage
+  - API documentation for process management endpoints
+
+### Changed
+
+- **Tools Architecture** (44a3971)
+  - `apps/tools/main.go` - Added `AppSDK` field to `Tools` struct for SDK client
+  - `apps/tools/fuzzer.go` - Refactored to use SDK for all process operations
+  - `grx/fuzzer/fuzzer.go` - Added atomic counters (`totalRequests`, `completedRequests`) for thread-safe progress tracking
+
+- **Process Schema** (44a3971)
+  - `internal/schemas/processes.go` - Added `Failed` and `Paused` states
+  - Enhanced process input/output structure for better metadata tracking
+
+### Fixed
+
+- Improved fuzzer performance with batch database operations
+- Thread-safe progress tracking without mutex contention
+- Proper error handling and state management for long-running processes
+
+---
+
 ## [2026-JAN] - v0.22.0 - WebSocket Proxying & Capture
 
 ### Added
