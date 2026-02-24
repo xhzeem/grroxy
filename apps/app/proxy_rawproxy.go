@@ -388,6 +388,7 @@ func generateResponseData(resp *http.Response) map[string]any {
 		"length":      contentLength,
 		"date":        resp.Header.Get("Date"),
 		"time":        time.Now().Format(time.RFC3339),
+		"proto":       resp.Proto,
 	}
 }
 
@@ -658,6 +659,11 @@ func (rp *RawProxyWrapper) onResponse(reqData *rawproxy.RequestData, resp *http.
 	userdata["has_resp"] = true
 	userdata["resp_json"] = responseData
 
+	// Update the HTTP protocol version if the upstream used a different protocol
+	// than what was initially recorded (e.g., browser spoke HTTP/2 to proxy,
+	// but upstream only supports HTTP/1.1)
+	userdata["http"] = reqData.HttpProto
+
 	// Dump response to raw string
 	responseInString := rawhttp.DumpResponse(resp)
 	reqCtx.RawResponse = responseInString // Store in context for save functions
@@ -905,6 +911,7 @@ func (rp *RawProxyWrapper) saveResponseToDB(reqCtx *RequestContext, responseData
 	}
 
 	dataRecord.Set("resp", userdata["resp"].(string))
+	dataRecord.Set("http", userdata["http"].(string))
 	dataRecord.Set("has_resp", userdata["has_resp"].(bool))
 	dataRecord.Set("resp_json", responseData)
 	if err := dao.SaveRecord(dataRecord); err != nil {

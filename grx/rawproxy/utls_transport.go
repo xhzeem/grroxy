@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +26,11 @@ const (
 	FingerprintRandom // Randomly pick one
 )
 
+// hostProtoCache is a global cache of host → negotiated protocol.
+// Once we learn a host speaks "http/1.1" (or "h2"), all future
+// UTLSRoundTripper instances for that host reuse the result.
+var hostProtoCache sync.Map // map[string]string  (host:port → "h2" | "http/1.1")
+
 // UTLSRoundTripper is an http.RoundTripper that uses uTLS for TLS connections
 // and properly handles HTTP/2 based on ALPN negotiation
 type UTLSRoundTripper struct {
@@ -32,8 +39,6 @@ type UTLSRoundTripper struct {
 	dialer         *net.Dialer
 	http2Transport *http2.Transport
 	http1Transport *http.Transport
-	mu             sync.RWMutex
-	cachedProto    string // Cached ALPN result for this host
 }
 
 // NewUTLSRoundTripper creates a new round tripper with browser fingerprint spoofing
@@ -160,10 +165,11 @@ func (rt *UTLSRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 		}
 	}
 
-	// Check cached protocol
-	rt.mu.RLock()
-	cachedProto := rt.cachedProto
-	rt.mu.RUnlock()
+	// Check global protocol cache for this host
+	var cachedProto string
+	if v, ok := hostProtoCache.Load(addr); ok {
+		cachedProto = v.(string)
+	}
 
 	// If no cached protocol, probe the server
 	if cachedProto == "" {
@@ -174,15 +180,32 @@ func (rt *UTLSRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 			// Default to HTTP/1.1 on probe failure
 			proto = "http/1.1"
 		}
-		rt.mu.Lock()
-		rt.cachedProto = proto
-		rt.mu.Unlock()
+		hostProtoCache.Store(addr, proto)
 		cachedProto = proto
+		log.Printf("[TRANSPORT] Probed %s → protocol: %s", addr, proto)
 	}
 
 	// Use appropriate transport based on negotiated protocol
 	if cachedProto == "h2" {
-		return rt.http2Transport.RoundTrip(req)
+		resp, err := rt.http2Transport.RoundTrip(req)
+		if err != nil {
+			// Check if the error indicates the server responded with HTTP/1.1 frames
+			// despite advertising h2 via ALPN. Common errors:
+			//   - "frame header looked like an HTTP/1.1 header"
+			//   - "INTERNAL_ERROR" or "PROTOCOL_ERROR"
+			errStr := err.Error()
+			if strings.Contains(errStr, "HTTP/1.1") ||
+				strings.Contains(errStr, "frame") ||
+				strings.Contains(errStr, "INTERNAL_ERROR") ||
+				strings.Contains(errStr, "PROTOCOL_ERROR") {
+				// Server lied about h2 support — downgrade globally and retry
+				log.Printf("[TRANSPORT] Host %s advertised h2 but speaks HTTP/1.1, falling back globally (error: %v)", addr, err)
+				hostProtoCache.Store(addr, "http/1.1")
+				return rt.http1Transport.RoundTrip(req)
+			}
+			return nil, err
+		}
+		return resp, nil
 	}
 	return rt.http1Transport.RoundTrip(req)
 }
@@ -191,6 +214,21 @@ func (rt *UTLSRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 func hasPort(addr string) bool {
 	_, _, err := net.SplitHostPort(addr)
 	return err == nil
+}
+
+// GetCachedProto returns the cached protocol for a host (e.g. "h2" or "http/1.1").
+// Returns empty string if the host hasn't been probed yet.
+// This allows other packages to check the actual upstream protocol.
+func GetCachedProto(host string) string {
+	// Try with :443 suffix (most common for HTTPS)
+	if v, ok := hostProtoCache.Load(host + ":443"); ok {
+		return v.(string)
+	}
+	// Try exact match
+	if v, ok := hostProtoCache.Load(host); ok {
+		return v.(string)
+	}
+	return ""
 }
 
 // CreateMITMUpstreamTransport creates a transport specifically for MITM upstream connections
