@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -25,6 +26,9 @@ func serve(projectPath string) {
 		log.Println("Wappylyzer Error: ", err)
 	}
 
+	os.MkdirAll(projectPath, 0755)
+	os.Chdir(projectPath)
+
 	// Extract project ID from project path (the directory name)
 	projectID := filepath.Base(projectPath)
 	conf.ProjectID = projectID
@@ -35,7 +39,7 @@ func serve(projectPath string) {
 		App: pocketbase.NewWithConfig(
 			pocketbase.Config{
 				ProjectDir:      projectPath,
-				DefaultDataDir:  "grroxy",
+				DefaultDataDir:  ".grroxy",
 				HideStartBanner: true,
 				// DefaultDev: true,
 				// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
