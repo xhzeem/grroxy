@@ -33,7 +33,11 @@ build_binary() {
     echo "Building for $1"
     GOOS=${1%/*}
     GOARCH=${1#*/}
-    GO111MODULE=on GOOS=$GOOS GOARCH=$GOARCH go build -o builds/$VERSION/$BINARY_NAME-$GOOS-$GOARCH
+    SUFFIX=""
+    if [ "$GOOS" = "windows" ]; then
+        SUFFIX=".exe"
+    fi
+    GO111MODULE=on GOOS=$GOOS GOARCH=$GOARCH go build -o builds/$VERSION/$BINARY_NAME-$GOOS-$GOARCH$SUFFIX
 }
 
 # Loop through each target and build the binary
