@@ -39,7 +39,7 @@ func serve(projectPath string) {
 		App: pocketbase.NewWithConfig(
 			pocketbase.Config{
 				ProjectDir:      projectPath,
-				DefaultDataDir:  ".grroxy",
+				DefaultDataDir:  "grroxy",
 				HideStartBanner: true,
 				// DefaultDev: true,
 				// DefaultEncryptionEnv: "hJH#GRJ#HG$JH$54h5kjhHJG#JHG#*&Y&EG#F&GIG@JKGH$JHRGJ##JKJH#JHG",
