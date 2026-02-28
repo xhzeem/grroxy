@@ -747,8 +747,8 @@ func TestIntegration_MultiTabWorkflow(t *testing.T) {
 		tabIDs[i] = id
 		t.Logf("Opened tab %d (%s) → %s", i+1, u, id)
 
-		// Wait for page to load
-		_, err = cr.Navigate(id, u, "load", 30000)
+		// Wait for page to load (use domcontentloaded for heavy JS sites)
+		_, err = cr.Navigate(id, u, "domcontentloaded", 60000)
 		if err != nil {
 			t.Fatalf("Navigate(%q) failed: %v", u, err)
 		}
@@ -850,7 +850,7 @@ func TestIntegration_MultiTabWorkflow(t *testing.T) {
 	// Navigate directly to the login URL instead of clicking
 	// (ClickElement can hit hidden mobile nav duplicates)
 	if loginHref != "" {
-		result, navErr := cr.Navigate(raycastTabID, loginHref, "load", 30000)
+		result, navErr := cr.Navigate(raycastTabID, loginHref, "domcontentloaded", 60000)
 		if navErr != nil {
 			t.Logf("Warning: Navigate to login failed: %v", navErr)
 		} else {
