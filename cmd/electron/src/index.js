@@ -1,9 +1,42 @@
 // This file is the entry point for the Electron application.
 
 const { app, BrowserWindow, ipcMain, nativeImage } = require('electron')
+const { spawn } = require('child_process')
 const path = require('path')
 
 let mainWindow = null
+let grroxyProcess = null
+
+function startGrroxy() {
+    grroxyProcess = spawn('grroxy', ['start'], {
+        stdio: 'pipe',
+    })
+
+    grroxyProcess.stdout.on('data', (data) => {
+        console.log(`[grroxy] ${data.toString().trimEnd()}`)
+    })
+
+    grroxyProcess.stderr.on('data', (data) => {
+        console.error(`[grroxy] ${data.toString().trimEnd()}`)
+    })
+
+    grroxyProcess.on('error', (err) => {
+        console.error(`[grroxy] Failed to start: ${err.message}`)
+        grroxyProcess = null
+    })
+
+    grroxyProcess.on('close', (code) => {
+        console.log(`[grroxy] Process exited with code ${code}`)
+        grroxyProcess = null
+    })
+}
+
+function stopGrroxy() {
+    if (grroxyProcess) {
+        grroxyProcess.kill()
+        grroxyProcess = null
+    }
+}
 
 function createWindow() {
     const iconPath = path.resolve(__dirname, "icons", "grroxy.png")
@@ -98,6 +131,8 @@ function createWindow() {
 
 app.whenReady()
     .then(() => {
+        startGrroxy()
+
         // Register IPC handlers once when app is ready
         ipcMain.handle('check-fullscreen', (event) => {
             if (mainWindow) {
@@ -148,6 +183,10 @@ app.whenReady()
 
 
     })
+
+app.on('before-quit', () => {
+    stopGrroxy()
+})
 
 app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit()
