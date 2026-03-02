@@ -36,20 +36,23 @@ POST /api/fuzzer/start
 ```json
 {
   "collection": "fuzzer_results",
-  "request": "GET /api/test?param=FUZZ HTTP/1.1\r\nHost: example.com\r\nUser-Agent: USERAGENT\r\n\r\n",
+  "request": "GET /api/test?param=§FUZZ§ HTTP/1.1\r\nHost: example.com\r\nUser-Agent: §AGENT§\r\n\r\n",
   "host": "example.com",
   "port": "443",
   "useTLS": true,
   "http2": false,
   "markers": {
-    "FUZZ": "/path/to/payloads.txt",
-    "USERAGENT": "/path/to/user-agents.txt"
+    "§FUZZ§": "/path/to/payloads.txt",
+    "§AGENT§": ["Mozilla/5.0", "curl/7.68"]
   },
   "mode": "cluster_bomb",
   "concurrency": 40,
-  "timeout": 10.0
+  "timeout": 10.0,
+  "generated_by": "manual"
 }
 ```
+
+> **Note:** Each marker value can be either a **string** (file path to a wordlist) or an **array of strings** (inline payloads). You can mix both types in the same request. Inline payloads support multi-line values since they are iterated by index, not split by newlines.
 
 **Fields:**
 
@@ -62,26 +65,33 @@ POST /api/fuzzer/start
   - Defaults to 80 for HTTP (useTLS: false)
 - `useTLS` (boolean, optional): Whether to use TLS/HTTPS (default: false)
 - `http2` (boolean, optional): Whether to use HTTP/2 protocol (default: false)
-- `markers` (object, required): Map of marker names to wordlist file paths
-  - Each marker in the request will be replaced with values from its wordlist
-  - Wordlist files should contain one value per line
+- `markers` (object, required): Map of marker names to payload sources. Each value can be:
+  - **string** — file path to a wordlist (one value per line)
+  - **array of strings** — inline payloads (iterated by index, supports multi-line values)
+  - You can mix both types in the same request
 - `mode` (string, optional): Fuzzing mode (default: "cluster_bomb")
   - `"cluster_bomb"`: All combinations of all wordlists (Cartesian product)
   - `"pitch_fork"`: Synchronized iteration through wordlists (parallel)
 - `concurrency` (integer, optional): Number of concurrent requests (default: 40)
 - `timeout` (float, optional): Request timeout in seconds (default: 10.0)
+- `process_data` (any, optional): Arbitrary data to associate with the fuzzer process
+- `generated_by` (string, optional): Identifier for what generated this fuzzer request (e.g., "manual", "workflow")
 
 **Response:**
 
 ```json
 {
-  "id": "______________1"
+  "status": "started",
+  "process_id": "______________1",
+  "fuzzer_id": "______________1"
 }
 ```
 
 **Response Fields:**
 
-- `id` (string): Unique fuzzer ID for tracking and stopping this fuzzer instance
+- `status` (string): `"started"` on success
+- `process_id` (string): Process ID for tracking in `_process` collection
+- `fuzzer_id` (string): Unique fuzzer ID for stopping this fuzzer instance
 
 **Features:**
 
@@ -112,8 +122,10 @@ POST /api/fuzzer/start
 - 400 Bad Request - Invalid configuration or missing fields
   - Empty request
   - Empty host
-  - Empty or missing markers
-  - Empty marker values
+  - Missing or empty markers
+  - Empty string marker value (file path)
+  - Empty array marker value (payloads)
+  - Invalid marker type (not string or array)
 - 403 Forbidden - Not authenticated
 - 500 Internal Server Error - Failed to create collection or start fuzzer
 
@@ -157,6 +169,48 @@ This will test all username/password combinations from the wordlists.
 
 This will test endpoints with corresponding tokens (1st endpoint with 1st token, etc.).
 
+**Example (Inline Payloads):**
+
+```json
+{
+  "collection": "xss_fuzz",
+  "request": "GET /search?q=§FUZZ§ HTTP/1.1\r\nHost: example.com\r\n\r\n",
+  "host": "example.com",
+  "useTLS": true,
+  "markers": {
+    "§FUZZ§": [
+      "<script>alert(1)</script>",
+      "' OR 1=1 --",
+      "../../../etc/passwd",
+      "{{7*7}}"
+    ]
+  },
+  "concurrency": 10,
+  "timeout": 15.0
+}
+```
+
+This will test the search parameter with inline payloads without needing a wordlist file.
+
+**Example (Mixed — Wordlist + Inline Payloads):**
+
+```json
+{
+  "collection": "cred_fuzz",
+  "request": "POST /login HTTP/1.1\r\nHost: example.com\r\nContent-Type: application/json\r\n\r\n{\"user\":\"§USER§\",\"pass\":\"§PASS§\"}",
+  "host": "example.com",
+  "useTLS": true,
+  "markers": {
+    "§USER§": "usernames.txt",
+    "§PASS§": ["password1", "123456", "qwerty"]
+  },
+  "mode": "pitch_fork",
+  "concurrency": 10
+}
+```
+
+This uses a wordlist file for usernames and inline payloads for passwords, paired 1:1 in pitch_fork mode.
+
 ---
 
 ### Stop Fuzzer
@@ -183,16 +237,18 @@ POST /api/fuzzer/stop
 
 ```json
 {
-  "status": "stopped"
+  "status": "stopped",
+  "process_id": "______________1",
+  "fuzzer_id": "______________1"
 }
 ```
 
 **Features:**
 
 - Immediately terminates fuzzing
-- Updates process state to "killed" in database
+- Updates process state to "Killed" in database
+- Records final progress at time of stop
 - Cleans up fuzzer instance from memory
-- Pending results are discarded
 
 **Error Responses:**
 
@@ -314,10 +370,11 @@ Each fuzzer creates/uses a collection to store results. Each result record conta
 
 Fuzzer execution is tracked in the `_process` collection with states:
 
-- `"inqueue"` - Fuzzer registered but not started
-- `"running"` - Fuzzer actively sending requests
-- `"completed"` - Fuzzer finished all requests
-- `"killed"` - Fuzzer manually stopped
+- `"In Queue"` - Fuzzer registered but not started
+- `"Running"` - Fuzzer actively sending requests
+- `"Completed"` - Fuzzer finished all requests
+- `"Killed"` - Fuzzer manually stopped
+- `"Failed"` - Fuzzer encountered an error
 
 ---
 
@@ -389,7 +446,35 @@ filter: resp_status = 403
 
 ---
 
-## Wordlist Format
+## Marker Types
+
+Each marker in the `markers` object can be one of two types:
+
+### String — Wordlist File Path
+
+Provide a file path and the fuzzer reads it line by line:
+
+```json
+{
+  "markers": {
+    "§FUZZ§": "/path/to/wordlist.txt"
+  }
+}
+```
+
+### Array — Inline Payloads
+
+Provide values directly as an array. Each element is used as-is (supports multi-line values):
+
+```json
+{
+  "markers": {
+    "§FUZZ§": ["admin", "test", "root", "multi\nline\nvalue"]
+  }
+}
+```
+
+### Wordlist File Format
 
 Wordlist files should be plain text with one value per line:
 
@@ -525,10 +610,6 @@ All API endpoints require authentication via:
 Unauthenticated requests return `403 Forbidden`.
 
 ---
-
-## Version
-
-This documentation is for Grroxy Tools API v1.0
 
 ---
 

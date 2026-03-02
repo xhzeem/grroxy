@@ -32,18 +32,18 @@ var FuzzerMgr = &FuzzerManager{
 }
 
 type FuzzerStartRequest struct {
-	Collection  string            `json:"collection"`
-	Request     string            `json:"request"`
-	Host        string            `json:"host"`
-	Port        string            `json:"port"`
-	UseTLS      bool              `json:"useTLS"`
-	UseHTTP2    bool              `json:"http2"` // Enable HTTP/2 support
-	Markers     map[string]string `json:"markers"`
-	Mode        string            `json:"mode"`
-	Concurrency int               `json:"concurrency"`
-	Timeout     float64           `json:"timeout"` // in seconds
-	ProcessData any               `json:"process_data"`
-	GeneratedBy string            `json:"generated_by"`
+	Collection  string         `json:"collection"`
+	Request     string         `json:"request"`
+	Host        string         `json:"host"`
+	Port        string         `json:"port"`
+	UseTLS      bool           `json:"useTLS"`
+	UseHTTP2    bool           `json:"http2"`    // Enable HTTP/2 support
+	Markers     map[string]any `json:"markers"` // marker -> string (file path) or []string (inline payloads)
+	Mode        string         `json:"mode"`
+	Concurrency int            `json:"concurrency"`
+	Timeout     float64        `json:"timeout"` // in seconds
+	ProcessData any            `json:"process_data"`
+	GeneratedBy string         `json:"generated_by"`
 }
 
 // CreateCollection creates a collection with the specified schema
@@ -155,7 +155,7 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 					"error":      "host is required",
 				})
 			}
-			if body.Markers == nil {
+			if len(body.Markers) == 0 {
 				return c.JSON(http.StatusBadRequest, map[string]interface{}{
 					"status":     "error",
 					"process_id": "",
@@ -163,21 +163,32 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 					"error":      "markers is required",
 				})
 			}
-			if len(body.Markers) == 0 {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{
-					"status":     "error",
-					"process_id": "",
-					"fuzzer_id":  "",
-					"error":      "markers cannot be blank",
-				})
-			}
 			for key, value := range body.Markers {
-				if value == "" {
+				switch v := value.(type) {
+				case string:
+					if v == "" {
+						return c.JSON(http.StatusBadRequest, map[string]interface{}{
+							"status":     "error",
+							"process_id": "",
+							"fuzzer_id":  "",
+							"error":      fmt.Sprintf("marker '%s' must have a file path", key),
+						})
+					}
+				case []interface{}:
+					if len(v) == 0 {
+						return c.JSON(http.StatusBadRequest, map[string]interface{}{
+							"status":     "error",
+							"process_id": "",
+							"fuzzer_id":  "",
+							"error":      fmt.Sprintf("marker '%s' must have at least one payload", key),
+						})
+					}
+				default:
 					return c.JSON(http.StatusBadRequest, map[string]interface{}{
 						"status":     "error",
 						"process_id": "",
 						"fuzzer_id":  "",
-						"error":      fmt.Sprintf("marker '%s' must have a value", key),
+						"error":      fmt.Sprintf("marker '%s' must be a string (file path) or array (payloads)", key),
 					})
 				}
 			}

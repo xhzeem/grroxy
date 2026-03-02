@@ -18,13 +18,67 @@ import (
 const ModeClusterBomb = "cluster_bomb"
 const ModePitchFork = "pitch_fork"
 
+// markerSource provides sequential access to payload values.
+type markerSource interface {
+	// Next returns the next payload value. Returns io.EOF when exhausted.
+	Next() (string, error)
+	// Len returns the total number of payloads.
+	Len() int
+}
+
+// fileSource reads payloads line-by-line from a file.
+type fileSource struct {
+	reader *bufio.Reader
+	file   *os.File
+	count  int
+}
+
+func (s *fileSource) Next() (string, error) {
+	word, err := s.reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	// Trim line endings
+	if strings.HasSuffix(word, "\r\n") {
+		word = word[:len(word)-2]
+	} else if strings.HasSuffix(word, "\n") {
+		word = word[:len(word)-1]
+	}
+	if err == io.EOF {
+		return word, io.EOF
+	}
+	return word, nil
+}
+
+func (s *fileSource) Len() int { return s.count }
+
+// sliceSource iterates over an in-memory slice of payloads (supports multi-line values).
+type sliceSource struct {
+	payloads []string
+	index    int
+}
+
+func (s *sliceSource) Next() (string, error) {
+	if s.index >= len(s.payloads) {
+		return "", io.EOF
+	}
+	val := s.payloads[s.index]
+	s.index++
+	if s.index >= len(s.payloads) {
+		return val, io.EOF
+	}
+	return val, nil
+}
+
+func (s *sliceSource) Len() int { return len(s.payloads) }
+
 type FuzzerConfig struct {
 	Request     string
 	Host        string
 	Port        string
 	UseTLS      bool
-	UseHTTP2    bool // Enable HTTP/2 support
-	Markers     map[string]string
+	UseHTTP2    bool           // Enable HTTP/2 support
+	Markers     map[string]any // marker -> string (file path) or []string (inline payloads)
 	Mode        string
 	Concurrency int
 	Timeout     time.Duration
@@ -46,7 +100,7 @@ type Fuzzer struct {
 	wg      sync.WaitGroup
 
 	http        *rawhttp.Client
-	files       map[string]*bufio.Reader
+	sources     map[string]markerSource
 	fileHandles map[string]*os.File
 
 	// Progress tracking using atomic operations (no mutex needed)
@@ -92,8 +146,8 @@ func (f *Fuzzer) Fuzz() error {
 		log.Printf("[fuzzer] port not set, defaulting to %s", f.Config.Port)
 	}
 
-	if f.files == nil {
-		f.files = make(map[string]*bufio.Reader)
+	if f.sources == nil {
+		f.sources = make(map[string]markerSource)
 	}
 
 	if f.fileHandles == nil {
@@ -117,37 +171,57 @@ func (f *Fuzzer) Fuzz() error {
 
 	// defer close(f.results)
 
-	for marker, wordlist := range f.Config.Markers {
-		log.Printf("[fuzzer] opening wordlist for marker %s: %s", marker, wordlist)
-
-		cwd, err := os.Getwd()
-		if err != nil {
-			log.Printf("[fuzzer] failed to get current working directory: %v", err)
-			return fmt.Errorf("failed to get current working directory: %w", err)
+	// Set up sources from markers (string = file path, []string = inline payloads)
+	for marker, value := range f.Config.Markers {
+		switch v := value.(type) {
+		case string:
+			if v == "" {
+				return fmt.Errorf("marker '%s' has empty file path", marker)
+			}
+			log.Printf("[fuzzer] opening wordlist for marker %s: %s", marker, v)
+			file, err := os.Open(v)
+			if err != nil {
+				return fmt.Errorf("failed to open wordlist: %w", err)
+			}
+			// Count lines for progress tracking
+			scanner := bufio.NewScanner(file)
+			count := 0
+			for scanner.Scan() {
+				count++
+			}
+			file.Seek(0, 0)
+			f.sources[marker] = &fileSource{reader: bufio.NewReader(file), file: file, count: count}
+			f.fileHandles[marker] = file
+		case []string:
+			if len(v) == 0 {
+				return fmt.Errorf("marker '%s' has empty payload list", marker)
+			}
+			log.Printf("[fuzzer] using %d inline payloads for marker %s", len(v), marker)
+			f.sources[marker] = &sliceSource{payloads: v}
+		case []interface{}:
+			if len(v) == 0 {
+				return fmt.Errorf("marker '%s' has empty payload list", marker)
+			}
+			payloads := make([]string, len(v))
+			for i, item := range v {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("marker '%s' payload at index %d is not a string", marker, i)
+				}
+				payloads[i] = s
+			}
+			log.Printf("[fuzzer] using %d inline payloads for marker %s", len(payloads), marker)
+			f.sources[marker] = &sliceSource{payloads: payloads}
+		default:
+			return fmt.Errorf("marker '%s' has invalid type: expected string (file path) or []string (payloads)", marker)
 		}
-
-		log.Printf("[fuzzer] current working directory: %s", cwd)
-
-		// time.Sleep(2 * time.Second)
-
-		// // Debug: read and print the full wordlist content before using it
-		// debugPath := path.Join(cwd, wordlist)
-
-		// if b, err := os.ReadFile(debugPath); err != nil {
-		// 	log.Printf("[fuzzer] failed to read full wordlist %s for debug: %v", debugPath, err)
-		// } else {
-		// 	log.Printf("[fuzzer] full content of wordlist %s:\n%s", debugPath, string(b))
-		// }
-
-		file, err := os.Open(wordlist)
-		if err != nil {
-			return fmt.Errorf("failed to open wordlist: %w", err)
-		}
-		f.files[marker] = bufio.NewReader(file)
-		f.fileHandles[marker] = file
 	}
 
-	log.Printf("[fuzzer] initialized %d wordlists; starting fuzz loop", len(f.files))
+	if len(f.sources) == 0 {
+		return fmt.Errorf("no markers configured: provide markers as string (file path) or array (inline payloads)")
+	}
+
+	log.Printf("[fuzzer] initialized %d marker sources; starting fuzz loop", len(f.sources))
 
 	// Calculate total requests for progress tracking
 	totalRequests := f.calculateTotalRequests()
@@ -165,17 +239,17 @@ outerLoop:
 			break outerLoop
 		}
 
-		for marker := range f.files {
+		for marker := range f.sources {
 			markers[marker] = ""
 		}
 
-		for marker, reader := range f.files {
+		for marker, src := range f.sources {
 			if f.isStopped() {
 				log.Println("[fuzzer] stop signal received during marker iteration; breaking outer loop")
 				break outerLoop
 			}
 
-			word, err := reader.ReadString('\n')
+			word, err := src.Next()
 
 			if err == io.EOF {
 				log.Printf("[fuzzer] reached EOF for marker %s", marker)
@@ -184,14 +258,8 @@ outerLoop:
 
 			if err != nil && err != io.EOF {
 				f.Stop()
-				log.Println("[fuzzer] failed to read wordlist: %w", err)
+				log.Println("[fuzzer] failed to read source: %w", err)
 				break outerLoop
-			}
-
-			if strings.HasSuffix(word, "\r\n") {
-				word = word[:len(word)-2]
-			} else if strings.HasSuffix(word, "\n") {
-				word = word[:len(word)-1]
 			}
 
 			log.Println("[fuzzer] reading word: ", word)
@@ -206,8 +274,15 @@ outerLoop:
 		}
 
 		if f.Config.Mode == ModePitchFork {
-			// Only process if we didn't hit EOF (all markers were read successfully)
-			if !hitEOF {
+			// Dispatch if we have valid marker values (EOF may arrive with the last value)
+			hasValues := false
+			for _, v := range markers {
+				if v != "" {
+					hasValues = true
+					break
+				}
+			}
+			if hasValues {
 				f.wg.Add(1)
 				log.Printf("[fuzzer] dispatching request in pitch_fork mode with markers=%v", markers)
 				go f.SendRequest(markers)
@@ -215,8 +290,7 @@ outerLoop:
 		}
 
 		if hitEOF {
-			log.Println("[fuzzer] hit EOF on at least one wordlist; breaking outer loop")
-			// f.Stop()
+			log.Println("[fuzzer] hit EOF on at least one source; breaking outer loop")
 			break outerLoop
 		}
 
@@ -308,46 +382,23 @@ func (f *Fuzzer) SetTotalRequests(total int) {
 	atomic.StoreInt64(&f.totalRequests, int64(total))
 }
 
-// calculateTotalRequests calculates the total number of requests based on wordlist sizes and mode
+// calculateTotalRequests calculates the total number of requests based on source sizes and mode
 func (f *Fuzzer) calculateTotalRequests() int {
-	wordlistSizes := make(map[string]int)
-
-	// Count lines in each wordlist
-	for marker, wordlist := range f.Config.Markers {
-		file, err := os.Open(wordlist)
-		if err != nil {
-			log.Printf("[fuzzer] failed to open wordlist %s for counting: %v", wordlist, err)
-			continue
-		}
-
-		scanner := bufio.NewScanner(file)
-		count := 0
-		for scanner.Scan() {
-			count++
-		}
-		file.Close()
-
-		wordlistSizes[marker] = count
-		log.Printf("[fuzzer] wordlist %s has %d lines", marker, count)
-	}
-
 	// Calculate total based on mode
 	if f.Config.Mode == ModeClusterBomb {
-		// Cluster bomb: multiply all wordlist sizes
 		total := 1
-		for _, size := range wordlistSizes {
-			total *= size
+		for _, src := range f.sources {
+			total *= src.Len()
 		}
 		return total
 	} else if f.Config.Mode == ModePitchFork {
-		// Pitchfork: use the size of the smallest wordlist
-		if len(wordlistSizes) == 0 {
+		if len(f.sources) == 0 {
 			return 0
 		}
 		min := -1
-		for _, size := range wordlistSizes {
-			if min == -1 || size < min {
-				min = size
+		for _, src := range f.sources {
+			if min == -1 || src.Len() < min {
+				min = src.Len()
 			}
 		}
 		return min

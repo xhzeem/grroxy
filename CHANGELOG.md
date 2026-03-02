@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-MAR] - Fuzzer: Unified Markers with Inline Payloads
+
+### Added
+
+- **Fuzzer: Inline Payloads via `markers`** — Each marker value can now be either a string (wordlist file path) or an array of strings (inline payloads). Both types can be mixed in the same request. Inline payloads support multi-line values since they are iterated by index, not split by newlines.
+- **Fuzzer: `generated_by` field** — Track what generated a fuzzer request (e.g., "manual", "workflow").
+- **Fuzzer: `process_data` field** — Attach arbitrary metadata to a fuzzer process.
+- **Fuzzer: `Failed` process state** — Fuzzer processes that encounter errors are now marked as "Failed" with error details.
+- **Fuzzer: `markerSource` abstraction** — Internal interface (`fileSource`, `sliceSource`) replaces raw `bufio.Reader` for all marker iteration, enabling correct multi-line payload support.
+
+### Changed
+
+- **Fuzzer: Removed separate `payloads` field** — The `markers` field now handles both file paths and inline payloads via type detection. No separate `payloads` field needed.
+- **Fuzzer: Improved validation** — Validates marker types (must be string or array), empty values, and provides clearer error messages.
+
+### Fixed
+
+- **Fuzzer: Pitch fork last-item dispatch** — Fixed bug where the last payload in pitch_fork mode was skipped when EOF arrived with the final value.
+- **Fuzzer: Cleaned up wordlist initialization** — Removed debug code from fuzzer core.
+
+---
+
 ## [2026-FEB] - v0.25.0 - Self-Update, Electron Launch & Proxy Improvements
 
 ### Added
