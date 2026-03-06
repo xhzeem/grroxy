@@ -4,6 +4,150 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-MAR] - Fuzzer: Unified Markers with Inline Payloads
+
+### Added
+
+- **Fuzzer: Inline Payloads via `markers`** — Each marker value can now be either a string (wordlist file path) or an array of strings (inline payloads). Both types can be mixed in the same request. Inline payloads support multi-line values since they are iterated by index, not split by newlines.
+- **Fuzzer: `generated_by` field** — Track what generated a fuzzer request (e.g., "manual", "workflow").
+- **Fuzzer: `process_data` field** — Attach arbitrary metadata to a fuzzer process.
+- **Fuzzer: `Failed` process state** — Fuzzer processes that encounter errors are now marked as "Failed" with error details.
+- **Fuzzer: `markerSource` abstraction** — Internal interface (`fileSource`, `sliceSource`) replaces raw `bufio.Reader` for all marker iteration, enabling correct multi-line payload support.
+
+### Changed
+
+- **Fuzzer: Removed separate `payloads` field** — The `markers` field now handles both file paths and inline payloads via type detection. No separate `payloads` field needed.
+- **Fuzzer: Improved validation** — Validates marker types (must be string or array), empty values, and provides clearer error messages.
+
+### Fixed
+
+- **Fuzzer: Pitch fork last-item dispatch** — Fixed bug where the last payload in pitch_fork mode was skipped when EOF arrived with the final value.
+- **Fuzzer: Cleaned up wordlist initialization** — Removed debug code from fuzzer core.
+
+---
+
+## [2026-FEB] - v0.25.0 - Self-Update, Electron Launch & Proxy Improvements
+
+### Added
+
+- **Self-Update Command** (1dc12df)
+  - `grroxy update` - Fetch and replace binaries (`grroxy`, `grroxy-app`, `grroxy-tool`) from GitHub Releases
+  - Private repo support via `GITHUB_TOKEN` environment variable
+  - Cross-platform binary replacement with `.exe` handling for Windows
+
+- **Update API Endpoints**
+  - `GET /api/update/check` - Check if a newer version is available (returns current/latest version and platform info)
+  - `POST /api/update` - Perform the update for all binaries from the launcher
+
+- **Electron App Launch Integration** (3a41c75)
+  - Electron app now spawns `grroxy start` as a child process on launch
+  - Automatic backend startup when opening the desktop app
+
+- **Chrome Browser Test Suite** (31a1186)
+  - Comprehensive test cases for Chrome automation (`grx/browser/chrome_test.go`)
+  - Multi-tab workflow tests and navigation timeout fixes
+
+### Changed
+
+- **Rawproxy Protocol Handling** (da3c528)
+  - Improved protocol detection and handling per target
+  - uTLS transport caching per target for better performance
+
+- **Serve Configuration** (b3c5945)
+  - Use `.grroxy` directory and `chdir` on launch for cleaner working directory management
+
+- **Frontend Updates** (d702ab7, b621b2c)
+  - Frontend fetch improvements
+
+### Fixed
+
+- Host header handling (9ee9aad)
+- Chrome navigation timeout in MultiTabWorkflow test (2d2980d)
+
+---
+
+## [2026-FEB] - v0.24.0 - Chrome Automation Refactor & Tab Management
+
+### Added
+
+- **Chrome Tab Management API**
+  - `GET /api/proxy/chrome/tabs` - List all open tabs in the attached Chrome instance
+  - `POST /api/proxy/chrome/tab/open` - Open a new tab with optional URL
+  - `POST /api/proxy/chrome/tab/navigate` - Navigate a specific tab with configurable wait conditions (`load`, `domcontentloaded`, `networkidle`)
+  - `POST /api/proxy/chrome/tab/activate` - Switch focus to a specific tab
+  - `POST /api/proxy/chrome/tab/close` - Close a specific tab
+  - `POST /api/proxy/chrome/tab/reload` - Reload a specific tab with optional cache bypass
+  - `POST /api/proxy/chrome/tab/back` - Navigate back in history for a specific tab
+  - `POST /api/proxy/chrome/tab/forward` - Navigate forward in history for a specific tab
+
+### Changed
+
+- **Chrome Automation Refactor**
+  - Refactored `grx/browser/chrome.go` to use `ChromeRemote` struct for better state management and persistence
+  - Improved connection handling and context management for Chrome DevTools Protocol
+  - Migrated standalone functions to `ChromeRemote` methods for multi-tab support
+
+### Deprecated
+
+- Standalone browser functions `TakeChromeScreenshot`, `ClickChromeElement`, etc. are now deprecated in favor of `ChromeRemote` methods
+
+## [2026-FEB] - v0.23.0 - Process Management & SDK Integration
+
+### Added
+
+- **Process Management System** (44a3971)
+  - Complete process management API for tracking long-running operations (fuzzers, scanners, etc.)
+  - `_processes` collection with real-time progress tracking
+  - Process states: `In Queue`, `Running`, `Completed`, `Killed`, `Failed`, `Paused`
+  - Automatic progress percentage calculation based on completed/total counts
+  - Process fields: `parent_id`, `generated_by`, `created_by` for better tracking
+  - Database migration for `_processes` collection schema updates
+
+- **SDK for External Tools** (44a3971)
+  - `internal/sdk/process.go` - SDK client for external tools to connect to main app
+  - SDK authentication via admin email/password
+  - Process management functions:
+    - `CreateProcess()` - Create new process with metadata
+    - `UpdateProcess()` - Update progress with atomic operations
+    - `CompleteProcess()` - Mark process as completed
+    - `FailProcess()` - Mark process as failed with error message
+    - `PauseProcess()` - Pause running process
+    - `KillProcess()` - Stop process by user request
+  - Environment variable support (`GRROXY_APP_URL`, `GRROXY_ADMIN_EMAIL`, `GRROXY_ADMIN_PASSWORD`)
+  - External tools can now update main app's `_processes` collection via HTTP API
+
+- **Fuzzer Improvements** (44a3971, 553f762)
+  - Batch database saving for improved performance
+  - Atomic progress counters using `atomic.AddInt64()` and `atomic.LoadInt64()` (no mutexes)
+  - SDK integration for process tracking in external `grroxy-tools`
+  - Periodic progress updates (1-second ticker) instead of per-request updates
+  - Process creation with fuzzer configuration and request metadata
+  - Automatic process state management (In Queue → Running → Completed/Failed/Killed)
+
+- **Documentation** (44a3971)
+  - `docs/PROCESS_MANAGEMENT.md` - Comprehensive guide for process management and SDK integration
+  - `examples/sdk_process_example.go` - Working examples for SDK usage
+  - API documentation for process management endpoints
+
+### Changed
+
+- **Tools Architecture** (44a3971)
+  - `apps/tools/main.go` - Added `AppSDK` field to `Tools` struct for SDK client
+  - `apps/tools/fuzzer.go` - Refactored to use SDK for all process operations
+  - `grx/fuzzer/fuzzer.go` - Added atomic counters (`totalRequests`, `completedRequests`) for thread-safe progress tracking
+
+- **Process Schema** (44a3971)
+  - `internal/schemas/processes.go` - Added `Failed` and `Paused` states
+  - Enhanced process input/output structure for better metadata tracking
+
+### Fixed
+
+- Improved fuzzer performance with batch database operations
+- Thread-safe progress tracking without mutex contention
+- Proper error handling and state management for long-running processes
+
+---
+
 ## [2026-JAN] - v0.22.0 - WebSocket Proxying & Capture
 
 ### Added

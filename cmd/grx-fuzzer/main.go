@@ -148,6 +148,12 @@ func runFuzzer(cmd *cobra.Command, args []string) {
 	}
 	fmt.Println()
 
+	// Convert markers to map[string]any for fuzzer config
+	markersAny := make(map[string]any, len(markers))
+	for k, v := range markers {
+		markersAny[k] = v
+	}
+
 	// Create fuzzer config
 	config := fuzzer.FuzzerConfig{
 		Request:     request,
@@ -155,7 +161,7 @@ func runFuzzer(cmd *cobra.Command, args []string) {
 		Port:        port,
 		UseTLS:      useTLS,
 		UseHTTP2:    useHTTP2,
-		Markers:     markers,
+		Markers:     markersAny,
 		Mode:        mode,
 		Concurrency: concurrency,
 		Timeout:     time.Duration(timeout * float64(time.Second)),

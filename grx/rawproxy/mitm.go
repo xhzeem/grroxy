@@ -249,6 +249,16 @@ func (h *mitmHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	req.Body.Close()
 	req.Body = io.NopCloser(bytes.NewReader(body))
 
+	// Fix request protocol to match what the upstream server actually speaks.
+	// The client-to-proxy MITM connection may use HTTP/2 (we advertise h2),
+	// but the upstream server may only support HTTP/1.1.
+	// Check the global protocol cache and override req.Proto accordingly.
+	if cachedProto := GetCachedProto(h.host); cachedProto == "http/1.1" {
+		req.Proto = "HTTP/1.1"
+		req.ProtoMajor = 1
+		req.ProtoMinor = 1
+	}
+
 	// Apply onRequest handler if configured
 	var processedRequest = req
 	if h.config.OnRequestHandler != nil {
@@ -296,6 +306,16 @@ func (h *mitmHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
+
+	// Set the actual upstream protocol on reqData so handlers can access it.
+	// Also update req.Proto to match what the upstream actually speaks,
+	// since the client-to-proxy connection may use a different protocol (e.g. HTTP/2).
+	reqData.HttpProto = resp.Proto
+	if resp.Proto != "" && resp.Proto != req.Proto {
+		req.Proto = resp.Proto
+		req.ProtoMajor = resp.ProtoMajor
+		req.ProtoMinor = resp.ProtoMinor
+	}
 
 	// Read response body
 	respBody, _ := io.ReadAll(resp.Body)

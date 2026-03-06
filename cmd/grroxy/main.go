@@ -11,6 +11,8 @@ import (
 
 	// "github.com/pocketbase/dbx"
 
+	"runtime"
+
 	"github.com/glitchedgitz/cook/v2/pkg/cook"
 	"github.com/glitchedgitz/grroxy-db/apps/launcher"
 	"github.com/glitchedgitz/grroxy-db/grx/rawproxy"
@@ -18,6 +20,7 @@ import (
 	"github.com/glitchedgitz/grroxy-db/internal/config"
 	_ "github.com/glitchedgitz/grroxy-db/internal/logflags"
 	"github.com/glitchedgitz/grroxy-db/internal/process"
+	"github.com/glitchedgitz/grroxy-db/internal/updater"
 	"github.com/glitchedgitz/grroxy-db/internal/utils"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -124,6 +127,76 @@ func main() {
 		},
 	})
 
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "update [binary]",
+		Short: "Update grroxy binaries to the latest release",
+		Long: `Update grroxy binaries from GitHub Releases.
+
+Without arguments, updates all binaries (grroxy, grroxy-app, grroxy-tool).
+Specify a binary name to update only that one.`,
+		Args: cobra.MaximumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			allBinaries := []string{"grroxy", "grroxy-app", "grroxy-tool"}
+			targets := allBinaries
+			if len(args) == 1 {
+				targets = []string{args[0]}
+			}
+
+			token := updater.GetToken()
+			if token == "" {
+				fmt.Println("Warning: No GitHub token found. Set GITHUB_TOKEN or GH_TOKEN for private repo access.")
+			}
+
+			fmt.Println("Checking for updates...")
+			release, err := updater.CheckLatestVersion(token)
+			if err != nil {
+				fmt.Printf("Error checking for updates: %v\n", err)
+				os.Exit(1)
+			}
+
+			current := version.CURRENT_BACKEND_VERSION
+			latest := release.TagName
+			fmt.Printf("Current version: v%s\n", current)
+			fmt.Printf("Latest version:  %s\n", latest)
+			fmt.Printf("Platform:        %s/%s\n", runtime.GOOS, runtime.GOARCH)
+
+			if !updater.NeedsUpdate(current, latest) {
+				fmt.Println("\nAlready up to date!")
+				return
+			}
+
+			fmt.Printf("\nUpdating to %s...\n\n", latest)
+
+			for _, name := range targets {
+				// Clean up .old files from previous Windows updates
+				if binPath, err := updater.FindBinaryPath(name); err == nil {
+					updater.CleanupOldBinaries(binPath)
+				}
+
+				asset, err := updater.FindAsset(release, name)
+				if err != nil {
+					fmt.Printf("  [SKIP] %s: %v\n", name, err)
+					continue
+				}
+
+				binPath, err := updater.FindBinaryPath(name)
+				if err != nil {
+					fmt.Printf("  [SKIP] %s: %v\n", name, err)
+					continue
+				}
+
+				fmt.Printf("  Updating %s (%s)...", name, binPath)
+				if err := updater.UpdateBinary(asset.URL, binPath, token); err != nil {
+					fmt.Printf(" FAILED: %v\n", err)
+					continue
+				}
+				fmt.Println(" OK")
+			}
+
+			fmt.Printf("\nUpdated to %s. Restart grroxy to use the new version.\n", latest)
+		},
+	})
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -180,6 +253,8 @@ func startCore() {
 	launch.App.OnBeforeServe().Add(launch.TemplatesDelete)
 	launch.App.OnBeforeServe().Add(launch.Tools)
 	launch.App.OnBeforeServe().Add(launch.ToolsServer)
+	launch.App.OnBeforeServe().Add(launch.API_CheckUpdate)
+	launch.App.OnBeforeServe().Add(launch.API_DoUpdate)
 
 	host, err := utils.CheckAndFindAvailablePort("127.0.0.1:8090")
 	if err != nil {

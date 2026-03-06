@@ -12,9 +12,11 @@ import (
 	"github.com/glitchedgitz/grroxy-db/grx/fuzzer"
 	"github.com/glitchedgitz/grroxy-db/grx/rawhttp"
 	"github.com/glitchedgitz/grroxy-db/internal/schemas"
+	"github.com/glitchedgitz/grroxy-db/internal/sdk"
 	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/daos"
 	"github.com/pocketbase/pocketbase/models"
 	"github.com/pocketbase/pocketbase/models/schema"
 	pbTypes "github.com/pocketbase/pocketbase/tools/types"
@@ -30,16 +32,18 @@ var FuzzerMgr = &FuzzerManager{
 }
 
 type FuzzerStartRequest struct {
-	Collection  string            `json:"collection"`
-	Request     string            `json:"request"`
-	Host        string            `json:"host"`
-	Port        string            `json:"port"`
-	UseTLS      bool              `json:"useTLS"`
-	UseHTTP2    bool              `json:"http2"` // Enable HTTP/2 support
-	Markers     map[string]string `json:"markers"`
-	Mode        string            `json:"mode"`
-	Concurrency int               `json:"concurrency"`
-	Timeout     float64           `json:"timeout"` // in seconds
+	Collection  string         `json:"collection"`
+	Request     string         `json:"request"`
+	Host        string         `json:"host"`
+	Port        string         `json:"port"`
+	UseTLS      bool           `json:"useTLS"`
+	UseHTTP2    bool           `json:"http2"`    // Enable HTTP/2 support
+	Markers     map[string]any `json:"markers"` // marker -> string (file path) or []string (inline payloads)
+	Mode        string         `json:"mode"`
+	Concurrency int            `json:"concurrency"`
+	Timeout     float64        `json:"timeout"` // in seconds
+	ProcessData any            `json:"process_data"`
+	GeneratedBy string         `json:"generated_by"`
 }
 
 // CreateCollection creates a collection with the specified schema
@@ -124,27 +128,68 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 
 			var body FuzzerStartRequest
 			if err := c.Bind(&body); err != nil {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+				return c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      err.Error(),
+				})
 			}
 
 			// log.Println("[StartFuzzer] Request:", body)
 
 			// Validate required fields
 			if body.Request == "" {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "request is required"})
+				return c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      "request is required",
+				})
 			}
 			if body.Host == "" {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "host is required"})
-			}
-			if body.Markers == nil {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "markers is required"})
+				return c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      "host is required",
+				})
 			}
 			if len(body.Markers) == 0 {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "markers cannot be blank"})
+				return c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      "markers is required",
+				})
 			}
 			for key, value := range body.Markers {
-				if value == "" {
-					return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": fmt.Sprintf("marker '%s' must have a value", key)})
+				switch v := value.(type) {
+				case string:
+					if v == "" {
+						return c.JSON(http.StatusBadRequest, map[string]interface{}{
+							"status":     "error",
+							"process_id": "",
+							"fuzzer_id":  "",
+							"error":      fmt.Sprintf("marker '%s' must have a file path", key),
+						})
+					}
+				case []interface{}:
+					if len(v) == 0 {
+						return c.JSON(http.StatusBadRequest, map[string]interface{}{
+							"status":     "error",
+							"process_id": "",
+							"fuzzer_id":  "",
+							"error":      fmt.Sprintf("marker '%s' must have at least one payload", key),
+						})
+					}
+				default:
+					return c.JSON(http.StatusBadRequest, map[string]interface{}{
+						"status":     "error",
+						"process_id": "",
+						"fuzzer_id":  "",
+						"error":      fmt.Sprintf("marker '%s' must be a string (file path) or array (payloads)", key),
+					})
 				}
 			}
 
@@ -156,6 +201,16 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 			timeout := time.Duration(body.Timeout) * time.Second
 			if timeout == 0 {
 				timeout = 10 * time.Second
+			}
+
+			// Create process in main app's database using SDK
+			if backend.AppSDK == nil {
+				return c.JSON(http.StatusServiceUnavailable, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      "Not connected to main app. Please initialize SDK using tools.LoginSDK(url, email, password)",
+				})
 			}
 
 			// Create fuzzer config
@@ -171,18 +226,53 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 				Timeout:     timeout,
 			}
 
-			// Register in database
-			id := backend.RegisterProcessInDB(config, body, "Fuzzer", "fuzzer", schemas.ProcessState.Inqueue)
+			id, err := backend.AppSDK.CreateProcess(sdk.CreateProcessRequest{
+				Name:        "Fuzzer",
+				Description: fmt.Sprintf("Fuzzing %s", body.Host),
+				Type:        "fuzzer",
+				State:       "In Queue",
+				Data: map[string]any{
+					"request_body": body,
+				},
+				GeneratedBy: body.GeneratedBy,
+			})
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      fmt.Sprintf("Failed to create process: %v", err),
+				})
+			}
+
+			// backend.AppSDK.AddRequest(types.AddRequestBodyType{
+			// 	Url:         "",
+			// 	Index:       body.,
+			// 	Request:     body.Request,
+			// 	Response:    `json:"response"`,
+			// 	GeneratedBy: `json:"generated_by"`,
+			// 	Note:        `json:"note,omitempty"`,
+			// })
 
 			// Create collection for this fuzzer
-			err := backend.CreateCollection(body.Collection, schemas.Fuzzer)
+			err = backend.CreateCollection(body.Collection, schemas.Fuzzer)
 			if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": fmt.Sprintf("Failed to create collection: %v", err)})
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      fmt.Sprintf("Failed to create collection: %v", err),
+				})
 			}
 
 			collection, err := backend.App.Dao().FindCollectionByNameOrId(body.Collection)
 			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": fmt.Sprintf("Failed to find collection: %v", err)})
+				return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      fmt.Sprintf("Failed to find collection: %v", err),
+				})
 			}
 
 			// Create fuzzer instance
@@ -193,42 +283,107 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 			FuzzerMgr.instances[id] = f
 			FuzzerMgr.mu.Unlock()
 
-			// Update state to running
-			backend.SetProcess(id, schemas.ProcessState.Running)
+			// Update state to running via SDK
+			err = backend.AppSDK.UpdateProcess(id, sdk.ProgressUpdate{
+				Completed: 0,
+				Total:     100,
+				Message:   "Starting fuzzer...",
+				State:     "Running",
+			})
+			if err != nil {
+				log.Printf("[StartFuzzer] Failed to update process state: %v", err)
+			}
 
 			// Start result processing in a goroutine
 			go func() {
-				for result := range f.Results {
-					fuzzerResult, ok := result.(fuzzer.FuzzerResult)
-					if !ok {
-						log.Printf("[StartFuzzer] Invalid result type: %T", result)
-						continue
+				const batchSize = 100
+				const flushInterval = 2 * time.Second
+				const progressUpdateInterval = 1 * time.Second
+				batch := make([]*models.Record, 0, batchSize)
+				ticker := time.NewTicker(flushInterval)
+				progressTicker := time.NewTicker(progressUpdateInterval)
+				defer ticker.Stop()
+				defer progressTicker.Stop()
+
+				flush := func() {
+					if len(batch) == 0 {
+						return
 					}
-
-					log.Println("[StartFuzzer] markers: ", fuzzerResult.Markers)
-
-					// Parse request and response
-					data := parseAndSaveResult(fuzzerResult.Request, fuzzerResult.Response)
-
-					// Add common fields
-					data["fuzzer_id"] = id
-					data["time"] = fuzzerResult.Time.Nanoseconds()
-					data["markers"] = fuzzerResult.Markers
-
-					// Create and save record
-					record := models.NewRecord(collection)
-					for key, value := range data {
-						record.Set(key, value)
-					}
-					err := backend.App.Dao().SaveRecord(record)
+					err := backend.App.Dao().RunInTransaction(func(txDao *daos.Dao) error {
+						for _, record := range batch {
+							if err := txDao.SaveRecord(record); err != nil {
+								return err
+							}
+						}
+						return nil
+					})
 					if err != nil {
-						log.Printf("[StartFuzzer] Failed to save record: %v", err)
+						log.Printf("[StartFuzzer] Failed to save batch for %s: %v", id, err)
+					}
+					batch = batch[:0]
+				}
+
+				for {
+					select {
+					case result, ok := <-f.Results:
+						if !ok {
+							flush()
+							goto resultsDone
+						}
+						fuzzerResult, ok := result.(fuzzer.FuzzerResult)
+						if !ok {
+							log.Printf("[StartFuzzer] Invalid result type: %T", result)
+							continue
+						}
+
+						// log.Println("[StartFuzzer] markers: ", fuzzerResult.Markers)
+
+						// Parse request and response
+						data := parseAndSaveResult(fuzzerResult.Request, fuzzerResult.Response)
+
+						// Add common fields
+						data["fuzzer_id"] = id
+						data["time"] = fuzzerResult.Time.Nanoseconds()
+						data["markers"] = fuzzerResult.Markers
+
+						// Create record
+						record := models.NewRecord(collection)
+						for key, value := range data {
+							record.Set(key, value)
+						}
+						batch = append(batch, record)
+
+						if len(batch) >= batchSize {
+							flush()
+						}
+					case <-ticker.C:
+						flush()
+					case <-progressTicker.C:
+						// Update progress via SDK
+						completed, total := f.GetProgress()
+						if total > 0 {
+							err := backend.AppSDK.UpdateProcess(id, sdk.ProgressUpdate{
+								Completed: completed,
+								Total:     total,
+								Message:   fmt.Sprintf("Processing: %d/%d requests", completed, total),
+								State:     "Running",
+							})
+							if err != nil {
+								log.Printf("[StartFuzzer] Failed to update progress: %v", err)
+							}
+						}
 					}
 				}
+			resultsDone:
 
 				log.Println("[StartFuzzer] results processing completed for ", id)
 
-				backend.SetProcess(id, schemas.ProcessState.Completed)
+				// Final progress update via SDK
+				completed, total := f.GetProgress()
+				err := backend.AppSDK.CompleteProcess(id, fmt.Sprintf("Completed: %d/%d requests", completed, total))
+				if err != nil {
+					log.Printf("[StartFuzzer] Failed to complete process: %v", err)
+				}
 
 				// Clean up after all results are processed
 				FuzzerMgr.mu.Lock()
@@ -237,15 +392,29 @@ func (backend *Tools) StartFuzzer(e *core.ServeEvent) error {
 			}()
 
 			// Start fuzzing in a separate goroutine (non-blocking)
-			err = f.Fuzz()
-			if err != nil {
-				log.Printf("[StartFuzzer] Error: %v", err)
-				return c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error()})
-			}
+			go func() {
+				err := f.Fuzz()
+				if err != nil {
+					log.Printf("[StartFuzzer] Fuzzer error for %s: %v", id, err)
+
+					// Update process as failed via SDK
+					sdkErr := backend.AppSDK.FailProcess(id, fmt.Sprintf("Fuzzer error: %v", err))
+					if sdkErr != nil {
+						log.Printf("[StartFuzzer] Failed to update process as failed: %v", sdkErr)
+					}
+
+					// Clean up
+					FuzzerMgr.mu.Lock()
+					delete(FuzzerMgr.instances, id)
+					FuzzerMgr.mu.Unlock()
+				}
+			}()
 
 			// Return immediately with the fuzzer ID
 			return c.JSON(http.StatusOK, map[string]interface{}{
-				"id": id,
+				"status":     "started",
+				"process_id": id,
+				"fuzzer_id":  id,
 			})
 		},
 		Middlewares: []echo.MiddlewareFunc{
@@ -271,12 +440,22 @@ func (backend *Tools) StopFuzzer(e *core.ServeEvent) error {
 
 			var body map[string]string
 			if err := c.Bind(&body); err != nil {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": err.Error()})
+				return c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      err.Error(),
+				})
 			}
 
 			id := body["id"]
 			if id == "" {
-				return c.JSON(http.StatusBadRequest, map[string]interface{}{"error": "id is required"})
+				return c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"status":     "error",
+					"process_id": "",
+					"fuzzer_id":  "",
+					"error":      "id is required",
+				})
 			}
 
 			FuzzerMgr.mu.RLock()
@@ -284,14 +463,35 @@ func (backend *Tools) StopFuzzer(e *core.ServeEvent) error {
 			FuzzerMgr.mu.RUnlock()
 
 			if !exists {
-				return c.JSON(http.StatusNotFound, map[string]interface{}{"error": "fuzzer not found"})
+				return c.JSON(http.StatusNotFound, map[string]interface{}{
+					"status":     "error",
+					"process_id": id,
+					"fuzzer_id":  id,
+					"error":      "fuzzer not found",
+				})
 			}
 
+			// Get current progress before stopping
+			completed, total := f.GetProgress()
+
+			// Stop the fuzzer
 			f.Stop()
-			backend.SetProcess(id, schemas.ProcessState.Killed)
+
+			// Update process with final progress via SDK
+			err := backend.AppSDK.UpdateProcess(id, sdk.ProgressUpdate{
+				Completed: completed,
+				Total:     total,
+				Message:   fmt.Sprintf("Stopped by user at %d/%d requests", completed, total),
+				State:     "Killed",
+			})
+			if err != nil {
+				log.Printf("[StopFuzzer] Failed to update process: %v", err)
+			}
 
 			return c.JSON(http.StatusOK, map[string]interface{}{
-				"status": "stopped",
+				"status":     "stopped",
+				"process_id": id,
+				"fuzzer_id":  id,
 			})
 		},
 		Middlewares: []echo.MiddlewareFunc{

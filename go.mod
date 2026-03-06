@@ -14,16 +14,18 @@ require (
 	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0
 	github.com/duke-git/lancet/v2 v2.3.0
 	github.com/fsnotify/fsnotify v1.8.0
-	github.com/glitchedgitz/cook/v2 v2.2.0
-	github.com/glitchedgitz/dadql v0.0.0
+	github.com/glitchedgitz/cook/v2 v2.3.0
+	github.com/glitchedgitz/dadql v0.0.1
 	github.com/glitchedgitz/wappalyzergo v0.0.2
 	github.com/go-resty/resty/v2 v2.12.0
 	github.com/jpillora/go-tld v1.2.1
+	github.com/klauspost/compress v1.17.7
 	github.com/labstack/echo/v5 v5.0.0-20230722203903-ec5b858dab61
 	github.com/pocketbase/dbx v1.10.1
 	github.com/pocketbase/pocketbase v0.22.7
 	github.com/projectdiscovery/gologger v1.1.12
 	github.com/r--w/pocketbase v0.13.0
+	github.com/refraction-networking/utls v1.8.1
 	github.com/rs/xid v1.5.0
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.10.0
@@ -85,7 +87,6 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
-	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -99,7 +100,6 @@ require (
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/refraction-networking/utls v1.8.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
@@ -137,8 +137,4 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-replace (
-	github.com/glitchedgitz/cook/v2 v2.2.0 => ../cook/v2
-	github.com/glitchedgitz/dadql v0.0.0 => ../dadql
-	github.com/pocketbase/pocketbase v0.22.7 => ../grroxy-base
-)
+replace github.com/pocketbase/pocketbase v0.22.7 => github.com/glitchedgitz/grroxy-base v0.22.0

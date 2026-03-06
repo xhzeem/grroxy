@@ -9,6 +9,7 @@ import (
 // RequestData holds data that can be passed from request handler to response handler
 type RequestData struct {
 	RequestID string      // Unique request ID
+	HttpProto string      // Actual upstream protocol used (e.g. "HTTP/1.1", "HTTP/2.0")
 	Data      interface{} // Custom data (e.g., UserData, metadata, etc.)
 }
 
