@@ -1,6 +1,6 @@
 {
   "name": "grroxy",
-  "version": "2026.3.5",
+  "version": "2026.3.6",
   "author": {
     "name": "Gitesh Sharma",
     "email": "gitesh@grroxy.com"
@@ -21,7 +21,7 @@
       {
         "from": "bin/${os}/${arch}/",
         "to": "bin",
-        "filter": ["grroxy*"]
+        "filter": ["grroxy*", "cook*"]
       }
     ],
     "files": [

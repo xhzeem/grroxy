@@ -10,7 +10,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-BINARIES=(grroxy grroxy-app grroxy-tool)
+BINARIES=(grroxy grroxy-app grroxy-tool cook)
 
 ALL_PLATFORMS=(
     "darwin:arm64"
@@ -50,9 +50,13 @@ build_go_platform() {
 
     for binary in "${BINARIES[@]}"; do
         printf "  %s ..." "$binary"
+        local PKG="${PROJECT_ROOT}/cmd/${binary}"
+        if [ "$binary" = "cook" ]; then
+            PKG="github.com/glitchedgitz/cook/v2/cmd/cook"
+        fi
         GOOS=$TARGET_OS GOARCH=$TARGET_ARCH CGO_ENABLED=0 go build \
             -o "${OUT_DIR}/${binary}${EXT}" \
-            "${PROJECT_ROOT}/cmd/${binary}"
+            "$PKG"
         echo " OK"
     done
 
