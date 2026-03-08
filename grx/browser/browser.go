@@ -23,6 +23,14 @@ func LaunchBrowser(browserType string, proxyAddress string, customCertPath strin
 		return launchSafari(proxyAddress, customCertPath, profileDir)
 	case "terminal":
 		return launchTerminal(proxyAddress, customCertPath)
+	case "brave":
+		return launchBrave(proxyAddress, customCertPath, profileDir)
+	case "edge":
+		return launchEdge(proxyAddress, customCertPath, profileDir)
+	case "vivaldi":
+		return launchVivaldi(proxyAddress, customCertPath, profileDir)
+	case "opera":
+		return launchOpera(proxyAddress, customCertPath, profileDir)
 	default:
 		return nil, fmt.Errorf("unsupported browser: %s", browserType)
 	}
