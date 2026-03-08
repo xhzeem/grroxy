@@ -12,6 +12,12 @@ A cyber security toolkit blending manual testing with AI Agents.
 ### Desktop App
 Download the latest release for your platform from [Releases](https://github.com/glitchedgitz/grroxy/releases):
 
+Currently I have applied for the apple developer id, current workaround for 
+
+```
+xattr -cr /Applications/Grroxy.app
+```
+
 If you prefer using grroxy from the terminal without the desktop app:
 
 **Go Install:**
