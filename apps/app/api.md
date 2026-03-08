@@ -87,7 +87,7 @@ _Request Body:_
 ```json
 {
   "http": "127.0.0.1:8080",
-  "browser": "chrome|firefox|safari|terminal|proxy",
+  "browser": "chrome|firefox|safari|terminal|brave|edge|vivaldi|opera|proxy",
   "name": "My Proxy Instance"
 }
 ```
@@ -95,7 +95,7 @@ _Request Body:_
 _Fields:_
 
 - `http` (string, optional): The listen address for the proxy (e.g., "127.0.0.1:8080"). If not provided with a browser, defaults to "127.0.0.1:9797". If the port is unavailable, an available port will be suggested.
-- `browser` (string, optional): Browser to launch with this proxy. Options: "chrome", "firefox", "safari", "terminal", "proxy" (no browser). Leave empty for proxy only.
+- `browser` (string, optional): Browser to launch with this proxy. Options: "chrome", "firefox", "safari", "terminal", "brave", "edge", "vivaldi", "opera", or "proxy" (no browser). Leave empty for proxy only.
 - `name` (string, optional): Custom name for the proxy instance. If not provided, a name will be auto-generated based on browser type and count (e.g., "chrome 1", "firefox 2").
 
 _Response:_
