@@ -21,8 +21,10 @@ func LaunchBrowser(browserType string, proxyAddress string, customCertPath strin
 		return launchFirefox(proxyAddress, customCertPath, profileDir)
 	case "safari":
 		return launchSafari(proxyAddress, customCertPath, profileDir)
-	case "terminal":
+	case "terminal", "fresh_terminal":
 		return launchTerminal(proxyAddress, customCertPath)
+	case "existing_terminal":
+		return launchExistingTerminal(proxyAddress, customCertPath)
 	case "brave":
 		return launchBrave(proxyAddress, customCertPath, profileDir)
 	case "edge":
