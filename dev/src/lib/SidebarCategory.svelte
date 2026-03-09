@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ApiEndpoint } from "$lib/api";
+  import { cn } from "$lib/utils";
 
   let {
     categoryName,
@@ -40,7 +41,7 @@
     </div>
     <div class="flex flex-col gap-4">
       {#each endpoints as endpoint, index}
-        {@const selected = selectedEndpoint === endpoint}
+        {@const selected = selectedEndpoint?.path === endpoint.path && selectedEndpoint?.method === endpoint.method}
         {@const cropped = endpoint.path.startsWith(categoryName)
           ? endpoint.path.slice(categoryName.length)
           : endpoint.path}
@@ -48,8 +49,10 @@
         <div
           role="button"
           tabindex="0"
-          class="flex text-[8px] tracking-[2px] uppercase text-white/70 font-OCR flex-row font-normal hover:text-white group items-center gap-4 transition-all duration-200 origin-left cursor-pointer
-						{selected ? 'text-white' : ''}"
+          class={cn(
+            "flex text-[8px] tracking-[2px] uppercase text-white/70 font-OCR flex-row font-normal hover:text-white group items-center gap-4 transition-all duration-200 origin-left cursor-pointer",
+            selected && "text-white",
+          )}
           onmouseenter={() => {
             hoverItem = index;
           }}
@@ -63,13 +66,15 @@
         >
           <div
             style="transition-timing-function: cubic-bezier(0.1, 0.9, 0.3, 1);"
-            class="w-[20px] h-[1px] bg-white/20 transition-all duration-500
-							{hoverItem === index - 1 ? 'w-[40px]' : ''}
-							{hoverItem === index + 1 ? 'w-[40px]' : ''}
-							{hoverItem === index - 2 ? 'w-[28px]' : ''}
-							{hoverItem === index + 2 ? 'w-[28px]' : ''}
-							{hoverItem === index ? 'bg-white w-[50px]' : ''}
-							{selected ? 'bg-green w-[60px]' : ''}"
+            class={cn(
+              "w-[20px] h-[1px] bg-white/20 transition-all duration-500",
+              hoverItem === index - 1 && "w-[40px]",
+              hoverItem === index + 1 && "w-[40px]",
+              hoverItem === index - 2 && "w-[28px]",
+              hoverItem === index + 2 && "w-[28px]",
+              hoverItem === index && "bg-white w-[50px]",
+              selected && "bg-white w-[60px]",
+            )}
           ></div>
           {#if cropped !== endpoint.path}
             <div class="text-stone opacity-50 ml-8">/</div>
