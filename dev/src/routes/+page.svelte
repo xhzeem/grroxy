@@ -9,21 +9,54 @@
     getCategories,
     sendRequest,
     login,
+    fetchProjects,
+    openProject,
     type AppType,
     type ApiEndpoint,
     type ApiResponse,
+    type Project,
   } from "$lib/api";
 
-  let appType = $state<AppType>("app");
+  // Restore persisted session
+  const saved = typeof localStorage !== "undefined"
+    ? JSON.parse(localStorage.getItem("grroxy-session") || "null")
+    : null;
+
+  let appType = $state<AppType>(saved?.appType ?? "launcher");
   let ENDPOINTS = $derived(getEndpoints(appType));
   let API_CATEGORIES = $derived(getCategories(ENDPOINTS));
-  let baseUrl = $state("http://127.0.0.1:8090");
-  let authToken = $state("");
-  let authEmail = $state("new@example.com");
-  let authPassword = $state("1234567890");
+  let launcherUrl = $state(saved?.launcherUrl ?? "http://127.0.0.1:8090");
+  let authToken = $state(saved?.authToken ?? "");
+  let projectToken = $state(saved?.projectToken ?? "");
+  let authEmail = $state(saved?.authEmail ?? "new@example.com");
+  let authPassword = $state(saved?.authPassword ?? "1234567890");
   let authLoading = $state(false);
   let authError = $state("");
-  let loggedIn = $state(false);
+  let loggedIn = $state(!!saved?.authToken);
+  let projects = $state<Project[]>(saved?.projects ?? []);
+  let selectedProject = $state<Project | null>(saved?.selectedProject ?? null);
+  let projectsLoading = $state(false);
+  let projectDropdownOpen = $state(false);
+  let showLoginPopup = $state(!saved?.authToken);
+  let showEndpointsTable = $state(false);
+
+  function saveSession() {
+    localStorage.setItem("grroxy-session", JSON.stringify({
+      launcherUrl,
+      authToken,
+      projectToken,
+      authEmail,
+      authPassword,
+      appType,
+      projects,
+      selectedProject,
+    }));
+  }
+  let baseUrl = $derived(
+    appType === "launcher" ? launcherUrl
+    : selectedProject ? `http://${selectedProject.data.ip}`
+    : launcherUrl,
+  );
   let selectedEndpoint = $state<ApiEndpoint | null>(null);
   let requestPath = $state("");
   let requestBody = $state("");
@@ -43,9 +76,11 @@
     authLoading = true;
     authError = "";
     try {
-      const res = await login(baseUrl, authEmail, authPassword);
+      const res = await login(launcherUrl, authEmail, authPassword);
       authToken = res.token;
       loggedIn = true;
+      saveSession();
+      await loadProjects();
     } catch (err) {
       authError = err instanceof Error ? err.message : "Login failed";
     } finally {
@@ -55,7 +90,44 @@
 
   function logout() {
     authToken = "";
+    projectToken = "";
     loggedIn = false;
+    projects = [];
+    selectedProject = null;
+    appType = "launcher";
+    localStorage.removeItem("grroxy-session");
+  }
+
+  async function loadProjects() {
+    projectsLoading = true;
+    try {
+      projects = await fetchProjects(launcherUrl, authToken);
+      saveSession();
+    } catch (err) {
+      authError = err instanceof Error ? err.message : "Failed to load projects";
+    } finally {
+      projectsLoading = false;
+    }
+  }
+
+  async function selectProject(project: Project) {
+    projectsLoading = true;
+    try {
+      const opened = await openProject(launcherUrl, project.name, authToken);
+      selectedProject = opened;
+      // Login to the project's app server with the same credentials
+      const projectUrl = `http://${opened.data.ip}`;
+      const projAuth = await login(projectUrl, authEmail, authPassword);
+      projectToken = projAuth.token;
+      appType = "app";
+      selectedEndpoint = null;
+      projectDropdownOpen = false;
+      saveSession();
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Failed to open project";
+    } finally {
+      projectsLoading = false;
+    }
   }
 
   function selectEndpoint(endpoint: ApiEndpoint) {
@@ -75,12 +147,13 @@
     response = null;
 
     try {
+      const activeToken = appType === "launcher" ? authToken : projectToken;
       const res = await sendRequest(
         baseUrl,
         selectedEndpoint,
         requestPath,
         requestBody,
-        authToken,
+        activeToken,
       );
       response = res;
       history = [
@@ -200,30 +273,106 @@
   <Pane>
   <!-- Main Content -->
   <div class="h-full flex flex-col overflow-hidden bg-dark">
-    {#if selectedEndpoint}
-      <div class=" w-[600px] flex gap-8 shadow rounded">
-        <div class=" flex gap-4 p-4 rounded">
-          {#each ["launcher", "app", "tool"] as type}
-            <button
-              onclick={() => {
-                appType = type as AppType;
-                selectedEndpoint = null;
-              }}
-              class="btn-sm {appType === type ? 'btn-green-dim' : 'btn-white-ghost'}"
-            >
-              {type}
-            </button>
-          {/each}
-        </div>
+    <!-- Top Bar -->
+    <div class="flex items-center gap-8 p-8 border-b border-white/5">
+      <!-- App Type Tabs -->
+      <div class="flex gap-4">
+        {#each ["launcher", "app", "tool"] as type}
+          <button
+            onclick={() => {
+              appType = type as AppType;
+              selectedEndpoint = null;
+            }}
+            class="btn-sm {appType === type ? 'btn-green-dim' : 'btn-white-ghost'}"
+          >
+            {type}
+          </button>
+        {/each}
+      </div>
 
-        <div class=" flex gap-6">
-          <input
-            type="text"
-            bind:value={baseUrl}
-            placeholder="http://127.0.0.1:8090"
-            class="input-variant-1 h-24"
-          />
+      <div class="flex-1"></div>
+
+      <!-- Project Dropdown -->
+      {#if selectedProject}
+        <div class="relative">
+          <button
+            class="btn-sm btn-green-outline flex items-center gap-4"
+            onclick={() => (projectDropdownOpen = !projectDropdownOpen)}
+          >
+            {selectedProject.name}
+            <span class="text-[8px] text-green/60">{selectedProject.data.ip}</span>
+            <span class="text-[10px]">{projectDropdownOpen ? "\u25B2" : "\u25BC"}</span>
+          </button>
+          {#if projectDropdownOpen}
+            <div class="absolute right-0 top-full mt-4 z-50 bg-surface border border-white/10 rounded shadow-lg min-w-[200px] max-h-[300px] overflow-auto">
+              {#each projects as project}
+                <button
+                  class="btn-sm btn-white-ghost w-full text-left {project.id === selectedProject?.id ? 'btn-green-dim' : ''}"
+                  onclick={() => selectProject(project)}
+                >
+                  <span class="truncate flex-1">{project.name}</span>
+                  <span class="text-[9px] text-white/30">{project.data?.state}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      <button onclick={() => (showEndpointsTable = true)} class="btn-white-ghost btn-sm">Endpoints</button>
+
+      {#if loggedIn}
+        <span class="text-[10px] text-green">{authEmail}</span>
+        <button onclick={logout} class="btn-red-ghost btn-sm">logout</button>
+      {:else}
+        <button onclick={() => (showLoginPopup = true)} class="btn-green-dim btn-sm">Login</button>
+      {/if}
+    </div>
+
+    <!-- Endpoints Table Popup -->
+    {#if showEndpointsTable}
+      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onclick={() => (showEndpointsTable = false)}>
+        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+        <div class="bg-surface border border-white/10 rounded-lg p-16 w-[500px] max-h-[80vh] flex flex-col gap-12" onclick={(e) => e.stopPropagation()}>
+          <div class="flex items-center justify-between">
+            <div class="text-[11px] text-white/40 uppercase tracking-wider">{appType} endpoints</div>
+            <button onclick={() => (showEndpointsTable = false)} class="btn-white-ghost btn-sm">Close</button>
+          </div>
+          <div class="overflow-auto">
+            <table class="w-full text-[12px]">
+              <thead>
+                <tr class="border-b border-white/10 text-left text-[10px] text-white/40 uppercase tracking-wider">
+                  <th class="py-6 pr-12">Method</th>
+                  <th class="py-6">Path</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each ENDPOINTS as endpoint}
+                  <tr class="border-b border-white/[0.03] hover:bg-white/5 cursor-pointer" onclick={() => { selectEndpoint(endpoint); showEndpointsTable = false; }}>
+                    <td class="py-4 pr-12 {getMethodColor(endpoint.method)} font-semibold">{endpoint.method}</td>
+                    <td class="py-4 text-white/70">{endpoint.path}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Login / Project Popup -->
+    {#if showLoginPopup}
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div class="bg-surface border border-white/10 rounded-lg p-24 w-[400px] flex flex-col gap-12">
           {#if !loggedIn}
+            <div class="text-[11px] text-white/40 uppercase tracking-wider">Connect to Launcher</div>
+            <input
+              type="text"
+              bind:value={launcherUrl}
+              placeholder="http://127.0.0.1:8090"
+              class="input-variant-1 h-24"
+            />
             <input
               type="text"
               bind:value={authEmail}
@@ -236,28 +385,57 @@
               placeholder="Password"
               class="input-variant-1 h-24"
             />
-            <button
-              onclick={doLogin}
-              disabled={authLoading}
-              class="btn-green-dim btn-sm {authLoading ? 'cursor-not-allowed opacity-50' : ''}"
-            >
-              {authLoading ? "..." : "Login"}
-            </button>
             {#if authError}
               <div class="text-[10px] text-coral">{authError}</div>
             {/if}
+            <div class="flex gap-8 mt-4">
+              <button
+                onclick={doLogin}
+                disabled={authLoading}
+                class="btn-green flex-1 {authLoading ? 'cursor-not-allowed opacity-50' : ''}"
+              >
+                {authLoading ? "..." : "Login"}
+              </button>
+              <button onclick={() => (showLoginPopup = false)} class="btn-white-ghost">
+                Cancel
+              </button>
+            </div>
           {:else}
             <div class="flex items-center justify-between">
-              <span class="text-[10px] text-green">{authEmail}</span>
-              <button
-                onclick={logout}
-                class="btn-red-ghost btn-sm"
-                >logout</button
-              >
+              <div class="text-[11px] text-white/40 uppercase tracking-wider">Select a Project</div>
+              <button class="btn-green-dim btn-sm" onclick={loadProjects} disabled={projectsLoading}>
+                {projectsLoading ? "..." : "Refresh"}
+              </button>
             </div>
+            {#if projectsLoading}
+              <div class="text-green text-[13px] animate-pulse py-12 text-center">Loading projects...</div>
+            {:else if projects.length === 0}
+              <div class="text-white/30 text-[12px] py-12 text-center">No projects found</div>
+            {:else}
+              <div class="flex flex-col gap-4 max-h-[300px] overflow-auto">
+                {#each projects as project}
+                  <button
+                    class="btn-white-ghost w-full text-left p-12 rounded border border-white/5 hover:border-white/15"
+                    onclick={() => {
+                      selectProject(project);
+                      showLoginPopup = false;
+                    }}
+                  >
+                    <div class="text-[13px] text-white/80">{project.name}</div>
+                    <div class="text-[10px] text-white/30 mt-2">{project.data?.ip} &middot; {project.data?.state}</div>
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            <button onclick={() => (showLoginPopup = false)} class="btn-white-ghost btn-sm self-end">
+              Close
+            </button>
           {/if}
         </div>
       </div>
+    {/if}
+
+    {#if selectedEndpoint}
       <!-- Request / Response Split -->
       <div class="flex-1 overflow-hidden">
         <Splitpanes>

@@ -1067,7 +1067,7 @@ export const proxy_api = [
 	{
 		id: 'proxy',
 		name: 'List Proxies',
-		method: 'POST',
+		method: 'GET',
 		path: '/api/proxy/list',
 		description: 'List all running proxy instances (requires auth)',
 		category: '/api/proxy',
