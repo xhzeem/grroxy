@@ -27,7 +27,7 @@
     }}
   >
     <div
-      class="mb-4 px-28 gap-8 flex flex-row items-center text-xs font-OCR text-stone uppercase tracking-[2px]"
+      class="mb-4 px-24 gap-8 flex flex-row items-center text-xs font-OCR text-stone uppercase tracking-[2px]"
     >
       {#each cattegoriesparts as part, index}
         <div class="p-4 text-xs font-normal text-stone font-OCR">
@@ -40,7 +40,7 @@
     </div>
     <div class="flex flex-col gap-4">
       {#each endpoints as endpoint, index}
-        {@const selected = selectedEndpoint?.id === endpoint.id}
+        {@const selected = selectedEndpoint === endpoint}
         {@const cropped = endpoint.path.startsWith(categoryName)
           ? endpoint.path.slice(categoryName.length)
           : endpoint.path}
@@ -48,7 +48,7 @@
         <div
           role="button"
           tabindex="0"
-          class="flex text-xs tracking-[2px] uppercase text-white/90 font-OCR flex-row font-normal hover:text-white group items-center gap-4 transition-all duration-200 origin-left cursor-pointer
+          class="flex text-[8px] tracking-[2px] uppercase text-white/70 font-OCR flex-row font-normal hover:text-white group items-center gap-4 transition-all duration-200 origin-left cursor-pointer
 						{selected ? 'text-white' : ''}"
           onmouseenter={() => {
             hoverItem = index;

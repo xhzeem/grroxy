@@ -2,14 +2,19 @@
   import Logo from "$lib/Logo.svelte";
   import SidebarCategory from "$lib/SidebarCategory.svelte";
   import {
-    ENDPOINTS,
-    API_CATEGORIES,
+    APP_ENDPOINTS,
+    getEndpoints,
+    getCategories,
     sendRequest,
     login,
+    type AppType,
     type ApiEndpoint,
     type ApiResponse,
   } from "$lib/api";
 
+  let appType = $state<AppType>("app");
+  let ENDPOINTS = $derived(getEndpoints(appType));
+  let API_CATEGORIES = $derived(getCategories(ENDPOINTS));
   let baseUrl = $state("http://127.0.0.1:8090");
   let authToken = $state("");
   let authEmail = $state("new@example.com");
@@ -113,16 +118,19 @@
   }
 
   const multiCategories = $derived(
-    API_CATEGORIES.filter((c) => ENDPOINTS.filter((e) => e.category === c).length > 1)
+    API_CATEGORIES.filter(
+      (c) => ENDPOINTS.filter((e) => e.category === c).length > 1,
+    ),
   );
   const singleEndpoints = $derived(
-    ENDPOINTS.filter((e) => ENDPOINTS.filter((x) => x.category === e.category).length === 1)
-      .sort((a, b) => {
-        const aApi = a.path.startsWith('/api/') ? 1 : 0;
-        const bApi = b.path.startsWith('/api/') ? 1 : 0;
-        if (aApi !== bApi) return aApi - bApi;
-        return a.path.localeCompare(b.path);
-      })
+    ENDPOINTS.filter(
+      (e) => ENDPOINTS.filter((x) => x.category === e.category).length === 1,
+    ).sort((a, b) => {
+      const aApi = a.path.startsWith("/api/") ? 1 : 0;
+      const bApi = b.path.startsWith("/api/") ? 1 : 0;
+      if (aApi !== bApi) return aApi - bApi;
+      return a.path.localeCompare(b.path);
+    }),
   );
 
   $effect(() => {
@@ -132,65 +140,89 @@
   });
 </script>
 
+<div
+  class="bottom-16 left-1/2 -translate-x-1/2 absolute w-[600px] flex gap-8 bg-surface rounded"
+>
+  <div class=" flex gap-4 p-4 rounded">
+    {#each ["app", "launcher", "tool"] as type}
+      <button
+        onclick={() => {
+          appType = type as AppType;
+          selectedEndpoint = null;
+        }}
+        class="flex-1 py-4 rounded text-[10px] font-OCR uppercase tracking-[1px] transition-colors px-8
+              {appType === type
+          ? 'bg-green/20 text-green'
+          : 'bg-white/5 text-white/30 hover:text-white/60'}"
+      >
+        {type}
+      </button>
+    {/each}
+  </div>
+
+  <div class=" flex gap-6">
+    <input
+      type="text"
+      bind:value={baseUrl}
+      placeholder="http://127.0.0.1:8090"
+      class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
+    />
+    {#if !loggedIn}
+      <input
+        type="text"
+        bind:value={authEmail}
+        placeholder="Email"
+        class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
+      />
+      <input
+        type="password"
+        bind:value={authPassword}
+        placeholder="Password"
+        class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
+      />
+      <button
+        onclick={doLogin}
+        disabled={authLoading}
+        class="mt-4 w-full py-6 rounded text-[11px] font-OCR uppercase tracking-[2px] transition-colors
+              {authLoading
+          ? 'bg-white/5 text-white/30 cursor-not-allowed'
+          : 'bg-green/20 text-green hover:bg-green/30'}"
+      >
+        {authLoading ? "..." : "Login"}
+      </button>
+      {#if authError}
+        <div class="text-[10px] text-coral">{authError}</div>
+      {/if}
+    {:else}
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] text-green">{authEmail}</span>
+        <button
+          onclick={logout}
+          class="text-[10px] text-coral/60 hover:text-coral">logout</button
+        >
+      </div>
+    {/if}
+  </div>
+</div>
+
 <div class="flex h-screen overflow-hidden">
   <!-- Sidebar -->
   <nav
     class="flex h-full w-[280px] min-w-[280px] flex-col bg-dark border-r border-white/5"
   >
     <!-- Logo + Config -->
-    <div class="p-24">
+    <div class="p-24 pb-8 relative">
       <Logo class="w-[80px]" />
-      <div class="mt-12 text-[10px] font-OCR uppercase text-white/40 tracking-[2px]">
+      <div
+        class="mt-12 text-[10px] font-OCR uppercase text-white/40 tracking-[2px]"
+      >
         DEV MODE
       </div>
-
-      <div class="mt-16 flex flex-col gap-6">
-        <input
-          type="text"
-          bind:value={baseUrl}
-          placeholder="http://127.0.0.1:8090"
-          class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
-        />
-        {#if !loggedIn}
-          <input
-            type="text"
-            bind:value={authEmail}
-            placeholder="Email"
-            class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
-          />
-          <input
-            type="password"
-            bind:value={authPassword}
-            placeholder="Password"
-            class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
-          />
-          <button
-            onclick={doLogin}
-            disabled={authLoading}
-            class="mt-4 w-full py-6 rounded text-[11px] font-OCR uppercase tracking-[2px] transition-colors
-              {authLoading
-                ? 'bg-white/5 text-white/30 cursor-not-allowed'
-                : 'bg-green/20 text-green hover:bg-green/30'}"
-          >
-            {authLoading ? "..." : "Login"}
-          </button>
-          {#if authError}
-            <div class="text-[10px] text-coral">{authError}</div>
-          {/if}
-        {:else}
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] text-green">{authEmail}</span>
-            <button
-              onclick={logout}
-              class="text-[10px] text-coral/60 hover:text-coral"
-            >logout</button>
-          </div>
-        {/if}
-      </div>
+      <div class="h-24 bg-gradient-to-b from-dark via-50% w-full absolute bottom-0 -mb-24"></div>
     </div>
 
     <!-- API Endpoints grouped by category -->
-    <section class="flex flex-grow flex-col overflow-auto">
+    <section class="flex flex-grow flex-col pt-16 overflow-auto">
       {#if singleEndpoints.length > 0}
         <SidebarCategory
           categoryName="/api"
@@ -329,7 +361,7 @@
                   : JSON.stringify(response.body, null, 2)}</pre>
             {:else if !loading}
               <div
-                class="flex items-center justify-center h-full text-white/20 text-[13px]"
+                class="flex bg-surface items-center justify-center h-full text-white/20 text-[13px]"
               >
                 Click Send to make a request
               </div>
