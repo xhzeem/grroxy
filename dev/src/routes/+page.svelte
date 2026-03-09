@@ -274,7 +274,7 @@
   <!-- Main Content -->
   <div class="h-full flex flex-col overflow-hidden bg-dark">
     <!-- Top Bar -->
-    <div class="flex items-center gap-8 p-8 border-b border-white/5">
+    <div class="flex items-center gap-8 pl-0 p-16 border-b border-white/5">
       <!-- App Type Tabs -->
       <div class="flex gap-4">
         {#each ["launcher", "app", "tool"] as type}
@@ -334,7 +334,7 @@
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
       <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onclick={() => (showEndpointsTable = false)}>
         <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-        <div class="bg-surface border border-white/10 rounded-lg p-16 w-[500px] max-h-[80vh] flex flex-col gap-12" onclick={(e) => e.stopPropagation()}>
+        <div class="bg-surface border border-white/10 rounded-lg p-16 w-[700px] max-h-[80vh] flex flex-col gap-12" onclick={(e) => e.stopPropagation()}>
           <div class="flex items-center justify-between">
             <div class="text-[11px] text-white/40 uppercase tracking-wider">{appType} endpoints</div>
             <button onclick={() => (showEndpointsTable = false)} class="btn-white-ghost btn-sm">Close</button>
@@ -344,14 +344,16 @@
               <thead>
                 <tr class="border-b border-white/10 text-left text-[10px] text-white/40 uppercase tracking-wider">
                   <th class="py-6 pr-12">Method</th>
-                  <th class="py-6">Path</th>
+                  <th class="py-6 pr-12">Path</th>
+                  <th class="py-6">Description</th>
                 </tr>
               </thead>
               <tbody>
                 {#each ENDPOINTS as endpoint}
                   <tr class="border-b border-white/[0.03] hover:bg-white/5 cursor-pointer" onclick={() => { selectEndpoint(endpoint); showEndpointsTable = false; }}>
                     <td class="py-4 pr-12 {getMethodColor(endpoint.method)} font-semibold">{endpoint.method}</td>
-                    <td class="py-4 text-white/70">{endpoint.path}</td>
+                    <td class="py-4 pr-12 text-white/70">{endpoint.path}</td>
+                    <td class="py-4 text-white/30">{endpoint.description}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -436,154 +438,185 @@
     {/if}
 
     {#if selectedEndpoint}
-      <!-- Request / Response Split -->
       <div class="flex-1 overflow-hidden">
-        <Splitpanes>
-        <Pane size={50}>
-        <!-- Request Panel -->
-        <div
-          class="h-full bg-surface rounded flex flex-col overflow-hidden"
-        >
-          <div class="p-12 border-b border-white/5">
-            <div class="flex relative items-center gap-8">
-              <div
-                class="absolute px-12  {getMethodColor(selectedEndpoint.method)}  text-sm font-semi-bold tracking-widest"
-              >
-                {selectedEndpoint.method}
-              </div>
-              <input
-                type="text"
-                bind:value={requestPath}
-                class="input-variant-1 h-24 pl-64 flex-1"
-              />
-              <button
-                onclick={send}
-                disabled={loading}
-                class="btn-green btn-sm {loading ? 'cursor-not-allowed opacity-50' : ''}"
-              >
-                {loading ? "..." : "Send"}
-              </button>
-            </div>
-            <p class="text-[11px] text-white/30 mt-6">
-              {selectedEndpoint.description}
-            </p>
-          </div>
-
-          {#if selectedEndpoint.method !== "GET" || selectedEndpoint.defaultBody}
-            <div class="flex-1 flex flex-col overflow-hidden">
-              <div
-                class="px-12 py-6 text-[10px] text-white/20 uppercase tracking-wider"
-              >
-                Body
-              </div>
-              <div class="flex-1 overflow-hidden">
-                <CodeEditor bind:value={requestBody} placeholder={"{ }"} />
-              </div>
-            </div>
-          {/if}
-        </div>
-
-        </Pane>
-
-        <Pane size={50}>
-        <!-- Response Panel -->
-        <div class="h-full flex flex-col bg-surface rounded overflow-hidden">
+        <Splitpanes horizontal>
+        <!-- Editors -->
+        <Pane size={history.length > 0 ? 75 : 100} minSize={40}>
+        <div class="h-full overflow-hidden">
+          <Splitpanes>
+          <Pane size={50}>
+          <!-- Request Panel -->
           <div
-            class="px-12 py-8 border-b border-white/5 flex items-center justify-between"
+            class="h-full bg-surface rounded flex flex-col overflow-hidden"
           >
-            <span class="text-[10px] text-white/20 uppercase tracking-wider"
-              >Response</span
-            >
-            {#if response}
-              <div class="flex items-center gap-12 text-[12px]">
-                <span class="{getStatusColor(response.status)} ">
-                  {response.status}
-                  {response.statusText}
-                </span>
-                <span class="text-white/30">{response.time}ms</span>
-              </div>
-            {/if}
-          </div>
-
-          <div class="flex-1 overflow-auto">
-            {#if error}
-              <div class="p-12">
+            <div class="p-12 border-b border-white/5">
+              <div class="flex relative items-center gap-8">
                 <div
-                  class="bg-red/10 border border-red/20 rounded p-12 text-coral text-[12px]"
+                  class="absolute px-12  {getMethodColor(selectedEndpoint.method)}  text-sm font-semi-bold tracking-widest"
                 >
-                  {error}
+                  {selectedEndpoint.method}
                 </div>
-              </div>
-            {:else if response}
-              <details class="border-b border-white/5">
-                <summary
-                  class="px-12 py-6 text-[11px] text-white/30 cursor-pointer hover:text-white/60"
-                >
-                  Headers ({Object.keys(response.headers).length})
-                </summary>
-                <div class="px-12 pb-8">
-                  {#each Object.entries(response.headers) as [key, value]}
-                    <div class="text-[11px] py-2">
-                      <span class="text-whiskey">{key}:</span>
-                      <span class="text-white/60 ml-4">{value}</span>
-                    </div>
-                  {/each}
-                </div>
-              </details>
-
-              <div class="flex-1 overflow-hidden">
-                <CodeEditor
-                  value={typeof response.body === "string"
-                    ? response.body
-                    : JSON.stringify(response.body, null, 2)}
-                  readonly
+                <input
+                  type="text"
+                  bind:value={requestPath}
+                  class="input-variant-1 h-24 pl-64 flex-1"
                 />
+                <button
+                  onclick={send}
+                  disabled={loading}
+                  class="btn-green btn-sm {loading ? 'cursor-not-allowed opacity-50' : ''}"
+                >
+                  {loading ? "..." : "Send"}
+                </button>
               </div>
-            {:else if !loading}
-              <div
-                class="flex items-center justify-center h-full text-white/20 text-[13px]"
-              >
-                Click Send to make a request
-              </div>
-            {:else}
-              <div class="flex items-center justify-center h-full">
-                <div class="text-green text-[13px] animate-pulse">
-                  Sending...
+              <p class="text-[11px] text-white/30 mt-6">
+                {selectedEndpoint.description}
+              </p>
+            </div>
+
+            {#if selectedEndpoint.method !== "GET" || selectedEndpoint.defaultBody}
+              <div class="flex-1 flex flex-col overflow-hidden">
+                <div
+                  class="px-12 py-6 text-[10px] text-white/20 uppercase tracking-wider"
+                >
+                  Body
+                </div>
+                <div class="flex-1 overflow-hidden">
+                  <CodeEditor bind:value={requestBody} placeholder={"{ }"} />
                 </div>
               </div>
             {/if}
+
+            {#if selectedEndpoint.examples && selectedEndpoint.examples.length > 0}
+              <div class="px-12 py-8 border-t border-white/5 flex items-center gap-6 flex-wrap">
+                <span class="text-[10px] text-white/20 uppercase tracking-wider">Examples</span>
+                {#each selectedEndpoint.examples as example}
+                  <button
+                    class="btn-white-ghost btn-sm text-[10px]"
+                    onclick={() => {
+                      requestBody = JSON.stringify(example.request, null, 2);
+                    }}
+                  >
+                    {example.name}
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </div>
+
+          </Pane>
+
+          <Pane size={50}>
+          <!-- Response Panel -->
+          <div class="h-full flex flex-col bg-surface rounded overflow-hidden">
+            <div
+              class="px-12 py-8 border-b border-white/5 flex items-center justify-between"
+            >
+              <span class="text-[10px] text-white/20 uppercase tracking-wider"
+                >Response</span
+              >
+              {#if response}
+                <div class="flex items-center gap-12 text-[12px]">
+                  <span class="{getStatusColor(response.status)} ">
+                    {response.status}
+                    {response.statusText}
+                  </span>
+                  <span class="text-white/30">{response.time}ms</span>
+                </div>
+              {/if}
+            </div>
+
+            <div class="flex-1 overflow-auto">
+              {#if error}
+                <div class="p-12">
+                  <div
+                    class="bg-red/10 border border-red/20 rounded p-12 text-coral text-[12px]"
+                  >
+                    {error}
+                  </div>
+                </div>
+              {:else if response}
+                <details class="border-b border-white/5">
+                  <summary
+                    class="px-12 py-6 text-[11px] text-white/30 cursor-pointer hover:text-white/60"
+                  >
+                    Headers ({Object.keys(response.headers).length})
+                  </summary>
+                  <div class="px-12 pb-8">
+                    {#each Object.entries(response.headers) as [key, value]}
+                      <div class="text-[11px] py-2">
+                        <span class="text-whiskey">{key}:</span>
+                        <span class="text-white/60 ml-4">{value}</span>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+
+                <div class="flex-1 overflow-hidden">
+                  <CodeEditor
+                    value={typeof response.body === "string"
+                      ? response.body
+                      : JSON.stringify(response.body, null, 2)}
+                    readonly
+                  />
+                </div>
+              {:else if !loading}
+                <div
+                  class="flex items-center justify-center h-full text-white/20 text-[13px]"
+                >
+                  Click Send to make a request
+                </div>
+              {:else}
+                <div class="flex items-center justify-center h-full">
+                  <div class="text-green text-[13px] animate-pulse">
+                    Sending...
+                  </div>
+                </div>
+              {/if}
+            </div>
+          </div>
+          </Pane>
+          </Splitpanes>
         </div>
         </Pane>
-        </Splitpanes>
-      </div>
-    {/if}
 
-    <!-- History -->
-    {#if history.length > 0}
-      <div class="border-t border-white/5 max-h-[400px] overflow-y-auto">
-        {#each history as entry}
-          <button
-            class="btn-white-ghost btn-sm w-full text-left border-b border-white/[0.03]"
-            onclick={() => {
-              selectEndpoint(entry.endpoint);
-              requestPath = entry.path;
-              response = entry.response;
-            }}
-          >
-            <span class="{getMethodColor(entry.endpoint.method)}  w-36"
-              >{entry.endpoint.method}</span
-            >
-            <span class="text-white/60 truncate flex-1">{entry.path}</span>
-            <span class={getStatusColor(entry.response.status)}
-              >{entry.response.status}</span
-            >
-            <span class="text-white/20">{entry.response.time}ms</span>
-            <span class="text-white/[0.15]"
-              >{entry.timestamp.toLocaleTimeString()}</span
-            >
-          </button>
-        {/each}
+        <!-- History -->
+        {#if history.length > 0}
+          <Pane size={25} minSize={10} maxSize={50}>
+          <div class="h-full overflow-y-auto border-t border-white/5">
+            <div class="px-12 py-6 flex items-center justify-between border-b border-white/5">
+              <span class="text-[10px] text-white/20 uppercase tracking-wider">{history.length} requests</span>
+              <button
+                class="btn-red-ghost btn-sm"
+                onclick={() => (history = [])}>clear</button
+              >
+            </div>
+            {#each history as entry}
+              <button
+                class="btn-white-ghost btn-sm w-full text-left border-b border-white/[0.03]"
+                onclick={() => {
+                  selectEndpoint(entry.endpoint);
+                  requestPath = entry.path;
+                  response = entry.response;
+                }}
+              >
+                <span class="{getMethodColor(entry.endpoint.method)}  w-36"
+                  >{entry.endpoint.method}</span
+                >
+                <span class="text-white/60 truncate flex-1">{entry.path}</span>
+                <span class={getStatusColor(entry.response.status)}
+                  >{entry.response.status}</span
+                >
+                <span class="text-white/20">{entry.response.time}ms</span>
+                <span class="text-white/[0.15]"
+                  >{entry.timestamp.toLocaleTimeString()}</span
+                >
+              </button>
+            {/each}
+          </div>
+          </Pane>
+        {/if}
+        </Splitpanes>
       </div>
     {/if}
   </div>
