@@ -1,6 +1,7 @@
 <script lang="ts">
   import Logo from "$lib/Logo.svelte";
   import SidebarCategory from "$lib/SidebarCategory.svelte";
+  import CodeEditor from "$lib/CodeEditor.svelte";
   import {
     APP_ENDPOINTS,
     getEndpoints,
@@ -140,85 +141,22 @@
   });
 </script>
 
-<div
-  class="bottom-16 left-1/2 -translate-x-1/2 absolute w-[600px] flex gap-8 bg-surface rounded"
->
-  <div class=" flex gap-4 p-4 rounded">
-    {#each ["app", "launcher", "tool"] as type}
-      <button
-        onclick={() => {
-          appType = type as AppType;
-          selectedEndpoint = null;
-        }}
-        class="flex-1 py-4 rounded text-[10px] font-OCR uppercase tracking-[1px] transition-colors px-8
-              {appType === type
-          ? 'bg-green/20 text-green'
-          : 'bg-white/5 text-white/30 hover:text-white/60'}"
-      >
-        {type}
-      </button>
-    {/each}
-  </div>
-
-  <div class=" flex gap-6">
-    <input
-      type="text"
-      bind:value={baseUrl}
-      placeholder="http://127.0.0.1:8090"
-      class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
-    />
-    {#if !loggedIn}
-      <input
-        type="text"
-        bind:value={authEmail}
-        placeholder="Email"
-        class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
-      />
-      <input
-        type="password"
-        bind:value={authPassword}
-        placeholder="Password"
-        class="w-full bg-transparent border-b border-white/10 pb-4 text-[11px] text-white/80 focus:border-green focus:outline-none placeholder:text-white/20"
-      />
-      <button
-        onclick={doLogin}
-        disabled={authLoading}
-        class="mt-4 w-full py-6 rounded text-[11px] font-OCR uppercase tracking-[2px] transition-colors
-              {authLoading
-          ? 'bg-white/5 text-white/30 cursor-not-allowed'
-          : 'bg-green/20 text-green hover:bg-green/30'}"
-      >
-        {authLoading ? "..." : "Login"}
-      </button>
-      {#if authError}
-        <div class="text-[10px] text-coral">{authError}</div>
-      {/if}
-    {:else}
-      <div class="flex items-center justify-between">
-        <span class="text-[10px] text-green">{authEmail}</span>
-        <button
-          onclick={logout}
-          class="text-[10px] text-coral/60 hover:text-coral">logout</button
-        >
-      </div>
-    {/if}
-  </div>
-</div>
-
 <div class="flex h-screen overflow-hidden">
   <!-- Sidebar -->
   <nav
-    class="flex h-full w-[280px] min-w-[280px] flex-col bg-dark border-r border-white/5"
+    class="flex h-full w-[280px] overflow-hidden min-w-[280px] flex-col bg-dark border-r border-white/5"
   >
     <!-- Logo + Config -->
     <div class="p-24 pb-8 relative">
       <Logo class="w-[80px]" />
       <div
-        class="mt-12 text-[10px] font-OCR uppercase text-white/40 tracking-[2px]"
+        class="mt-4 text-[8px] font-OCR uppercase text-white/40 tracking-[2px]"
       >
         DEV MODE
       </div>
-      <div class="h-24 bg-gradient-to-b from-dark via-50% w-full absolute bottom-0 -mb-24"></div>
+      <div
+        class="h-24 bg-gradient-to-b from-dark via-50% w-full absolute bottom-0 -mb-24"
+      ></div>
     </div>
 
     <!-- API Endpoints grouped by category -->
@@ -248,7 +186,7 @@
       >
         <span>{history.length} requests</span>
         <button
-          class="text-coral/60 hover:text-coral"
+          class="btn-red-ghost btn-sm"
           onclick={() => (history = [])}>clear</button
         >
       </div>
@@ -258,11 +196,68 @@
   <!-- Main Content -->
   <div class="flex-1 flex flex-col overflow-hidden bg-dark">
     {#if selectedEndpoint}
+      <div class=" w-[600px] flex gap-8 shadow rounded">
+        <div class=" flex gap-4 p-4 rounded">
+          {#each ["app", "launcher", "tool"] as type}
+            <button
+              onclick={() => {
+                appType = type as AppType;
+                selectedEndpoint = null;
+              }}
+              class="btn-sm {appType === type ? 'btn-green-dim' : 'btn-white-ghost'}"
+            >
+              {type}
+            </button>
+          {/each}
+        </div>
+
+        <div class=" flex gap-6">
+          <input
+            type="text"
+            bind:value={baseUrl}
+            placeholder="http://127.0.0.1:8090"
+            class="input-variant-1"
+          />
+          {#if !loggedIn}
+            <input
+              type="text"
+              bind:value={authEmail}
+              placeholder="Email"
+              class="input-variant-1"
+            />
+            <input
+              type="password"
+              bind:value={authPassword}
+              placeholder="Password"
+              class="input-variant-1"
+            />
+            <button
+              onclick={doLogin}
+              disabled={authLoading}
+              class="btn-green-dim {authLoading ? 'cursor-not-allowed opacity-50' : ''}"
+            >
+              {authLoading ? "..." : "Login"}
+            </button>
+            {#if authError}
+              <div class="text-[10px] text-coral">{authError}</div>
+            {/if}
+          {:else}
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] text-green">{authEmail}</span>
+              <button
+                onclick={logout}
+                class="btn-red-ghost btn-sm"
+                >logout</button
+              >
+            </div>
+          {/if}
+        </div>
+      </div>
       <!-- Request / Response Split -->
       <div class="flex-1 flex overflow-hidden">
         <!-- Request Panel -->
         <div
-          class="w-1/2 flex flex-col border-r border-white/5 overflow-hidden"
+          class="w-1/2 bg-surface flex flex-col border-r border-white/5 overflow-hidden"
         >
           <div class="p-12 border-b border-white/5">
             <div class="flex items-center gap-8">
@@ -274,15 +269,12 @@
               <input
                 type="text"
                 bind:value={requestPath}
-                class="flex-1 bg-white/5 border border-white/10 rounded px-8 py-6 text-[12px] text-white focus:border-green focus:outline-none"
+                class="input-variant-1 flex-1"
               />
               <button
                 onclick={send}
                 disabled={loading}
-                class="px-16 py-6 rounded text-[12px] transition-colors
-									{loading
-                  ? 'bg-white/5 text-white/30 cursor-not-allowed'
-                  : 'bg-green text-dark hover:bg-green1'}"
+                class="btn-green {loading ? 'cursor-not-allowed opacity-50' : ''}"
               >
                 {loading ? "..." : "Send"}
               </button>
@@ -299,18 +291,15 @@
               >
                 Body
               </div>
-              <textarea
-                bind:value={requestBody}
-                placeholder={"{ }"}
-                spellcheck="false"
-                class="flex-1 bg-dark text-[12px] text-white/80 p-12 resize-none focus:outline-none border-none leading-relaxed"
-              ></textarea>
+              <div class="flex-1 overflow-hidden">
+                <CodeEditor bind:value={requestBody} placeholder={"{ }"} />
+              </div>
             </div>
           {/if}
         </div>
 
         <!-- Response Panel -->
-        <div class="w-1/2 flex flex-col overflow-hidden">
+        <div class="w-1/2 flex flex-col bg-surface overflow-hidden">
           <div
             class="px-12 py-8 border-b border-white/5 flex items-center justify-between"
           >
@@ -354,14 +343,17 @@
                 </div>
               </details>
 
-              <pre
-                class="p-12 text-[12px] text-white/80 leading-relaxed whitespace-pre-wrap break-words">{typeof response.body ===
-                "string"
-                  ? response.body
-                  : JSON.stringify(response.body, null, 2)}</pre>
+              <div class="flex-1 overflow-hidden">
+                <CodeEditor
+                  value={typeof response.body === "string"
+                    ? response.body
+                    : JSON.stringify(response.body, null, 2)}
+                  readonly
+                />
+              </div>
             {:else if !loading}
               <div
-                class="flex bg-surface items-center justify-center h-full text-white/20 text-[13px]"
+                class="flex items-center justify-center h-full text-white/20 text-[13px]"
               >
                 Click Send to make a request
               </div>
@@ -379,10 +371,10 @@
 
     <!-- History -->
     {#if history.length > 0}
-      <div class="border-t border-white/5 max-h-[140px] overflow-y-auto">
+      <div class="border-t border-white/5 max-h-[400px] overflow-y-auto">
         {#each history as entry}
           <button
-            class="w-full text-left px-12 py-4 text-[11px] hover:bg-white/5 flex items-center gap-8 border-b border-white/[0.03]"
+            class="btn-white-ghost btn-sm w-full text-left border-b border-white/[0.03]"
             onclick={() => {
               selectEndpoint(entry.endpoint);
               requestPath = entry.path;
